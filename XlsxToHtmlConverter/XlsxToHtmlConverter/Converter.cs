@@ -315,7 +315,7 @@ namespace XlsxToHtmlConverter
                                                         runStyle += $" font-family: {value};";
                                                     }
 
-                                                    cellValue += $"<p style=\"{runStyle}\">{run.Text}</p>";
+                                                    cellValue += $"<p style=\"display: inline; {runStyle}\">{run.Text}</p>";
                                                 }
                                                 else
                                                 {
@@ -462,7 +462,7 @@ namespace XlsxToHtmlConverter
                                                     }
                                                     if (cellFormat.Alignment.TextRotation != null)
                                                     {
-                                                        cellValue = $"<div style=\"width: min-content; transform: rotate(-{cellFormat.Alignment.TextRotation.Value}deg);\">" + cellValue + "</div>";
+                                                        cellValue = $"<div style=\"width: max-content; transform: rotate(-{cellFormat.Alignment.TextRotation.Value}deg);\">" + cellValue + "</div>";
                                                     }
                                                 }
                                             }
@@ -512,7 +512,7 @@ namespace XlsxToHtmlConverter
 
         table {{
             width: 100%;
-            table-layout：fixed;
+            table-layout: fixed;
             border-collapse: collapse;
         }}
 
@@ -534,8 +534,6 @@ namespace XlsxToHtmlConverter
     {1}
 </body>
 </html>", pageTitle, tableHtml);
-
-                        //File.WriteAllText("D:\\test.html", htmlString);
 
                         return htmlString;
                     }
