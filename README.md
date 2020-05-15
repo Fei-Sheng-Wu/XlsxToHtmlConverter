@@ -14,4 +14,4 @@ string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName);
 
 ## License
 
-This project has a [MIT License](https://github.com/Jet20070731/XlsxToHtmlConverter/blob/1.0.3/LICENSE.txt).
+This project is under the [MIT License](https://github.com/Jet20070731/XlsxToHtmlConverter/blob/1.0.3/LICENSE.txt).
