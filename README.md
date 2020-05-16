@@ -17,6 +17,26 @@ Only one line to convert xlsx file to html string.
 string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName);
 ```
 
+Or if xlsx file data is in the stream, convert the stream.
+
+```c#
+string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileStream);
+```
+
+You can even set your custom converter config.
+
+```c#
+XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
+{
+    PageTitle = "My Title",
+    PresetStyles = "body { background-color: skyblue; } table { width: 100%; }",
+    IsConvertStyles = true,
+    IsConvertSizes = false
+}
+
+string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName, config);
+```
+
 ## Commercial Samples
 
 #### Otpos PDF Editor
