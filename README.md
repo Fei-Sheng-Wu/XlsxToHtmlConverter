@@ -2,8 +2,6 @@
 
 A xlsx to html file converter. Support fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures. Support progress callback event. It uses .Net Core 3.0 as framework and only depends on the Open Xml SDK.
 
-[Click here to view the latest version](https://github.com/Jet20070731/XlsxToHtmlConverter/tree/1.0.3)
-
 ## Dependencies
 
 **.Net Core** >= 3.0  
