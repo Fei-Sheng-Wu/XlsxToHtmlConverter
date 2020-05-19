@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -11,6 +10,14 @@ namespace XlsxToHtmlConverter
 {
     internal class Constants
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Constants">Constants</see> class.
+        /// </summary>
+        protected Constants()
+        {
+            throw new NotImplementedException();
+        }
+
         #region Constant Fields
 
         internal const string Alphabet = "abcdefghijklmnopqrstuvwxyz";
@@ -24,8 +31,14 @@ namespace XlsxToHtmlConverter
         h5 {
             font-size: 20px;
             font-weight: bold;
+            font-family: monospace;
             text-align: center;
+            width: fit-content;
             margin: 10px auto;
+            border-bottom-width: 4px;
+            border-bottom-style: solid;
+            border-bottom-color: transparent;
+            padding-bottom: 3px;
         }
 
         table {
@@ -37,7 +50,7 @@ namespace XlsxToHtmlConverter
         td {
             text-align: left;
             vertical-align: bottom;
-            padding: 2px;
+            padding: 0px;
             color: black;
             background-color: transparent;
             border-width: 1px;
@@ -55,6 +68,9 @@ namespace XlsxToHtmlConverter
     /// </summary>
     public class Converter
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Converter">Converter</see> class.
+        /// </summary>
         protected Converter()
         {
             throw new NotImplementedException();
@@ -150,13 +166,49 @@ namespace XlsxToHtmlConverter
                 {
                     memoryStream.Write(byteArray, 0, byteArray.Length);
 
-                    htmlString = ConvertXlsx(memoryStream, Path.GetFileNameWithoutExtension(fileName));
+                    htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = Path.GetFileNameWithoutExtension(fileName) }, null);
                 }
 
                 return htmlString;
             }
-            catch
+            catch (Exception ex)
             {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
+                return Constants.ErrorMessage;
+            }
+        }
+
+        /// <summary>
+        /// Convert a local Xlsx file to Html string with progress callback event.
+        /// </summary>
+        /// <param name="fileName">The full path with file name of local Xlsx file.</param>
+        /// <param name="progressCallbackEvent">The progress callback event.</param>
+        /// <returns>The result Html string.</returns>
+        public static string ConvertXlsx(string fileName, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
+        {
+            try
+            {
+                byte[] byteArray = File.ReadAllBytes(fileName);
+                string htmlString = "";
+
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+                    memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                    htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = Path.GetFileNameWithoutExtension(fileName) }, progressCallbackEvent);
+                }
+
+                return htmlString;
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
                 return Constants.ErrorMessage;
             }
         }
@@ -178,13 +230,50 @@ namespace XlsxToHtmlConverter
                 {
                     memoryStream.Write(byteArray, 0, byteArray.Length);
 
-                    htmlString = ConvertXlsx(memoryStream, title);
+                    htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = title }, null);
                 }
 
                 return htmlString;
             }
-            catch
+            catch (Exception ex)
             {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
+                return Constants.ErrorMessage;
+            }
+        }
+
+        /// <summary>
+        /// Convert a local Xlsx file to Html string with specific Html page title and progress callback event.
+        /// </summary>
+        /// <param name="fileName">The full path with file name of local Xlsx file.</param>
+        /// <param name="title">The specific Html page title.</param>
+        /// <param name="progressCallbackEvent">The progress callback event.</param>
+        /// <returns>The result Html string.</returns>
+        public static string ConvertXlsx(string fileName, string title, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
+        {
+            try
+            {
+                byte[] byteArray = File.ReadAllBytes(fileName);
+                string htmlString = "";
+
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+                    memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                    htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = title }, progressCallbackEvent);
+                }
+
+                return htmlString;
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
                 return Constants.ErrorMessage;
             }
         }
@@ -206,14 +295,51 @@ namespace XlsxToHtmlConverter
                 {
                     memoryStream.Write(byteArray, 0, byteArray.Length);
 
-                    htmlString = ConvertXlsx(memoryStream, config);
+                    htmlString = ConvertXlsx(memoryStream, config, null);
                 }
 
                 return htmlString;
             }
-            catch
+            catch (Exception ex)
             {
-                return Constants.ErrorMessage;
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
+                return config.ErrorMessage;
+            }
+        }
+
+        /// <summary>
+        /// Convert a local Xlsx file to Html string with specific config and progress callback event.
+        /// </summary>
+        /// <param name="fileName">The full path with file name of local Xlsx file.</param>
+        /// <param name="config">The specific config.</param>
+        /// <param name="progressCallbackEvent">The progress callback event.</param>
+        /// <returns>The result Html string.</returns>
+        public static string ConvertXlsx(string fileName, ConverterConfig config, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
+        {
+            try
+            {
+                byte[] byteArray = File.ReadAllBytes(fileName);
+                string htmlString = "";
+
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+                    memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                    htmlString = ConvertXlsx(memoryStream, config, progressCallbackEvent);
+                }
+
+                return htmlString;
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
+                return config.ErrorMessage;
             }
         }
 
@@ -226,10 +352,36 @@ namespace XlsxToHtmlConverter
         {
             try
             {
-                return ConvertXlsx(stream, "Title");
+                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = "Title" }, null);
             }
-            catch
+            catch (Exception ex)
             {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
+                return Constants.ErrorMessage;
+            }
+        }
+
+        /// <summary>
+        /// Convert a stream Xlsx file to Html string with progress callback event.
+        /// </summary>
+        /// <param name="stream">The stream of stream Xlsx file.</param>
+        /// <param name="progressCallbackEvent">The progress callback event.</param>
+        /// <returns>The result Html string.</returns>
+        public static string ConvertXlsx(Stream stream, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
+        {
+            try
+            {
+                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = "Title" }, progressCallbackEvent);
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
                 return Constants.ErrorMessage;
             }
         }
@@ -244,10 +396,37 @@ namespace XlsxToHtmlConverter
         {
             try
             {
-                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = title });
+                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = title }, null);
             }
-            catch
+            catch (Exception ex)
             {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
+                return Constants.ErrorMessage;
+            }
+        }
+
+        /// <summary>
+        /// Convert a stream Xlsx file to Html string with specific Html page title and progress callback event.
+        /// </summary>
+        /// <param name="stream">The stream of stream Xlsx file.</param>
+        /// <param name="title">The specific Html page title.</param>
+        /// <param name="progressCallbackEvent">The progress callback event.</param>
+        /// <returns>The result Html string.</returns>
+        public static string ConvertXlsx(Stream stream, string title, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
+        {
+            try
+            {
+                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = title }, progressCallbackEvent);
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
                 return Constants.ErrorMessage;
             }
         }
@@ -262,25 +441,64 @@ namespace XlsxToHtmlConverter
         {
             try
             {
-                string htmlString = "";
+                return ConvertXlsx(stream, config, null);
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
+                return Constants.ErrorMessage;
+            }
+        }
+
+        /// <summary>
+        /// Convert a stream Xlsx file to Html string with specific config and progress callback event.
+        /// </summary>
+        /// <param name="stream">The stream of stream Xlsx file.</param>
+        /// <param name="config">The specific config.</param>
+        /// <param name="progressCallbackEvent">The progress callback event.</param>
+        /// <returns>The result Html string.</returns>
+        public static string ConvertXlsx(Stream stream, ConverterConfig config, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
+        {
+            try
+            {
+                string tableHtml = "";
 
                 using (SpreadsheetDocument doc = SpreadsheetDocument.Open(stream, true))
                 {
-                    string tableHtml = "";
-
                     WorkbookPart workbook = doc.WorkbookPart;
                     WorkbookStylesPart styles = workbook.WorkbookStylesPart;
-                    List<Sheet> sheets = workbook.Workbook.Descendants<Sheet>().ToList();
+                    IEnumerable<Sheet> sheets = workbook.Workbook.Descendants<Sheet>();
                     SharedStringTable sharedStringTable = workbook.GetPartsOfType<SharedStringTablePart>().FirstOrDefault().SharedStringTable;
 
-                    int currentSheet = 0;
+                    progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs() { CurrentSheet = 0, TotalSheets = sheets.Count() });
 
-                    foreach (WorksheetPart worksheet in workbook.WorksheetParts)
+                    List<uint> sheetIds = new List<uint>();
+
+                    foreach (Sheet currentSheet in sheets)
                     {
-                        tableHtml += $"\n{new string(' ', 4)}<h5>{sheets[currentSheet].Name}</h5>";
-                        tableHtml += $"\n{new string(' ', 4)}<table>";
+                        sheetIds.Add(currentSheet.SheetId != null ? currentSheet.SheetId.Value : 0);
+                    }
 
+                    foreach (uint sheetId in sheetIds)
+                    {
+                        Sheet currentSheet = sheets.FirstOrDefault(x => x.SheetId != null && x.SheetId.Value == sheetId);
+
+                        if (config.IsConvertHiddenSheet == false && currentSheet.State.Value != SheetStateValues.Visible)
+                        {
+                            continue;
+                        }
+
+                        WorksheetPart worksheet = (workbook.GetPartById(currentSheet.Id) as WorksheetPart) ?? default;
                         Worksheet sheet = worksheet.Worksheet;
+
+                        tableHtml += $"\n{new string(' ', 4)}<h5 {(sheet.SheetProperties != null && sheet.SheetProperties.TabColor != null ? "style=\"border-bottom-color: " + GetColorFromColorType(doc, sheet.SheetProperties.TabColor, System.Drawing.Color.Transparent) + ";\"" : "")}>{currentSheet.Name}</h5>";
+                        tableHtml += $"\n{new string(' ', 4)}<div style=\"position: relative;\">";
+                        tableHtml += $"\n{new string(' ', 8)}<table>";
+
+                        double defaultRowHeight = sheet.SheetFormatProperties != null && sheet.SheetFormatProperties.DefaultRowHeight != null ? sheet.SheetFormatProperties.DefaultRowHeight.Value / 0.75 : 20;
 
                         bool containsMergeCells = false;
 
@@ -313,7 +531,7 @@ namespace XlsxToHtmlConverter
                                 }
                             }
                         }
-                        List<Row> rows = sheet.Descendants<Row>().ToList();
+                        IEnumerable<Row> rows = sheet.Descendants<Row>();
 
                         uint totalRows = 0;
                         int totalColumn = 0;
@@ -350,10 +568,17 @@ namespace XlsxToHtmlConverter
                         uint lastRow = 0;
 
                         List<double> columnWidths = new List<double>();
+                        List<double> rowHeights = new List<double>();
+
                         for (uint i = 0; i < totalColumn; i++)
                         {
                             columnWidths.Add(Double.NaN);
                         }
+                        for (uint i = 0; i < totalRows; i++)
+                        {
+                            rowHeights.Add(defaultRowHeight);
+                        }
+
                         if (sheet.GetFirstChild<Columns>() is Columns columnsGroup)
                         {
                             foreach (Column column in columnsGroup.Descendants<Column>())
@@ -362,9 +587,9 @@ namespace XlsxToHtmlConverter
                                 {
                                     try
                                     {
-                                        if (column.CustomWidth == true && column.Width != null && column.Width.HasValue == true)
+                                        if (column.CustomWidth == true && column.Width != null)
                                         {
-                                            columnWidths[(int)i - 1] = CalculateColumnWidth(column.Width.Value);
+                                            columnWidths[(int)i - 1] = (column.Width.Value - 1) * 7 - 5 + 12;
                                         }
                                     }
                                     catch
@@ -381,28 +606,25 @@ namespace XlsxToHtmlConverter
                             {
                                 for (int i = 0; i < row.RowIndex.Value - lastRow - 1; i++)
                                 {
-                                    tableHtml += $"\n{new string(' ', 8)}<tr>";
+                                    tableHtml += $"\n{new string(' ', 12)}<tr>";
 
                                     for (int j = 0; j < totalColumn; j++)
                                     {
                                         double actualCellWidth = j >= columnWidths.Count ? Double.NaN : columnWidths[j];
-                                        tableHtml += $"\n{new string(' ', 12)}<td style=\"height: 20px; width: {(Double.IsNaN(actualCellWidth) ? "auto" : actualCellWidth + "px")};\"></td>";
+                                        tableHtml += $"\n{new string(' ', 16)}<td style=\"height: {defaultRowHeight}px; width: {(Double.IsNaN(actualCellWidth) ? "auto" : actualCellWidth + "px")};\"></td>";
                                     }
 
-                                    tableHtml += $"\n{new string(' ', 8)}</tr>";
+                                    tableHtml += $"\n{new string(' ', 12)}</tr>";
                                 }
                             }
 
                             currentColumn = 0;
 
-                            double rowHeight = 20;
+                            double rowHeight = row.CustomHeight != null && row.CustomHeight.Value == true && row.Height != null ? row.Height.Value / 0.75 : defaultRowHeight;
 
-                            if (row.CustomHeight != null && row.CustomHeight.Value == true && row.Height != null && row.Height.HasValue == true)
-                            {
-                                rowHeight = row.Height.Value / 0.75;
-                            }
+                            rowHeights[(int)row.RowIndex.Value - 1] = rowHeight;
 
-                            tableHtml += $"\n{new string(' ', 8)}<tr>";
+                            tableHtml += $"\n{new string(' ', 12)}<tr>";
 
                             List<Cell> cells = new List<Cell>(totalColumn);
 
@@ -446,24 +668,13 @@ namespace XlsxToHtmlConverter
                                                 columnSpanned = mergeCellInfo.ColumnSpanned;
                                                 rowSpanned = mergeCellInfo.RowSpanned;
 
+                                                if (columnSpanned > 1)
+                                                {
+                                                    actualCellWidth = Double.NaN;
+                                                }
                                                 if (rowSpanned > 1)
                                                 {
-                                                    actualCellHeight = 0;
-
-                                                    for (int i = 0; i < rowSpanned; i++)
-                                                    {
-                                                        int index = currentRow + i;
-                                                        double height = 20;
-
-                                                        if (rows[index].CustomHeight != null && rows[index].CustomHeight.Value == true && row.Height != null && row.Height.HasValue == true)
-                                                        {
-                                                            height = rows[index].Height.Value / 0.75;
-                                                        }
-
-                                                        actualCellHeight += height;
-                                                    }
-
-                                                    actualCellHeight -= rowSpanned - 1;
+                                                    actualCellHeight = Double.NaN;
                                                 }
 
                                                 break;
@@ -474,7 +685,7 @@ namespace XlsxToHtmlConverter
 
                                 string cellValue = "";
 
-                                if ((cell.DataType != null) && (cell.DataType == CellValues.SharedString))
+                                if ((cell.DataType != null) && (cell.DataType.Value == CellValues.SharedString))
                                 {
                                     int ssid = int.Parse(cell.CellValue.Text);
                                     SharedStringItem sharedString = (SharedStringItem)sharedStringTable.ChildElements[ssid];
@@ -587,9 +798,9 @@ namespace XlsxToHtmlConverter
                                                     advancedStyleHtml += $" background-color: {background};";
                                                 }
                                             }
-                                            catch (Exception ex)
+                                            catch
                                             {
-                                                System.Diagnostics.Debug.Write("Get fill style failed. Error: " + ex.Message);
+
                                             }
                                             try
                                             {
@@ -613,9 +824,9 @@ namespace XlsxToHtmlConverter
                                                     advancedStyleHtml += $" color: {fontColor}; font-size: {fontSize}px; font-family: {fontFamily}; font-weight: {(bold ? "bold" : "normal")}; font-style: {(italic ? "italic" : "normal")}; text-decoration: {(strike ? "line-through" : "none")}{underline};";
                                                 }
                                             }
-                                            catch (Exception ex)
+                                            catch
                                             {
-                                                System.Diagnostics.Debug.Write("Get font style failed. Error: " + ex.Message);
+
                                             }
                                             try
                                             {
@@ -656,9 +867,9 @@ namespace XlsxToHtmlConverter
                                                     advancedStyleHtml += $" border-width: {topWidth} {rightWidth} {bottomWidth} {leftWidth}; border-style: {topStyle} {rightStyle} {bottomStyle} {leftStyle}; border-color: {topColor} {rightColor} {bottomColor} {leftColor};";
                                                 }
                                             }
-                                            catch (Exception ex)
+                                            catch
                                             {
-                                                System.Diagnostics.Debug.Write("Get font style failed. Error: " + ex.Message);
+
                                             }
                                             try
                                             {
@@ -697,49 +908,141 @@ namespace XlsxToHtmlConverter
                                                     }
                                                     if (cellFormat.Alignment.TextRotation != null)
                                                     {
-                                                        cellValue = $"<div style=\"width: max-content; transform: rotate(-{cellFormat.Alignment.TextRotation.Value}deg);\">" + cellValue + "</div>";
+                                                        cellValue = $"<div style=\"width: fit-content; transform: rotate(-{cellFormat.Alignment.TextRotation.Value}deg);\">" + cellValue + "</div>";
                                                     }
                                                 }
                                             }
-                                            catch (Exception ex)
+                                            catch
                                             {
-                                                System.Diagnostics.Debug.Write("Get alignment style failed. Error: " + ex.Message);
+
                                             }
                                         }
                                     }
                                 }
 
-                                tableHtml += $"\n{new string(' ', 12)}<td colspan=\"{columnSpanned}\" rowspan=\"{rowSpanned}\" style=\"height: {(Double.IsNaN(actualCellHeight) ? "auto" : actualCellHeight + "px")}; width: {(Double.IsNaN(actualCellWidth) ? "auto" : actualCellWidth + "px")};{advancedStyleHtml}\">{cellValue}</td>";
+                                tableHtml += $"\n{new string(' ', 16)}<td colspan=\"{columnSpanned}\" rowspan=\"{rowSpanned}\" style=\"height: {(Double.IsNaN(actualCellHeight) ? "auto" : actualCellHeight + "px")}; width: {(Double.IsNaN(actualCellWidth) ? "auto" : actualCellWidth + "px")};{advancedStyleHtml}\">{cellValue}</td>";
 
                                 currentColumn += addedColumnNumber;
                             }
 
-                            tableHtml += $"\n{new string(' ', 8)}</tr>";
+                            tableHtml += $"\n{new string(' ', 12)}</tr>";
 
                             currentRow++;
                             lastRow = row.RowIndex.Value;
                         }
 
-                        if (worksheet.DrawingsPart is DrawingsPart drawingsPart)
+                        tableHtml += $"\n{new string(' ', 8)}</table>";
+
+                        if (config.IsConvertPicture == true)
                         {
-                            //TODO - Charts
-                            //-----------------------------------
-                            //foreach (ChartPart chartPart in drawingsPart.ChartParts)
-                            //{
-                            //    if (chartPart.ChartSpace is ChartSpace chartSpace)
-                            //    {
-                            //        IEnumerable<Chart> charts = chartSpace.ChildElements.OfType<Chart>();
-                            //    }
-                            //}
-                            //-----------------------------------
+                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheet.DrawingsPart.WorksheetDrawing.OfType<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
+                            {
+                                try
+                                {
+                                    double left;
+                                    double top;
+                                    double width;
+                                    double height;
+                                    string alt;
+
+                                    DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture = absoluteAnchor.GetFirstChild<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>();
+
+                                    if (absoluteAnchor != null)
+                                    {
+                                        left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null ? (double)absoluteAnchor.Position.X.Value / 2 * 96 / 72 : Double.NaN;
+                                        top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null ? (double)absoluteAnchor.Position.Y.Value / 2 * 96 / 72 : Double.NaN;
+                                        width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null ? (double)absoluteAnchor.Extent.Cx.Value / 914400 * 96 : Double.NaN;
+                                        height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null == false ? (double)absoluteAnchor.Extent.Cy.Value / 914400 * 96 : Double.NaN;
+                                        alt = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null ? picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value : "Image";
+                                    }
+                                    else
+                                    {
+                                        left = Double.NaN;
+                                        top = Double.NaN;
+                                        width = Double.NaN;
+                                        height = Double.NaN;
+                                        alt = "Image";
+                                    }
+
+                                    ImagePart imagePart = worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) as ImagePart;
+
+                                    string base64;
+
+                                    Stream imageStream = imagePart.GetStream();
+                                    imageStream.Seek(0, SeekOrigin.Begin);
+
+                                    byte[] datas = new byte[imageStream.Length];
+
+                                    imageStream.Read(datas);
+
+                                    base64 = Convert.ToBase64String(datas, Base64FormattingOptions.None);
+
+                                    tableHtml += $"\n{new string(' ', 8)}<img alt=\"{alt}\" src=\"data:{imagePart.ContentType};base64,{base64}\" style=\"position: absolute; left: {(Double.IsNaN(left) == false ? left + "px" : "0px")}; top: {(Double.IsNaN(top) == false ? top + "px" : "0px")}; width: {(Double.IsNaN(width) == false ? width + "px" : "auto")}; height: {(Double.IsNaN(height) == false ? height + "px" : "auto")};\"/>";
+                                }
+                                catch
+                                {
+                                    continue;
+                                }
+                            }
+
+                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.OfType<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
+                            {
+                                try
+                                {
+                                    double left;
+                                    double top;
+                                    double width;
+                                    double height;
+                                    string alt;
+
+                                    DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture = oneCellAnchor.GetFirstChild<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>();
+
+                                    if (oneCellAnchor != null)
+                                    {
+                                        left = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && oneCellAnchor.FromMarker.ColumnOffset != null ? columnWidths.Take(Int32.Parse(oneCellAnchor.FromMarker.ColumnId.Text)).Sum() + Int32.Parse(oneCellAnchor.FromMarker.ColumnId.Text) + (Double.Parse(oneCellAnchor.FromMarker.ColumnOffset.Text) / 914400 * 96) : Double.NaN;
+                                        top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && oneCellAnchor.FromMarker.RowOffset != null ? rowHeights.Take(Int32.Parse(oneCellAnchor.FromMarker.RowId.Text)).Sum() + Int32.Parse(oneCellAnchor.FromMarker.RowId.Text) + (Double.Parse(oneCellAnchor.FromMarker.RowOffset.Text) / 914400 * 96) : Double.NaN;
+                                        width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null ? (double)oneCellAnchor.Extent.Cx.Value / 914400 * 96 : Double.NaN;
+                                        height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null == false ? (double)oneCellAnchor.Extent.Cy.Value / 914400 * 96 : Double.NaN;
+                                        alt = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null ? picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value : "Image";
+                                    }
+                                    else
+                                    {
+                                        left = Double.NaN;
+                                        top = Double.NaN;
+                                        width = Double.NaN;
+                                        height = Double.NaN;
+                                        alt = "Image";
+                                    }
+
+                                    ImagePart imagePart = worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) as ImagePart;
+
+                                    string base64;
+
+                                    Stream imageStream = imagePart.GetStream();
+                                    imageStream.Seek(0, SeekOrigin.Begin);
+
+                                    byte[] datas = new byte[imageStream.Length];
+
+                                    imageStream.Read(datas);
+
+                                    base64 = Convert.ToBase64String(datas, Base64FormattingOptions.None);
+
+                                    tableHtml += $"\n{new string(' ', 8)}<img alt=\"{alt}\" src=\"data:{imagePart.ContentType};base64,{base64}\" style=\"position: absolute; left: {(Double.IsNaN(left) == false ? left + "px" : "0px")}; top: {(Double.IsNaN(top) == false ? top + "px" : "0px")}; width: {(Double.IsNaN(width) == false ? width + "px" : "auto")}; height: {(Double.IsNaN(height) == false ? height + "px" : "auto")};\"/>";
+                                }
+                                catch
+                                {
+                                    continue;
+                                }
+                            }
                         }
 
-                        tableHtml += $"\n{new string(' ', 4)}</table>";
+                        tableHtml += $"\n{new string(' ', 4)}</div>";
 
-                        currentSheet++;
+                        progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs() { CurrentSheet = sheets.TakeWhile(x => x != currentSheet).Count() + 1, TotalSheets = sheets.Count() });
                     }
+                }
 
-                    htmlString = String.Format(@"<!DOCTYPE html>
+                return String.Format(@"<!DOCTYPE html>
 <html lang=""en"">
 
 <head>
@@ -754,13 +1057,14 @@ namespace XlsxToHtmlConverter
     {2}
 </body>
 </html>", config.PageTitle, config.PresetStyles, tableHtml);
-                }
-
-                return htmlString;
             }
-            catch
+            catch (Exception ex)
             {
-                return Constants.ErrorMessage;
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
+#endif
+
+                return config.ErrorMessage;
             }
         }
 
@@ -770,16 +1074,16 @@ namespace XlsxToHtmlConverter
 
         private static string GetColumnName(string cellName)
         {
-            Regex regex = new Regex("[A-Za-z]+");
-            Match match = regex.Match(cellName);
+            System.Text.RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex("[A-Za-z]+");
+            System.Text.RegularExpressions.Match match = regex.Match(cellName);
 
             return match.Value;
         }
 
         private static uint GetRowIndex(string cellName)
         {
-            Regex regex = new Regex(@"\d+");
-            Match match = regex.Match(cellName);
+            System.Text.RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex(@"\d+");
+            System.Text.RegularExpressions.Match match = regex.Match(cellName);
 
             return uint.Parse(match.Value);
         }
@@ -850,11 +1154,6 @@ namespace XlsxToHtmlConverter
             }
 
             color = border.Color != null ? GetColorFromColorType(doc, border.Color, System.Drawing.Color.LightGray) : "lightgray";
-        }
-
-        private static double CalculateColumnWidth(double textLength)
-        {
-            return (textLength - 1) * 7 - 5 + 12;
         }
 
         private static string GetColorFromColorType(SpreadsheetDocument doc, ColorType type, System.Drawing.Color defaultColor)
@@ -1160,7 +1459,7 @@ namespace XlsxToHtmlConverter
                     {
                         RgbToHls(rgbColor.R, rgbColor.G, rgbColor.B, out double h, out double l, out double s);
 
-                        l *= (1.0 + tint);
+                        l *= 1.0 + tint;
 
                         HlsToRgb(h, l, s, out int r, out int g, out int b);
 
@@ -1194,7 +1493,14 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.Write("Get color tint failed. Error: " + ex.Message);
             }
 
-            return $"rgb({rgbColor.R}, {rgbColor.G}, {rgbColor.B})";
+            if (rgbColor.A == 255)
+            {
+                return $"rgb({rgbColor.R}, {rgbColor.G}, {rgbColor.B})";
+            }
+            else
+            {
+                return $"rgba({rgbColor.R}, {rgbColor.G}, {rgbColor.B}, {rgbColor.A / 255})";
+            }
         }
 
         private static void RgbToHls(int r, int g, int b, out double h, out double l, out double s)
@@ -1353,8 +1659,11 @@ namespace XlsxToHtmlConverter
         {
             this.PageTitle = "Title";
             this.PresetStyles = Constants.PresetStyles;
+            this.ErrorMessage = Constants.ErrorMessage;
             this.IsConvertStyle = true;
             this.IsConvertSize = true;
+            this.IsConvertPicture = true;
+            this.IsConvertHiddenSheet = false;
         }
 
         #region Public Fields
@@ -1370,6 +1679,11 @@ namespace XlsxToHtmlConverter
         public string PresetStyles { get; set; }
 
         /// <summary>
+        /// Gets or sets the error message that will show when convert failed.
+        /// </summary>
+        public string ErrorMessage { get; set; }
+
+        /// <summary>
         /// Gets or sets convert Xlsx styles into Html styles or not.
         /// </summary>
         public bool IsConvertStyle { get; set; }
@@ -1380,15 +1694,74 @@ namespace XlsxToHtmlConverter
         public bool IsConvertSize { get; set; }
 
         /// <summary>
+        /// Gets or sets convert Xlsx picture into Html picture or not.
+        /// </summary>
+        public bool IsConvertPicture { get; set; }
+
+        /// <summary>
+        /// Gets or sets convert Xlsx hidden sheets or not.
+        /// </summary>
+        public bool IsConvertHiddenSheet { get; set; }
+
+        /// <summary>
         /// Gets a new instance of <see cref="ConverterConfig">ConverterConfig</see> with default settings.
         /// </summary>
-        public static ConverterConfig DefaultSettings { get; } = new ConverterConfig()
+        public static ConverterConfig DefaultSettings
         {
-            PageTitle = "Title",
-            PresetStyles = Constants.PresetStyles,
-            IsConvertStyle = true,
-            IsConvertSize = true
-        };
+            get
+            {
+                return new ConverterConfig()
+                {
+                    PageTitle = "Title",
+                    PresetStyles = Constants.PresetStyles,
+                    ErrorMessage = Constants.ErrorMessage,
+                    IsConvertStyle = true,
+                    IsConvertSize = true,
+                    IsConvertPicture = true,
+                    IsConvertHiddenSheet = false
+                };
+            }
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// Defines the converter progress callback event args class of the Xlsx to Html converter class.
+    /// </summary>
+    public class ConverterProgressCallbackEventArgs : EventArgs
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConverterProgressCallbackEventArgs">ConverterProgressCallbackEventArgs</see> class.
+        /// </summary>
+        internal ConverterProgressCallbackEventArgs()
+        {
+            this.CurrentSheet = 0;
+            this.TotalSheets = 0;
+        }
+
+        #region Public Fields
+
+        /// <summary>
+        /// Gets the current progress in percent.
+        /// </summary>
+        public double ProgressPercent
+        {
+            get
+            {
+                return (double)CurrentSheet / TotalSheets * 100;
+            }
+        }
+
+        /// <summary>
+        /// Gets the id of current sheet which start at 1.
+        /// </summary>
+        public int CurrentSheet { get; internal set; }
+
+        /// <summary>
+        /// Gets the number of sheets in Xlsx file.
+        /// </summary>
+        public int TotalSheets { get; internal set; }
 
         #endregion
     }
