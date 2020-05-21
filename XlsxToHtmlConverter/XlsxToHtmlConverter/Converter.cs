@@ -8,21 +8,20 @@ using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace XlsxToHtmlConverter
 {
-    internal class Constants
+    internal class Defaults
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="Constants">Constants</see> class.
+        /// Initializes a new instance of the <see cref="Defaults">Constants</see> class.
         /// </summary>
-        protected Constants()
+        protected Defaults()
         {
             throw new NotImplementedException();
         }
 
         #region Constant Fields
 
-        internal const string Alphabet = "abcdefghijklmnopqrstuvwxyz";
-        internal const string ErrorMessage = "Error, can not convert XLSX file. The file is either already open (please close it) or contains corrupt data.";
-        internal const string PresetStyles = @"body {
+        public const string DefaultErrorMessage = "Error, can not convert XLSX file. The file is either already open (please close it) or contains corrupt data.";
+        public const string DefaultPresetStyles = @"body {
             margin: 0;
             padding: 0;
             width: 100%;
@@ -177,7 +176,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -209,7 +208,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -241,7 +240,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -274,7 +273,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -360,7 +359,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -382,7 +381,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -404,7 +403,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -427,7 +426,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -449,7 +448,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Constants.ErrorMessage;
+                return Defaults.DefaultErrorMessage;
             }
         }
 
@@ -473,7 +472,7 @@ namespace XlsxToHtmlConverter
                     IEnumerable<Sheet> sheets = workbook.Workbook.Descendants<Sheet>();
                     SharedStringTable sharedStringTable = workbook.GetPartsOfType<SharedStringTablePart>().FirstOrDefault().SharedStringTable;
 
-                    progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs() { CurrentSheet = 0, TotalSheets = sheets.Count() });
+                    progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs(0, sheets.Count()));
 
                     List<uint> sheetIds = new List<uint>();
 
@@ -513,17 +512,17 @@ namespace XlsxToHtmlConverter
                                 {
                                     string[] range = mergeCell.Reference.Value.Split(':');
 
-                                    string firstColumn = GetColumnName(range[0]);
-                                    string secondColumn = GetColumnName(range[1]);
+                                    uint firstColumn = GetColumnIndex(GetColumnName(range[0]));
+                                    uint secondColumn = GetColumnIndex(GetColumnName(range[1]));
                                     uint firstRow = GetRowIndex(range[0]);
                                     uint secondRow = GetRowIndex(range[1]);
 
-                                    string fromColumn = Constants.Alphabet.IndexOf(firstColumn.ToLower()) <= Constants.Alphabet.IndexOf(secondColumn.ToLower()) ? firstColumn : secondColumn;
-                                    string toColumn = fromColumn == firstColumn ? secondColumn : firstColumn;
+                                    uint fromColumn = Math.Min(firstColumn, secondColumn);
+                                    uint toColumn = Math.Max(firstColumn, secondColumn);
                                     uint fromRow = Math.Min(firstRow, secondRow);
                                     uint toRow = Math.Max(firstRow, secondRow);
 
-                                    mergeCells.Add(new MergeCellInfo() { FromColumnName = fromColumn, FromRowIndex = fromRow, ToColumnName = toColumn, ToRowIndex = toRow, ColumnSpanned = (uint)Math.Abs(Constants.Alphabet.IndexOf(toColumn.ToLower()) - Constants.Alphabet.IndexOf(fromColumn.ToLower())) + 1, RowSpanned = (uint)Math.Abs(toRow - fromRow) + 1 });
+                                    mergeCells.Add(new MergeCellInfo() { FromColumn = fromColumn, FromRow = fromRow, ToColumn = toColumn, ToRow = toRow, ColumnSpanned = toColumn - fromColumn + 1, RowSpanned = toRow - fromRow + 1 });
                                 }
                                 catch
                                 {
@@ -534,7 +533,7 @@ namespace XlsxToHtmlConverter
                         IEnumerable<Row> rows = sheet.Descendants<Row>();
 
                         uint totalRows = 0;
-                        int totalColumn = 0;
+                        uint totalColumn = 0;
 
                         foreach (Row row in rows)
                         {
@@ -545,7 +544,7 @@ namespace XlsxToHtmlConverter
                                     string columnName = GetColumnName(cell.CellReference);
                                     uint rowIndex = GetRowIndex(cell.CellReference);
 
-                                    int columnIndex = Constants.Alphabet.IndexOf(columnName.ToLower()) + 1;
+                                    uint columnIndex = GetColumnIndex(columnName.ToLower()) + 1;
 
                                     if (totalColumn < columnIndex)
                                     {
@@ -626,15 +625,15 @@ namespace XlsxToHtmlConverter
 
                             tableHtml += $"\n{new string(' ', 12)}<tr>";
 
-                            List<Cell> cells = new List<Cell>(totalColumn);
+                            List<Cell> cells = new List<Cell>((int)totalColumn);
 
                             for (int i = 0; i < totalColumn; i++)
                             {
-                                cells.Add(new Cell() { CellValue = new CellValue(""), CellReference = Constants.Alphabet[i].ToString().ToUpper() + row.RowIndex });
+                                cells.Add(new Cell() { CellValue = new CellValue(""), CellReference = ((char)(64 + i + 1)).ToString() + row.RowIndex });
                             }
                             foreach (Cell cell in row.Descendants<Cell>())
                             {
-                                int actualCellIndex = Constants.Alphabet.IndexOf(GetColumnName(cell.CellReference).ToLower());
+                                int actualCellIndex = (int)GetColumnIndex(GetColumnName(cell.CellReference));
                                 cells[actualCellIndex] = cell;
                             }
 
@@ -651,9 +650,10 @@ namespace XlsxToHtmlConverter
                                 if (containsMergeCells == true && cell.CellReference != null)
                                 {
                                     string columnName = GetColumnName(cell.CellReference);
+                                    uint columnIndex = GetColumnIndex(columnName);
                                     uint rowIndex = GetRowIndex(cell.CellReference);
 
-                                    if (mergeCells.Any(x => (rowIndex == x.FromRowIndex && columnName.ToLower() == x.FromColumnName.ToLower()) == false && rowIndex >= x.FromRowIndex && rowIndex <= x.ToRowIndex && Constants.Alphabet.IndexOf(columnName.ToLower()) >= Constants.Alphabet.IndexOf(x.FromColumnName.ToLower()) && Constants.Alphabet.IndexOf(columnName.ToLower()) <= Constants.Alphabet.IndexOf(x.ToColumnName.ToLower())) == true)
+                                    if (mergeCells.Any(x => (rowIndex == x.FromRow && columnIndex == x.FromColumn) == false && rowIndex >= x.FromRow && rowIndex <= x.ToRow && columnIndex >= x.FromColumn && columnIndex <= x.ToColumn) == true)
                                     {
                                         continue;
                                     }
@@ -661,7 +661,7 @@ namespace XlsxToHtmlConverter
                                     {
                                         foreach (MergeCellInfo mergeCellInfo in mergeCells)
                                         {
-                                            if (columnName.ToLower() == mergeCellInfo.FromColumnName.ToLower() && rowIndex == mergeCellInfo.FromRowIndex)
+                                            if (GetColumnIndex(columnName) == mergeCellInfo.FromColumn && rowIndex == mergeCellInfo.FromRow)
                                             {
                                                 addedColumnNumber = (int)mergeCellInfo.ColumnSpanned;
 
@@ -774,11 +774,56 @@ namespace XlsxToHtmlConverter
                                 }
                                 else if (cell.CellValue != null)
                                 {
-                                    cellValue = cell.CellValue.Text;
-                                }
-                                else if (cell.InnerText != null)
-                                {
-                                    cellValue = cell.InnerText;
+                                    try
+                                    {
+                                        DateTime dateValue = DateTime.FromOADate(Double.Parse(cell.CellValue.Text)).Date;
+
+                                        if (cell.StyleIndex != null && styles.Stylesheet.CellFormats.ChildElements[(int)cell.StyleIndex.Value] is CellFormat cellFormat)
+                                        {
+                                            try
+                                            {
+                                                NumberingFormat numberingFormat = styles.Stylesheet.NumberingFormats.ChildElements.First(x => ((NumberingFormat)x).NumberFormatId == cellFormat.NumberFormatId.Value) as NumberingFormat;
+
+                                                if (cellFormat.NumberFormatId.Value != 0 && numberingFormat.FormatCode.Value != "@")
+                                                {
+                                                    string format = numberingFormat.FormatCode.Value.Replace("&quot;", "");
+
+                                                    if (format.ToLower() == "d")
+                                                    {
+                                                        cellValue = dateValue.Day.ToString();
+                                                    }
+                                                    else if (format.ToLower() == "m")
+                                                    {
+                                                        cellValue = dateValue.Month.ToString();
+                                                    }
+                                                    else if (format.ToLower() == "y")
+                                                    {
+                                                        cellValue = dateValue.Year.ToString();
+                                                    }
+                                                    else
+                                                    {
+                                                        cellValue = dateValue.ToString(format);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    cellValue = dateValue.ToString();
+                                                }
+                                            }
+                                            catch
+                                            {
+                                                cellValue = dateValue.ToString();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            cellValue = dateValue.ToString();
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        cellValue = cell.CellValue.Text;
+                                    }
                                 }
 
                                 string advancedStyleHtml = $"";
@@ -798,10 +843,7 @@ namespace XlsxToHtmlConverter
                                                     advancedStyleHtml += $" background-color: {background};";
                                                 }
                                             }
-                                            catch
-                                            {
-
-                                            }
+                                            catch { }
                                             try
                                             {
                                                 if (styles.Stylesheet.Fonts.ChildElements[(int)cellFormat.FontId.Value] is Font font)
@@ -824,10 +866,7 @@ namespace XlsxToHtmlConverter
                                                     advancedStyleHtml += $" color: {fontColor}; font-size: {fontSize}px; font-family: {fontFamily}; font-weight: {(bold ? "bold" : "normal")}; font-style: {(italic ? "italic" : "normal")}; text-decoration: {(strike ? "line-through" : "none")}{underline};";
                                                 }
                                             }
-                                            catch
-                                            {
-
-                                            }
+                                            catch { }
                                             try
                                             {
                                                 if (styles.Stylesheet.Borders.ChildElements[(int)cellFormat.BorderId.Value] is Border border)
@@ -867,10 +906,7 @@ namespace XlsxToHtmlConverter
                                                     advancedStyleHtml += $" border-width: {topWidth} {rightWidth} {bottomWidth} {leftWidth}; border-style: {topStyle} {rightStyle} {bottomStyle} {leftStyle}; border-color: {topColor} {rightColor} {bottomColor} {leftColor};";
                                                 }
                                             }
-                                            catch
-                                            {
-
-                                            }
+                                            catch { }
                                             try
                                             {
                                                 if (cellFormat.Alignment != null)
@@ -912,10 +948,7 @@ namespace XlsxToHtmlConverter
                                                     }
                                                 }
                                             }
-                                            catch
-                                            {
-
-                                            }
+                                            catch { }
                                         }
                                     }
                                 }
@@ -1038,7 +1071,7 @@ namespace XlsxToHtmlConverter
 
                         tableHtml += $"\n{new string(' ', 4)}</div>";
 
-                        progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs() { CurrentSheet = sheets.TakeWhile(x => x != currentSheet).Count() + 1, TotalSheets = sheets.Count() });
+                        progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs(sheets.TakeWhile(x => x != currentSheet).Count() + 1, sheets.Count()));
                     }
                 }
 
@@ -1071,6 +1104,27 @@ namespace XlsxToHtmlConverter
         #endregion
 
         #region Private Methods
+
+        private static uint GetColumnIndex(string columnName)
+        {
+            columnName = columnName.ToUpper();
+
+            int columnNumber = -1;
+            int mulitplier = 1;
+
+            foreach (char c in columnName.ToCharArray().Reverse())
+            {
+                columnNumber += mulitplier * (c - 64);
+                mulitplier *= 26;
+            }
+
+            if (columnNumber == -1)
+            {
+                columnNumber = 0;
+            }
+
+            return (uint)columnNumber;
+        }
 
         private static string GetColumnName(string cellName)
         {
@@ -1636,10 +1690,10 @@ namespace XlsxToHtmlConverter
 
         private struct MergeCellInfo
         {
-            public string FromColumnName { get; set; }
-            public uint FromRowIndex { get; set; }
-            public string ToColumnName { get; set; }
-            public uint ToRowIndex { get; set; }
+            public uint FromColumn { get; set; }
+            public uint FromRow { get; set; }
+            public uint ToColumn { get; set; }
+            public uint ToRow { get; set; }
             public uint ColumnSpanned { get; set; }
             public uint RowSpanned { get; set; }
         }
@@ -1658,8 +1712,39 @@ namespace XlsxToHtmlConverter
         public ConverterConfig()
         {
             this.PageTitle = "Title";
-            this.PresetStyles = Constants.PresetStyles;
-            this.ErrorMessage = Constants.ErrorMessage;
+            this.PresetStyles = Defaults.DefaultPresetStyles;
+            this.ErrorMessage = Defaults.DefaultErrorMessage;
+            this.IsConvertStyle = true;
+            this.IsConvertSize = true;
+            this.IsConvertPicture = true;
+            this.IsConvertHiddenSheet = false;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConverterConfig">ConverterConfig</see> class with specific page title.
+        /// </summary>
+        /// <param name="title">The specific page title.</param>
+        public ConverterConfig(string title)
+        {
+            this.PageTitle = title;
+            this.PresetStyles = Defaults.DefaultPresetStyles;
+            this.ErrorMessage = Defaults.DefaultErrorMessage;
+            this.IsConvertStyle = true;
+            this.IsConvertSize = true;
+            this.IsConvertPicture = true;
+            this.IsConvertHiddenSheet = false;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConverterConfig">ConverterConfig</see> class with specific preset styles and error message.
+        /// </summary>
+        /// <param name="presetStyles">The specific preset styles.</param>
+        /// <param name="errorMessage">The specific error message.</param>
+        public ConverterConfig(string presetStyles, string errorMessage)
+        {
+            this.PageTitle = "Title";
+            this.PresetStyles = presetStyles;
+            this.ErrorMessage = errorMessage;
             this.IsConvertStyle = true;
             this.IsConvertSize = true;
             this.IsConvertPicture = true;
@@ -1713,8 +1798,8 @@ namespace XlsxToHtmlConverter
                 return new ConverterConfig()
                 {
                     PageTitle = "Title",
-                    PresetStyles = Constants.PresetStyles,
-                    ErrorMessage = Constants.ErrorMessage,
+                    PresetStyles = Defaults.DefaultPresetStyles,
+                    ErrorMessage = Defaults.DefaultErrorMessage,
                     IsConvertStyle = true,
                     IsConvertSize = true,
                     IsConvertPicture = true,
@@ -1732,12 +1817,12 @@ namespace XlsxToHtmlConverter
     public class ConverterProgressCallbackEventArgs : EventArgs
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="ConverterProgressCallbackEventArgs">ConverterProgressCallbackEventArgs</see> class.
+        /// Initializes a new instance of the <see cref="ConverterProgressCallbackEventArgs">ConverterProgressCallbackEventArgs</see> class with specific current sheet and total sheets.
         /// </summary>
-        internal ConverterProgressCallbackEventArgs()
+        public ConverterProgressCallbackEventArgs(int currentSheet, int totalSheets)
         {
-            this.CurrentSheet = 0;
-            this.TotalSheets = 0;
+            this.CurrentSheet = currentSheet;
+            this.TotalSheets = totalSheets;
         }
 
         #region Public Fields
@@ -1756,12 +1841,12 @@ namespace XlsxToHtmlConverter
         /// <summary>
         /// Gets the id of current sheet which start at 1.
         /// </summary>
-        public int CurrentSheet { get; internal set; }
+        public int CurrentSheet { get; private set; }
 
         /// <summary>
         /// Gets the number of sheets in Xlsx file.
         /// </summary>
-        public int TotalSheets { get; internal set; }
+        public int TotalSheets { get; private set; }
 
         #endregion
     }
