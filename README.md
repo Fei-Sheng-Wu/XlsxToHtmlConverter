@@ -4,7 +4,7 @@
 [![Nuget](https://img.shields.io/badge/Nuget-v1.1.8-blue.svg)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.1.8)
 [![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.1.8/LICENSE.txt)
 
-> A xlsx to html file converter. Support fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures drawing. Support progress callback event. It uses .Net Core 3.0 as framework and only depends on the Open Xml SDK.
+> A xlsx to html file converter. Support cell fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures drawing. Support progress callback event. It uses .Net Core 3.0 as framework and only depends on the Open Xml SDK.
 
 ## Dependencies
 
