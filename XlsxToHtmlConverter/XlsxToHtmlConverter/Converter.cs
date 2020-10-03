@@ -142,7 +142,9 @@ namespace XlsxToHtmlConverter
             { 60, "#993300" },
             { 61, "#993366" },
             { 62, "#333399" },
-            { 63, "#333333" }
+            { 63, "#333333" },
+            { 64, "#808080" },
+            { 65, "#FFFFFF" }
         };
 
         #endregion
@@ -156,19 +158,13 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(string fileName)
         {
+            byte[] byteArray;
+            string htmlString;
+
             try
             {
-                byte[] byteArray = File.ReadAllBytes(fileName);
-                string htmlString = "";
-
-                using (MemoryStream memoryStream = new MemoryStream())
-                {
-                    memoryStream.Write(byteArray, 0, byteArray.Length);
-
-                    htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = Path.GetFileNameWithoutExtension(fileName) }, null);
-                }
-
-                return htmlString;
+                byteArray = File.ReadAllBytes(fileName);
+                htmlString = "";
             }
             catch (Exception ex)
             {
@@ -176,8 +172,17 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Defaults.DefaultErrorMessage;
+                return Defaults.DefaultErrorMessage.Replace("{EXCEPTION}", ex.Message);
             }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = Path.GetFileNameWithoutExtension(fileName) }, null);
+            }
+
+            return htmlString;
         }
 
         /// <summary>
@@ -188,19 +193,13 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(string fileName, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
         {
+            byte[] byteArray;
+            string htmlString;
+
             try
             {
-                byte[] byteArray = File.ReadAllBytes(fileName);
-                string htmlString = "";
-
-                using (MemoryStream memoryStream = new MemoryStream())
-                {
-                    memoryStream.Write(byteArray, 0, byteArray.Length);
-
-                    htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = Path.GetFileNameWithoutExtension(fileName) }, progressCallbackEvent);
-                }
-
-                return htmlString;
+                byteArray = File.ReadAllBytes(fileName);
+                htmlString = "";
             }
             catch (Exception ex)
             {
@@ -208,8 +207,17 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Defaults.DefaultErrorMessage;
+                return Defaults.DefaultErrorMessage.Replace("{EXCEPTION}", ex.Message);
             }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = Path.GetFileNameWithoutExtension(fileName) }, progressCallbackEvent);
+            }
+
+            return htmlString;
         }
 
         /// <summary>
@@ -220,19 +228,13 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(string fileName, string title)
         {
+            byte[] byteArray;
+            string htmlString;
+
             try
             {
-                byte[] byteArray = File.ReadAllBytes(fileName);
-                string htmlString = "";
-
-                using (MemoryStream memoryStream = new MemoryStream())
-                {
-                    memoryStream.Write(byteArray, 0, byteArray.Length);
-
-                    htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = title }, null);
-                }
-
-                return htmlString;
+                byteArray = File.ReadAllBytes(fileName);
+                htmlString = "";
             }
             catch (Exception ex)
             {
@@ -240,8 +242,17 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Defaults.DefaultErrorMessage;
+                return Defaults.DefaultErrorMessage.Replace("{EXCEPTION}", ex.Message);
             }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = title }, null);
+            }
+
+            return htmlString;
         }
 
         /// <summary>
@@ -253,19 +264,13 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(string fileName, string title, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
         {
+            byte[] byteArray;
+            string htmlString;
+
             try
             {
-                byte[] byteArray = File.ReadAllBytes(fileName);
-                string htmlString = "";
-
-                using (MemoryStream memoryStream = new MemoryStream())
-                {
-                    memoryStream.Write(byteArray, 0, byteArray.Length);
-
-                    htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = title }, progressCallbackEvent);
-                }
-
-                return htmlString;
+                byteArray = File.ReadAllBytes(fileName);
+                htmlString = "";
             }
             catch (Exception ex)
             {
@@ -273,8 +278,17 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return Defaults.DefaultErrorMessage;
+                return Defaults.DefaultErrorMessage.Replace("{EXCEPTION}", ex.Message);
             }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                htmlString = ConvertXlsx(memoryStream, new ConverterConfig() { PageTitle = title }, progressCallbackEvent);
+            }
+
+            return htmlString;
         }
 
         /// <summary>
@@ -285,19 +299,13 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(string fileName, ConverterConfig config)
         {
+            byte[] byteArray;
+            string htmlString;
+
             try
             {
-                byte[] byteArray = File.ReadAllBytes(fileName);
-                string htmlString = "";
-
-                using (MemoryStream memoryStream = new MemoryStream())
-                {
-                    memoryStream.Write(byteArray, 0, byteArray.Length);
-
-                    htmlString = ConvertXlsx(memoryStream, config, null);
-                }
-
-                return htmlString;
+                byteArray = File.ReadAllBytes(fileName);
+                htmlString = "";
             }
             catch (Exception ex)
             {
@@ -305,8 +313,17 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return config.ErrorMessage;
+                return config.ErrorMessage.Replace("{EXCEPTION}", ex.Message);
             }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                htmlString = ConvertXlsx(memoryStream, config, null);
+            }
+
+            return htmlString;
         }
 
         /// <summary>
@@ -318,19 +335,13 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(string fileName, ConverterConfig config, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
         {
+            byte[] byteArray;
+            string htmlString;
+
             try
             {
-                byte[] byteArray = File.ReadAllBytes(fileName);
-                string htmlString = "";
-
-                using (MemoryStream memoryStream = new MemoryStream())
-                {
-                    memoryStream.Write(byteArray, 0, byteArray.Length);
-
-                    htmlString = ConvertXlsx(memoryStream, config, progressCallbackEvent);
-                }
-
-                return htmlString;
+                byteArray = File.ReadAllBytes(fileName);
+                htmlString = "";
             }
             catch (Exception ex)
             {
@@ -338,8 +349,17 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return config.ErrorMessage;
+                return config.ErrorMessage.Replace("{EXCEPTION}", ex.Message);
             }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                memoryStream.Write(byteArray, 0, byteArray.Length);
+
+                htmlString = ConvertXlsx(memoryStream, config, progressCallbackEvent);
+            }
+
+            return htmlString;
         }
 
         /// <summary>
@@ -349,18 +369,7 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(Stream stream)
         {
-            try
-            {
-                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = "Title" }, null);
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
-#endif
-
-                return Defaults.DefaultErrorMessage;
-            }
+            return ConvertXlsx(stream, new ConverterConfig() { PageTitle = "Title" }, null);
         }
 
         /// <summary>
@@ -371,18 +380,7 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(Stream stream, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
         {
-            try
-            {
-                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = "Title" }, progressCallbackEvent);
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
-#endif
-
-                return Defaults.DefaultErrorMessage;
-            }
+            return ConvertXlsx(stream, new ConverterConfig() { PageTitle = "Title" }, progressCallbackEvent);
         }
 
         /// <summary>
@@ -393,18 +391,7 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(Stream stream, string title)
         {
-            try
-            {
-                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = title }, null);
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
-#endif
-
-                return Defaults.DefaultErrorMessage;
-            }
+            return ConvertXlsx(stream, new ConverterConfig() { PageTitle = title }, null);
         }
 
         /// <summary>
@@ -416,18 +403,7 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(Stream stream, string title, EventHandler<ConverterProgressCallbackEventArgs> progressCallbackEvent)
         {
-            try
-            {
-                return ConvertXlsx(stream, new ConverterConfig() { PageTitle = title }, progressCallbackEvent);
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
-#endif
-
-                return Defaults.DefaultErrorMessage;
-            }
+            return ConvertXlsx(stream, new ConverterConfig() { PageTitle = title }, progressCallbackEvent);
         }
 
         /// <summary>
@@ -438,18 +414,7 @@ namespace XlsxToHtmlConverter
         /// <returns>The result Html string.</returns>
         public static string ConvertXlsx(Stream stream, ConverterConfig config)
         {
-            try
-            {
-                return ConvertXlsx(stream, config, null);
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
-#endif
-
-                return Defaults.DefaultErrorMessage;
-            }
+            return ConvertXlsx(stream, config, null);
         }
 
         /// <summary>
@@ -485,7 +450,7 @@ namespace XlsxToHtmlConverter
                     {
                         Sheet currentSheet = sheets.FirstOrDefault(x => x.SheetId != null && x.SheetId.Value == sheetId);
 
-                        if (config.IsConvertHiddenSheet == false && currentSheet.State.Value != SheetStateValues.Visible)
+                        if (config.IsConvertHiddenSheet == false && currentSheet.State != null && currentSheet.State.Value != SheetStateValues.Visible)
                         {
                             continue;
                         }
@@ -530,34 +495,69 @@ namespace XlsxToHtmlConverter
                                 }
                             }
                         }
+
+                        ConditionalFormatting conditionalFormatting = null;
+                        if (sheet.Elements<ConditionalFormatting>() is IEnumerable<ConditionalFormatting> conditionalFormattings && conditionalFormattings.Any())
+                        {
+                            try
+                            {
+                                conditionalFormatting = conditionalFormattings.First();
+                            }
+                            catch
+                            {
+                                conditionalFormatting = null;
+                            }
+                        }
+
                         IEnumerable<Row> rows = sheet.Descendants<Row>();
 
                         uint totalRows = 0;
                         uint totalColumn = 0;
 
-                        foreach (Row row in rows)
+                        try
                         {
-                            foreach (Cell cell in row.Descendants<Cell>())
+                            if (sheet.SheetDimension != null && sheet.SheetDimension.Reference != null && sheet.SheetDimension.Reference.HasValue)
                             {
-                                try
-                                {
-                                    string columnName = GetColumnName(cell.CellReference);
-                                    uint rowIndex = GetRowIndex(cell.CellReference);
+                                string[] dimension = sheet.SheetDimension.Reference.Value.Split(":");
+                                uint fromColumn = GetColumnIndex(GetColumnName(dimension[0]));
+                                uint toColumn = GetColumnIndex(GetColumnName(dimension[1]));
+                                uint fromRow = GetRowIndex(dimension[0]);
+                                uint toRow = GetRowIndex(dimension[1]);
 
-                                    uint columnIndex = GetColumnIndex(columnName.ToLower()) + 1;
-
-                                    if (totalColumn < columnIndex)
-                                    {
-                                        totalColumn = columnIndex;
-                                    }
-                                    if (totalRows < rowIndex)
-                                    {
-                                        totalRows = rowIndex;
-                                    }
-                                }
-                                catch
+                                totalRows = toRow - fromColumn + 1;
+                                totalColumn = toColumn - fromColumn + 1;
+                            }
+                            else
+                            {
+                                throw new Exception("Cannot get the sheet dimension.");
+                            }
+                        }
+                        catch
+                        {
+                            foreach (Row row in rows)
+                            {
+                                foreach (Cell cell in row.Descendants<Cell>())
                                 {
-                                    continue;
+                                    try
+                                    {
+                                        string columnName = GetColumnName(cell.CellReference);
+                                        uint rowIndex = GetRowIndex(cell.CellReference);
+
+                                        uint columnIndex = GetColumnIndex(columnName.ToLower()) + 1;
+
+                                        if (totalColumn < columnIndex)
+                                        {
+                                            totalColumn = columnIndex;
+                                        }
+                                        if (totalRows < rowIndex)
+                                        {
+                                            totalRows = rowIndex;
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        continue;
+                                    }
                                 }
                             }
                         }
@@ -586,7 +586,7 @@ namespace XlsxToHtmlConverter
                                 {
                                     try
                                     {
-                                        if (column.CustomWidth == true && column.Width != null)
+                                        if (column.CustomWidth && column.Width != null)
                                         {
                                             columnWidths[(int)i - 1] = (column.Width.Value - 1) * 7 - 5 + 12;
                                         }
@@ -619,7 +619,7 @@ namespace XlsxToHtmlConverter
 
                             currentColumn = 0;
 
-                            double rowHeight = row.CustomHeight != null && row.CustomHeight.Value == true && row.Height != null ? row.Height.Value / 0.75 : defaultRowHeight;
+                            double rowHeight = row.CustomHeight != null && row.CustomHeight.Value && row.Height != null ? row.Height.Value / 0.75 : defaultRowHeight;
 
                             rowHeights[(int)row.RowIndex.Value - 1] = rowHeight;
 
@@ -644,16 +644,16 @@ namespace XlsxToHtmlConverter
                                 uint columnSpanned = 1;
                                 uint rowSpanned = 1;
 
-                                double actualCellHeight = config.IsConvertSize == true ? rowHeight : Double.NaN;
-                                double actualCellWidth = config.IsConvertSize == true ? (currentColumn >= columnWidths.Count ? Double.NaN : columnWidths[currentColumn]) : Double.NaN;
+                                double actualCellHeight = config.IsConvertSize ? rowHeight : Double.NaN;
+                                double actualCellWidth = config.IsConvertSize ? (currentColumn >= columnWidths.Count ? Double.NaN : columnWidths[currentColumn]) : Double.NaN;
 
-                                if (containsMergeCells == true && cell.CellReference != null)
+                                if (containsMergeCells && cell.CellReference != null)
                                 {
                                     string columnName = GetColumnName(cell.CellReference);
                                     uint columnIndex = GetColumnIndex(columnName);
                                     uint rowIndex = GetRowIndex(cell.CellReference);
 
-                                    if (mergeCells.Any(x => (rowIndex == x.FromRow && columnIndex == x.FromColumn) == false && rowIndex >= x.FromRow && rowIndex <= x.ToRow && columnIndex >= x.FromColumn && columnIndex <= x.ToColumn) == true)
+                                    if (mergeCells.Any(x => (rowIndex == x.FromRow && columnIndex == x.FromColumn) == false && rowIndex >= x.FromRow && rowIndex <= x.ToRow && columnIndex >= x.FromColumn && columnIndex <= x.ToColumn))
                                     {
                                         continue;
                                     }
@@ -692,17 +692,21 @@ namespace XlsxToHtmlConverter
 
                                     try
                                     {
+                                        Run lastRun = null;
+
                                         foreach (OpenXmlElement element in sharedString.Descendants())
                                         {
-                                            if (element is Text text)
+                                            if (element is Text text && (lastRun != null ? lastRun.Text != text : true))
                                             {
                                                 cellValue += text.Text;
                                             }
                                             else if (element is Run run)
                                             {
+                                                lastRun = run;
+
                                                 string runStyle = "";
 
-                                                if (config.IsConvertStyle == true)
+                                                if (config.IsConvertStyle)
                                                 {
                                                     if (run.RunProperties.GetFirstChild<Color>() is Color fontColor)
                                                     {
@@ -712,19 +716,19 @@ namespace XlsxToHtmlConverter
                                                     }
                                                     if (run.RunProperties.GetFirstChild<Bold>() is Bold bold)
                                                     {
-                                                        bool value = bold.Val != null ? bold.Val.Value : false;
+                                                        bool value = bold.Val != null ? bold.Val.Value : true;
 
                                                         runStyle += $" font-weight: {(value ? "bold" : "normal")};";
                                                     }
                                                     if (run.RunProperties.GetFirstChild<Italic>() is Italic italic)
                                                     {
-                                                        bool value = italic.Val != null ? italic.Val.Value : false;
+                                                        bool value = italic.Val != null ? italic.Val.Value : true;
 
                                                         runStyle += $" font-style: {(value ? "italic" : "normal")};";
                                                     }
                                                     if (run.RunProperties.GetFirstChild<Strike>() is Strike strike)
                                                     {
-                                                        bool value = strike.Val != null ? strike.Val.Value : false;
+                                                        bool value = strike.Val != null ? strike.Val.Value : true;
 
                                                         runStyle += $" text-decoration: {(value ? "line-through" : "none")}";
 
@@ -759,11 +763,7 @@ namespace XlsxToHtmlConverter
                                                     }
                                                 }
 
-                                                cellValue += $"<p style=\"display: inline; {runStyle}\">{run.Text}</p>";
-                                            }
-                                            else
-                                            {
-                                                cellValue += element.InnerText;
+                                                cellValue += $"<p style=\"display: inline; {runStyle}\">{(run.Text.Text ?? run.Text.InnerText)}</p>";
                                             }
                                         }
                                     }
@@ -828,19 +828,112 @@ namespace XlsxToHtmlConverter
 
                                 string advancedStyleHtml = $"";
 
-                                if (config.IsConvertStyle == true)
+                                if (config.IsConvertStyle)
                                 {
-                                    if (cell.StyleIndex != null)
+                                    int differentialStyleIndex = -1;
+                                    int styleIndex = (cell.StyleIndex != null && cell.StyleIndex.HasValue) ? (int)cell.StyleIndex.Value : ((row.StyleIndex != null && row.StyleIndex.HasValue) ? (int)row.StyleIndex.Value : -1);
+
+                                    if (conditionalFormatting != null && conditionalFormatting.SequenceOfReferences != null && conditionalFormatting.SequenceOfReferences.HasValue && conditionalFormatting.SequenceOfReferences.Any(x => x.HasValue ? x.Value == cell.CellReference : x.InnerText == cell.CellReference))
                                     {
-                                        if (styles.Stylesheet.CellFormats.ChildElements[(int)cell.StyleIndex.Value] is CellFormat cellFormat)
+                                        int currentPriority = -1;
+
+                                        try
+                                        {
+                                            foreach (ConditionalFormattingRule rule in conditionalFormatting.Elements<ConditionalFormattingRule>())
+                                            {
+                                                try
+                                                {
+                                                    if (rule.Priority == null || !rule.Priority.HasValue || rule.FormatId == null || !rule.FormatId.HasValue || (currentPriority != -1 && rule.Priority.Value > currentPriority))
+                                                    {
+                                                        continue;
+                                                    }
+
+                                                    if (rule.Type != null && rule.GetFirstChild<Formula>() is Formula formula)
+                                                    {
+                                                        ConditionalFormattingOperatorValues ruleOperator = rule.Operator != null && rule.Operator.HasValue ? rule.Operator.Value : ConditionalFormattingOperatorValues.Equal;
+                                                        string formulaText = formula.Text.TrimStart('"').TrimEnd('"');
+
+                                                        if (rule.Type == ConditionalFormatValues.CellIs)
+                                                        {
+                                                            switch (ruleOperator)
+                                                            {
+                                                                case ConditionalFormattingOperatorValues.Equal:
+                                                                    if (cellValue.Equals(formulaText))
+                                                                    {
+                                                                        differentialStyleIndex = (int)rule.FormatId.Value;
+                                                                    }
+                                                                    progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs(567, 999));
+                                                                    break;
+                                                                case ConditionalFormattingOperatorValues.BeginsWith:
+                                                                    if (cellValue.StartsWith(formulaText))
+                                                                    {
+                                                                        differentialStyleIndex = (int)rule.FormatId.Value;
+                                                                    }
+                                                                    break;
+                                                                case ConditionalFormattingOperatorValues.EndsWith:
+                                                                    if (cellValue.EndsWith(formulaText))
+                                                                    {
+                                                                        differentialStyleIndex = (int)rule.FormatId.Value;
+                                                                    }
+                                                                    break;
+                                                                case ConditionalFormattingOperatorValues.ContainsText:
+                                                                    if (cellValue.Contains(formulaText))
+                                                                    {
+                                                                        differentialStyleIndex = (int)rule.FormatId.Value;
+                                                                    }
+                                                                    break;
+                                                                default:
+                                                                    continue;
+                                                            }
+                                                        }
+                                                        else if (rule.Type == ConditionalFormatValues.BeginsWith)
+                                                        {
+                                                            if (cellValue.StartsWith(formulaText))
+                                                            {
+                                                                differentialStyleIndex = (int)rule.FormatId.Value;
+                                                            }
+                                                        }
+                                                        else if (rule.Type == ConditionalFormatValues.EndsWith)
+                                                        {
+                                                            if (cellValue.EndsWith(formulaText))
+                                                            {
+                                                                differentialStyleIndex = (int)rule.FormatId.Value;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    currentPriority = rule.Priority.Value;
+                                                }
+                                                catch
+                                                {
+                                                    continue;
+                                                }
+                                            }
+                                        }
+                                        catch { }
+                                    }
+
+                                    if (styleIndex != -1)
+                                    {
+                                        if (styles.Stylesheet.CellFormats.ChildElements[styleIndex] is CellFormat cellFormat)
                                         {
                                             try
                                             {
                                                 if (styles.Stylesheet.Fills.ChildElements[(int)cellFormat.FillId.Value] is Fill fill)
                                                 {
-                                                    string background = fill.PatternFill != null && fill.PatternFill.PatternType.Value != PatternValues.None && fill.PatternFill.ForegroundColor != null ? GetColorFromColorType(doc, fill.PatternFill.ForegroundColor, System.Drawing.Color.Transparent) : "transparent";
-
-                                                    advancedStyleHtml += $" background-color: {background};";
+                                                    if (fill.PatternFill != null && fill.PatternFill.PatternType.Value != PatternValues.None)
+                                                    {
+                                                        string background = "transparent";
+                                                        if (fill.PatternFill.ForegroundColor != null)
+                                                        {
+                                                            background = GetColorFromColorType(doc, fill.PatternFill.ForegroundColor, System.Drawing.Color.White, fill.PatternFill.BackgroundColor ?? null);
+                                                        }
+                                                        else if (fill.PatternFill.BackgroundColor != null)
+                                                        {
+                                                            background = GetColorFromColorType(doc, fill.PatternFill.BackgroundColor, System.Drawing.Color.White);
+                                                        }
+                                                        advancedStyleHtml += $" background-color: {background};";
+                                                    }
                                                 }
                                             }
                                             catch { }
@@ -851,9 +944,9 @@ namespace XlsxToHtmlConverter
                                                     string fontColor = font.Color != null ? GetColorFromColorType(doc, font.Color, System.Drawing.Color.Black) : "black";
                                                     double fontSize = font.FontSize != null && font.FontSize.Val != null ? font.FontSize.Val.Value * 96 / 72 : 11;
                                                     string fontFamily = font.FontName != null && font.FontName.Val != null ? $"\'{font.FontName.Val.Value}\', serif" : "serif";
-                                                    bool bold = font.Bold != null && font.Bold.Val != null ? font.Bold.Val.Value : false;
-                                                    bool italic = font.Italic != null && font.Italic.Val != null ? font.Italic.Val.Value : false;
-                                                    bool strike = font.Strike != null && font.Strike.Val != null ? font.Strike.Val.Value : false;
+                                                    bool bold = font.Bold != null && font.Bold.Val != null ? font.Bold.Val.Value : (font.Bold != null ? true : false);
+                                                    bool italic = font.Italic != null && font.Italic.Val != null ? font.Italic.Val.Value : (font.Italic != null ? true : false);
+                                                    bool strike = font.Strike != null && font.Strike.Val != null ? font.Strike.Val.Value : (font.Strike != null ? true : false);
                                                     string underline = font.Underline != null && font.Underline.Val != null ? font.Underline.Val.Value switch
                                                     {
                                                         UnderlineValues.Single => " underline",
@@ -938,9 +1031,180 @@ namespace XlsxToHtmlConverter
 
                                                     advancedStyleHtml += $" text-align: {horizontalTextAlignment}; vertical-align: {verticalTextAlignment};";
 
-                                                    if (cellFormat.Alignment.WrapText != null && cellFormat.Alignment.WrapText.Value == true)
+                                                    if (cellFormat.Alignment.WrapText != null && cellFormat.Alignment.WrapText.Value)
                                                     {
                                                         advancedStyleHtml += " word-wrap: break-word; white-space: normal;";
+                                                    }
+                                                    if (cellFormat.Alignment.TextRotation != null)
+                                                    {
+                                                        cellValue = $"<div style=\"width: fit-content; transform: rotate(-{cellFormat.Alignment.TextRotation.Value}deg);\">" + cellValue + "</div>";
+                                                    }
+                                                }
+                                            }
+                                            catch { }
+                                        }
+                                    }
+
+                                    if (differentialStyleIndex != -1)
+                                    {
+                                        if (styles.Stylesheet.DifferentialFormats.ChildElements[differentialStyleIndex] is DifferentialFormat cellFormat)
+                                        {
+                                            try
+                                            {
+                                                if (cellFormat.Fill != null)
+                                                {
+                                                    if (cellFormat.Fill.PatternFill != null && (cellFormat.Fill.PatternFill.PatternType == null || !cellFormat.Fill.PatternFill.PatternType.HasValue || cellFormat.Fill.PatternFill.PatternType.Value != PatternValues.None))
+                                                    {
+                                                        string background = "transparent";
+                                                        if (cellFormat.Fill.PatternFill.ForegroundColor != null)
+                                                        {
+                                                            background = GetColorFromColorType(doc, cellFormat.Fill.PatternFill.ForegroundColor, System.Drawing.Color.White, cellFormat.Fill.PatternFill.BackgroundColor ?? null);
+                                                        }
+                                                        else if (cellFormat.Fill.PatternFill.BackgroundColor != null)
+                                                        {
+                                                            background = GetColorFromColorType(doc, cellFormat.Fill.PatternFill.BackgroundColor, System.Drawing.Color.White);
+                                                        }
+                                                        advancedStyleHtml += $" background-color: {background} !important;";
+                                                    }
+                                                }
+                                            }
+                                            catch { }
+                                            try
+                                            {
+                                                if (cellFormat.Font != null)
+                                                {
+                                                    string fontColor = cellFormat.Font.Color != null ? GetColorFromColorType(doc, cellFormat.Font.Color, System.Drawing.Color.Black) : "black";
+                                                    double fontSize = cellFormat.Font.FontSize != null && cellFormat.Font.FontSize.Val != null ? cellFormat.Font.FontSize.Val.Value * 96 / 72 : 11;
+                                                    string fontFamily = cellFormat.Font.FontName != null && cellFormat.Font.FontName.Val != null ? $"\'{cellFormat.Font.FontName.Val.Value}\', serif" : "serif";
+                                                    bool bold = cellFormat.Font.Bold != null && cellFormat.Font.Bold.Val != null ? cellFormat.Font.Bold.Val.Value : (cellFormat.Font.Bold != null ? true : false);
+                                                    bool italic = cellFormat.Font.Italic != null && cellFormat.Font.Italic.Val != null ? cellFormat.Font.Italic.Val.Value : (cellFormat.Font.Italic != null ? true : false);
+                                                    bool strike = cellFormat.Font.Strike != null && cellFormat.Font.Strike.Val != null ? cellFormat.Font.Strike.Val.Value : (cellFormat.Font.Strike != null ? true : false);
+                                                    string underline = cellFormat.Font.Underline != null && cellFormat.Font.Underline.Val != null ? cellFormat.Font.Underline.Val.Value switch
+                                                    {
+                                                        UnderlineValues.Single => " underline",
+                                                        UnderlineValues.SingleAccounting => " underline",
+                                                        UnderlineValues.Double => " underline",
+                                                        UnderlineValues.DoubleAccounting => " underline",
+                                                        _ => "",
+                                                    } : "";
+
+                                                    if (cellFormat.Font.Color != null)
+                                                    {
+                                                        advancedStyleHtml += $" color: {fontColor} !important;";
+                                                    }
+                                                    if (cellFormat.Font.FontSize != null && cellFormat.Font.FontSize.Val != null)
+                                                    {
+                                                        advancedStyleHtml += $" font-size: {fontSize}px !important;";
+                                                    }
+                                                    if (cellFormat.Font.FontName != null && cellFormat.Font.FontName.Val != null)
+                                                    {
+                                                        advancedStyleHtml += $" font-family: {fontFamily} !important;";
+                                                    }
+                                                    if (cellFormat.Font.Bold != null && cellFormat.Font.Bold.Val != null)
+                                                    {
+                                                        advancedStyleHtml += $" font-weight: {(bold ? "bold" : "normal")} !important;";
+                                                    }
+                                                    if (cellFormat.Font.Italic != null && cellFormat.Font.Italic.Val != null)
+                                                    {
+                                                        advancedStyleHtml += $" font-style: {(italic ? "italic" : "normal")} !important;";
+                                                    }
+                                                    if (cellFormat.Font.Strike != null && cellFormat.Font.Strike.Val != null)
+                                                    {
+                                                        if (cellFormat.Font.Underline != null && cellFormat.Font.Underline.Val != null)
+                                                        {
+                                                            advancedStyleHtml += $" text-decoration: {(strike ? "line-through" : "none")}{underline} !important;";
+                                                        }
+                                                        else
+                                                        {
+                                                            advancedStyleHtml += $" text-decoration: {(strike ? "line-through" : "none")} !important;";
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            catch { }
+                                            try
+                                            {
+                                                if (cellFormat.Border != null)
+                                                {
+                                                    string leftWidth = "1px";
+                                                    string rightWidth = "1px";
+                                                    string topWidth = "1px";
+                                                    string bottomWidth = "1px";
+
+                                                    string leftStyle = "solid";
+                                                    string rightStyle = "solid";
+                                                    string topStyle = "solid";
+                                                    string bottomStyle = "solid";
+
+                                                    string leftColor = "lightgray";
+                                                    string rightColor = "lightgray";
+                                                    string topColor = "lightgray";
+                                                    string bottomColor = "lightgray";
+
+                                                    if (cellFormat.Border.LeftBorder is LeftBorder leftBorder)
+                                                    {
+                                                        BorderStyleToHtmlAttributes(doc, leftBorder, ref leftWidth, ref leftStyle, ref leftColor);
+                                                        advancedStyleHtml += $" border-left-width: {leftWidth} !important; border-left-style: {leftStyle} !important; border-left-color: {leftColor} !important;";
+                                                    }
+                                                    if (cellFormat.Border.RightBorder is RightBorder rightBorder)
+                                                    {
+                                                        BorderStyleToHtmlAttributes(doc, rightBorder, ref rightWidth, ref rightStyle, ref rightColor);
+                                                        advancedStyleHtml += $" border-right-width: {rightWidth} !important; border-right-style: {rightStyle} !important; border-right-color: {rightColor} !important;";
+                                                    }
+                                                    if (cellFormat.Border.TopBorder is TopBorder topBorder)
+                                                    {
+                                                        BorderStyleToHtmlAttributes(doc, topBorder, ref topWidth, ref topStyle, ref topColor);
+                                                        advancedStyleHtml += $" border-top-width: {topWidth} !important; border-top-style: {topStyle} !important; border-top-color: {topColor} !important;";
+                                                    }
+                                                    if (cellFormat.Border.BottomBorder is BottomBorder bottomBorder)
+                                                    {
+                                                        BorderStyleToHtmlAttributes(doc, bottomBorder, ref bottomWidth, ref bottomStyle, ref bottomColor);
+                                                        advancedStyleHtml += $" border-bottom-width: {bottomWidth} !important; border-bottom-style: {bottomStyle} !important; border-bottom-color: {bottomColor} !important;";
+                                                    }
+                                                }
+                                            }
+                                            catch { }
+                                            try
+                                            {
+                                                if (cellFormat.Alignment != null)
+                                                {
+                                                    string verticalTextAlignment = "null";
+                                                    string horizontalTextAlignment = "null";
+
+                                                    if (cellFormat.Alignment.Vertical != null)
+                                                    {
+                                                        verticalTextAlignment = cellFormat.Alignment.Vertical.Value switch
+                                                        {
+                                                            VerticalAlignmentValues.Bottom => "bottom",
+                                                            VerticalAlignmentValues.Center => "middle",
+                                                            VerticalAlignmentValues.Top => "top",
+                                                            _ => "bottom",
+                                                        };
+                                                    }
+                                                    if (cellFormat.Alignment.Horizontal != null)
+                                                    {
+                                                        horizontalTextAlignment = cellFormat.Alignment.Horizontal.Value switch
+                                                        {
+                                                            HorizontalAlignmentValues.Left => "left",
+                                                            HorizontalAlignmentValues.Center => "center",
+                                                            HorizontalAlignmentValues.Right => "right",
+                                                            HorizontalAlignmentValues.Justify => "justify",
+                                                            _ => "bottom",
+                                                        };
+                                                    }
+
+                                                    if (horizontalTextAlignment != "null")
+                                                    {
+                                                        advancedStyleHtml += $" text-align: {horizontalTextAlignment} !important;";
+                                                    }
+                                                    if (verticalTextAlignment != "null")
+                                                    {
+                                                        advancedStyleHtml += $" vertical-align: {verticalTextAlignment} !important;";
+                                                    }
+
+                                                    if (cellFormat.Alignment.WrapText != null && cellFormat.Alignment.WrapText.Value)
+                                                    {
+                                                        advancedStyleHtml += " word-wrap: break-word !important; white-space: normal !important;";
                                                     }
                                                     if (cellFormat.Alignment.TextRotation != null)
                                                     {
@@ -966,7 +1230,7 @@ namespace XlsxToHtmlConverter
 
                         tableHtml += $"\n{new string(' ', 8)}</table>";
 
-                        if (config.IsConvertPicture == true)
+                        if (config.IsConvertPicture)
                         {
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheet.DrawingsPart.WorksheetDrawing.OfType<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
                             {
@@ -1097,7 +1361,7 @@ namespace XlsxToHtmlConverter
                 System.Diagnostics.Debug.WriteLine("XlsxToHtmlConverter exception (exceptions only display in Debug mode): " + ex.Message);
 #endif
 
-                return config.ErrorMessage;
+                return config.ErrorMessage.Replace("{EXCEPTION}", ex.Message);
             }
         }
 
@@ -1210,7 +1474,7 @@ namespace XlsxToHtmlConverter
             color = border.Color != null ? GetColorFromColorType(doc, border.Color, System.Drawing.Color.LightGray) : "lightgray";
         }
 
-        private static string GetColorFromColorType(SpreadsheetDocument doc, ColorType type, System.Drawing.Color defaultColor)
+        private static string GetColorFromColorType(SpreadsheetDocument doc, ColorType type, System.Drawing.Color defaultColor, ColorType background = null)
         {
             System.Drawing.Color rgbColor;
 
@@ -1227,7 +1491,7 @@ namespace XlsxToHtmlConverter
                 }
                 else if (type.Indexed != null)
                 {
-                    if (IndexedColorData.TryGetValue(type.Indexed.Value, out string color) == true)
+                    if (IndexedColorData.TryGetValue(type.Indexed.Value, out string color))
                     {
                         rgbColor = System.Drawing.ColorTranslator.FromHtml(color);
                     }
@@ -1238,7 +1502,7 @@ namespace XlsxToHtmlConverter
                 }
                 else if (type.Theme != null)
                 {
-                    DocumentFormat.OpenXml.Drawing.Color2Type color = (DocumentFormat.OpenXml.Drawing.Color2Type)doc.WorkbookPart.ThemePart.Theme.ThemeElements.ColorScheme.ChildElements[(int)type.Theme.Value];
+                    DocumentFormat.OpenXml.Drawing.Color2Type color = (DocumentFormat.OpenXml.Drawing.Color2Type)doc.WorkbookPart.ThemePart.Theme.ThemeElements.ColorScheme.ChildElements[(int)type.Theme.Value + 2];
 
                     if (color.RgbColorModelHex != null)
                     {
@@ -1493,6 +1757,25 @@ namespace XlsxToHtmlConverter
                         throw new Exception("Doesn't have any custom value. Please use default value.");
                     }
                 }
+                else if (background != null)
+                {
+                    try
+                    {
+                        string[] colors = GetColorFromColorType(doc, background, System.Drawing.Color.White).Replace("rgb(", "").Replace(")", "").Split(", ");
+                        if (colors.Length == 4)
+                        {
+                            rgbColor = System.Drawing.Color.FromArgb(Int32.Parse(colors[3]), Int32.Parse(colors[0]), Int32.Parse(colors[1]), Int32.Parse(colors[2]));
+                        }
+                        else
+                        {
+                            rgbColor = System.Drawing.Color.FromArgb(Int32.Parse(colors[0]), Int32.Parse(colors[1]), Int32.Parse(colors[2]));
+                        }
+                    }
+                    catch
+                    {
+                        throw new Exception("Can't get the background color. Please use default value.");
+                    }
+                }
                 else
                 {
                     throw new Exception("Doesn't have any custom value. Please use default value.");
@@ -1542,10 +1825,7 @@ namespace XlsxToHtmlConverter
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.Write("Get color tint failed. Error: " + ex.Message);
-            }
+            catch { }
 
             if (rgbColor.A == 255)
             {
@@ -1764,7 +2044,7 @@ namespace XlsxToHtmlConverter
         public string PresetStyles { get; set; }
 
         /// <summary>
-        /// Gets or sets the error message that will show when convert failed.
+        /// Gets or sets the error message that will show when convert failed. The "{EXCEPTION}" will be replaced by exception message.
         /// </summary>
         public string ErrorMessage { get; set; }
 
