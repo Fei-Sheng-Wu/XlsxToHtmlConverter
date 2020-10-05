@@ -826,7 +826,7 @@ namespace XlsxToHtmlConverter
                                     }
                                 }
 
-                                string advancedStyleHtml = $"";
+                                string advancedStyleHtml = "";
 
                                 if (config.IsConvertStyle)
                                 {
@@ -862,7 +862,6 @@ namespace XlsxToHtmlConverter
                                                                     {
                                                                         differentialStyleIndex = (int)rule.FormatId.Value;
                                                                     }
-                                                                    progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs(567, 999));
                                                                     break;
                                                                 case ConditionalFormattingOperatorValues.BeginsWith:
                                                                     if (cellValue.StartsWith(formulaText))
@@ -1230,106 +1229,313 @@ namespace XlsxToHtmlConverter
 
                         tableHtml += $"\n{new string(' ', 8)}</table>";
 
-                        if (config.IsConvertPicture)
+                        foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheet.DrawingsPart.WorksheetDrawing.OfType<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
                         {
-                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheet.DrawingsPart.WorksheetDrawing.OfType<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
+                            try
                             {
-                                try
+                                double left;
+                                double top;
+                                double width;
+                                double height;
+
+                                if (absoluteAnchor != null)
                                 {
-                                    double left;
-                                    double top;
-                                    double width;
-                                    double height;
-                                    string alt;
-
-                                    DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture = absoluteAnchor.GetFirstChild<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>();
-
-                                    if (absoluteAnchor != null)
-                                    {
-                                        left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null ? (double)absoluteAnchor.Position.X.Value / 2 * 96 / 72 : Double.NaN;
-                                        top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null ? (double)absoluteAnchor.Position.Y.Value / 2 * 96 / 72 : Double.NaN;
-                                        width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null ? (double)absoluteAnchor.Extent.Cx.Value / 914400 * 96 : Double.NaN;
-                                        height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null == false ? (double)absoluteAnchor.Extent.Cy.Value / 914400 * 96 : Double.NaN;
-                                        alt = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null ? picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value : "Image";
-                                    }
-                                    else
-                                    {
-                                        left = Double.NaN;
-                                        top = Double.NaN;
-                                        width = Double.NaN;
-                                        height = Double.NaN;
-                                        alt = "Image";
-                                    }
-
-                                    ImagePart imagePart = worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) as ImagePart;
-
-                                    string base64;
-
-                                    Stream imageStream = imagePart.GetStream();
-                                    imageStream.Seek(0, SeekOrigin.Begin);
-
-                                    byte[] datas = new byte[imageStream.Length];
-
-                                    imageStream.Read(datas);
-
-                                    base64 = Convert.ToBase64String(datas, Base64FormattingOptions.None);
-
-                                    tableHtml += $"\n{new string(' ', 8)}<img alt=\"{alt}\" src=\"data:{imagePart.ContentType};base64,{base64}\" style=\"position: absolute; left: {(Double.IsNaN(left) == false ? left + "px" : "0px")}; top: {(Double.IsNaN(top) == false ? top + "px" : "0px")}; width: {(Double.IsNaN(width) == false ? width + "px" : "auto")}; height: {(Double.IsNaN(height) == false ? height + "px" : "auto")};\"/>";
+                                    left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null ? (double)absoluteAnchor.Position.X.Value / 2 * 96 / 72 : Double.NaN;
+                                    top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null ? (double)absoluteAnchor.Position.Y.Value / 2 * 96 / 72 : Double.NaN;
+                                    width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null ? (double)absoluteAnchor.Extent.Cx.Value / 914400 * 96 : Double.NaN;
+                                    height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null == false ? (double)absoluteAnchor.Extent.Cy.Value / 914400 * 96 : Double.NaN;
                                 }
-                                catch
+                                else
                                 {
-                                    continue;
+                                    left = Double.NaN;
+                                    top = Double.NaN;
+                                    width = Double.NaN;
+                                    height = Double.NaN;
+                                }
+
+                                if (config.IsConvertPicture)
+                                {
+                                    foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture in absoluteAnchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>())
+                                    {
+                                        try
+                                        {
+                                            if (picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Hidden != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Hidden.HasValue ? picture.NonVisualPictureProperties.NonVisualDrawingProperties.Hidden.Value : false)
+                                            {
+                                                continue;
+                                            }
+
+                                            int rotation = 0;
+                                            double pictureLeft = left;
+                                            double pictureTop = top;
+                                            double pictureWidth = width;
+                                            double pictureHeight = height;
+                                            string alt = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.HasValue ? picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value : "Image";
+
+                                            if (picture.ShapeProperties != null && picture.ShapeProperties.Transform2D != null)
+                                            {
+                                                if (picture.ShapeProperties.Transform2D.Offset != null)
+                                                {
+                                                    if (!Double.IsNaN(pictureLeft))
+                                                    {
+                                                        pictureLeft += picture.ShapeProperties.Transform2D.Offset.X != null && picture.ShapeProperties.Transform2D.Offset.X.HasValue ? picture.ShapeProperties.Transform2D.Offset.X.Value / 914400 * 96 : 0;
+                                                    }
+                                                    if (!Double.IsNaN(pictureTop))
+                                                    {
+                                                        pictureTop += picture.ShapeProperties.Transform2D.Offset.Y != null && picture.ShapeProperties.Transform2D.Offset.Y.HasValue ? picture.ShapeProperties.Transform2D.Offset.Y.Value / 914400 * 96 : 0;
+                                                    }
+                                                }
+                                                if (picture.ShapeProperties.Transform2D.Extents != null)
+                                                {
+                                                    if (!Double.IsNaN(pictureWidth))
+                                                    {
+                                                        pictureWidth += picture.ShapeProperties.Transform2D.Extents.Cx != null && picture.ShapeProperties.Transform2D.Extents.Cx.HasValue ? picture.ShapeProperties.Transform2D.Extents.Cx.Value / 914400 * 96 : 0;
+                                                    }
+                                                    if (!Double.IsNaN(pictureHeight))
+                                                    {
+                                                        pictureHeight += picture.ShapeProperties.Transform2D.Extents.Cy != null && picture.ShapeProperties.Transform2D.Extents.Cy.HasValue ? picture.ShapeProperties.Transform2D.Extents.Cy.Value / 914400 * 96 : 0;
+                                                    }
+                                                }
+                                                if (picture.ShapeProperties.Transform2D.Rotation != null && picture.ShapeProperties.Transform2D.Rotation.HasValue)
+                                                {
+                                                    rotation = picture.ShapeProperties.Transform2D.Rotation.Value;
+                                                }
+                                            }
+
+                                            ImagePart imagePart = worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) as ImagePart;
+
+                                            string base64;
+
+                                            Stream imageStream = imagePart.GetStream();
+                                            imageStream.Seek(0, SeekOrigin.Begin);
+
+                                            byte[] datas = new byte[imageStream.Length];
+
+                                            imageStream.Read(datas);
+
+                                            base64 = Convert.ToBase64String(datas, Base64FormattingOptions.None);
+
+                                            tableHtml += $"\n{new string(' ', 8)}<img alt=\"{alt}\" src=\"data:{imagePart.ContentType};base64,{base64}\" style=\"position: absolute; left: {(Double.IsNaN(pictureLeft) == false ? pictureLeft + "px" : "0px")}; top: {(Double.IsNaN(pictureTop) == false ? pictureTop + "px" : "0px")}; width: {(Double.IsNaN(pictureWidth) == false ? pictureWidth + "px" : "auto")}; height: {(Double.IsNaN(pictureHeight) == false ? pictureHeight + "px" : "auto")}; {(rotation != 0 ? $"transform: rotate(-{rotation}deg);" : "")}\"/>";
+                                        }
+                                        catch
+                                        {
+                                            continue;
+                                        }
+                                    }
+                                }
+
+                                foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape in absoluteAnchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape>())
+                                {
+                                    try
+                                    {
+                                        if (shape.NonVisualShapeProperties != null && shape.NonVisualShapeProperties.NonVisualDrawingProperties != null && shape.NonVisualShapeProperties.NonVisualDrawingProperties.Hidden != null && shape.NonVisualShapeProperties.NonVisualDrawingProperties.Hidden.HasValue ? shape.NonVisualShapeProperties.NonVisualDrawingProperties.Hidden.Value : false)
+                                        {
+                                            continue;
+                                        }
+
+                                        int rotation = 0;
+                                        double shapeLeft = left;
+                                        double shapeTop = top;
+                                        double shapeWidth = width;
+                                        double shapeHeight = height;
+
+                                        if (shape.ShapeProperties != null && shape.ShapeProperties.Transform2D != null)
+                                        {
+                                            if (shape.ShapeProperties.Transform2D.Offset != null)
+                                            {
+                                                if (!Double.IsNaN(shapeLeft))
+                                                {
+                                                    shapeLeft += shape.ShapeProperties.Transform2D.Offset.X != null && shape.ShapeProperties.Transform2D.Offset.X.HasValue ? shape.ShapeProperties.Transform2D.Offset.X.Value / 914400 * 96 : 0;
+                                                }
+                                                if (!Double.IsNaN(shapeTop))
+                                                {
+                                                    shapeTop += shape.ShapeProperties.Transform2D.Offset.Y != null && shape.ShapeProperties.Transform2D.Offset.Y.HasValue ? shape.ShapeProperties.Transform2D.Offset.Y.Value / 914400 * 96 : 0;
+                                                }
+                                            }
+                                            if (shape.ShapeProperties.Transform2D.Extents != null)
+                                            {
+                                                if (!Double.IsNaN(shapeWidth))
+                                                {
+                                                    shapeWidth += shape.ShapeProperties.Transform2D.Extents.Cx != null && shape.ShapeProperties.Transform2D.Extents.Cx.HasValue ? shape.ShapeProperties.Transform2D.Extents.Cx.Value / 914400 * 96 : 0;
+                                                }
+                                                if (!Double.IsNaN(shapeHeight))
+                                                {
+                                                    shapeHeight += shape.ShapeProperties.Transform2D.Extents.Cy != null && shape.ShapeProperties.Transform2D.Extents.Cy.HasValue ? shape.ShapeProperties.Transform2D.Extents.Cy.Value / 914400 * 96 : 0;
+                                                }
+                                            }
+                                            if (shape.ShapeProperties.Transform2D.Rotation != null && shape.ShapeProperties.Transform2D.Rotation.HasValue)
+                                            {
+                                                rotation = shape.ShapeProperties.Transform2D.Rotation.Value;
+                                            }
+                                        }
+
+                                        string text = shape.TextBody != null ? shape.TextBody.InnerText : "";
+
+                                        tableHtml += $"\n{new string(' ', 8)}<p style=\"position: absolute; left: {(Double.IsNaN(shapeLeft) == false ? shapeLeft + "px" : "0px")}; top: {(Double.IsNaN(shapeTop) == false ? shapeTop + "px" : "0px")}; width: {(Double.IsNaN(shapeWidth) == false ? shapeWidth + "px" : "auto")}; height: {(Double.IsNaN(shapeHeight) == false ? shapeHeight + "px" : "auto")}; {(rotation != 0 ? $"transform: rotate(-{rotation}deg);" : "")}\">{text}</p>";
+                                    }
+                                    catch
+                                    {
+                                        continue;
+                                    }
                                 }
                             }
-
-                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.OfType<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
+                            catch
                             {
-                                try
+                                continue;
+                            }
+                        }
+
+                        foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
+                        {
+                            try
+                            {
+                                double left;
+                                double top;
+                                double width;
+                                double height;
+
+                                if (oneCellAnchor != null)
                                 {
-                                    double left;
-                                    double top;
-                                    double width;
-                                    double height;
-                                    string alt;
-
-                                    DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture = oneCellAnchor.GetFirstChild<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>();
-
-                                    if (oneCellAnchor != null)
-                                    {
-                                        left = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && oneCellAnchor.FromMarker.ColumnOffset != null ? columnWidths.Take(Int32.Parse(oneCellAnchor.FromMarker.ColumnId.Text)).Sum() + Int32.Parse(oneCellAnchor.FromMarker.ColumnId.Text) + (Double.Parse(oneCellAnchor.FromMarker.ColumnOffset.Text) / 914400 * 96) : Double.NaN;
-                                        top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && oneCellAnchor.FromMarker.RowOffset != null ? rowHeights.Take(Int32.Parse(oneCellAnchor.FromMarker.RowId.Text)).Sum() + Int32.Parse(oneCellAnchor.FromMarker.RowId.Text) + (Double.Parse(oneCellAnchor.FromMarker.RowOffset.Text) / 914400 * 96) : Double.NaN;
-                                        width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null ? (double)oneCellAnchor.Extent.Cx.Value / 914400 * 96 : Double.NaN;
-                                        height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null == false ? (double)oneCellAnchor.Extent.Cy.Value / 914400 * 96 : Double.NaN;
-                                        alt = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null ? picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value : "Image";
-                                    }
-                                    else
-                                    {
-                                        left = Double.NaN;
-                                        top = Double.NaN;
-                                        width = Double.NaN;
-                                        height = Double.NaN;
-                                        alt = "Image";
-                                    }
-
-                                    ImagePart imagePart = worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) as ImagePart;
-
-                                    string base64;
-
-                                    Stream imageStream = imagePart.GetStream();
-                                    imageStream.Seek(0, SeekOrigin.Begin);
-
-                                    byte[] datas = new byte[imageStream.Length];
-
-                                    imageStream.Read(datas);
-
-                                    base64 = Convert.ToBase64String(datas, Base64FormattingOptions.None);
-
-                                    tableHtml += $"\n{new string(' ', 8)}<img alt=\"{alt}\" src=\"data:{imagePart.ContentType};base64,{base64}\" style=\"position: absolute; left: {(Double.IsNaN(left) == false ? left + "px" : "0px")}; top: {(Double.IsNaN(top) == false ? top + "px" : "0px")}; width: {(Double.IsNaN(width) == false ? width + "px" : "auto")}; height: {(Double.IsNaN(height) == false ? height + "px" : "auto")};\"/>";
+                                    left = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && oneCellAnchor.FromMarker.ColumnOffset != null ? columnWidths.Take(Int32.Parse(oneCellAnchor.FromMarker.ColumnId.Text)).Sum() + Int32.Parse(oneCellAnchor.FromMarker.ColumnId.Text) + (Double.Parse(oneCellAnchor.FromMarker.ColumnOffset.Text) / 914400 * 96) : Double.NaN;
+                                    top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && oneCellAnchor.FromMarker.RowOffset != null ? rowHeights.Take(Int32.Parse(oneCellAnchor.FromMarker.RowId.Text)).Sum() + Int32.Parse(oneCellAnchor.FromMarker.RowId.Text) + (Double.Parse(oneCellAnchor.FromMarker.RowOffset.Text) / 914400 * 96) : Double.NaN;
+                                    width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null ? (double)oneCellAnchor.Extent.Cx.Value / 914400 * 96 : Double.NaN;
+                                    height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null == false ? (double)oneCellAnchor.Extent.Cy.Value / 914400 * 96 : Double.NaN;
                                 }
-                                catch
+                                else
                                 {
-                                    continue;
+                                    left = Double.NaN;
+                                    top = Double.NaN;
+                                    width = Double.NaN;
+                                    height = Double.NaN;
                                 }
+
+                                if (config.IsConvertPicture)
+                                {
+                                    foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture in oneCellAnchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>())
+                                    {
+                                        try
+                                        {
+                                            if (picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Hidden != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Hidden.HasValue ? picture.NonVisualPictureProperties.NonVisualDrawingProperties.Hidden.Value : false)
+                                            {
+                                                continue;
+                                            }
+
+                                            int rotation = 0;
+                                            double pictureLeft = left;
+                                            double pictureTop = top;
+                                            double pictureWidth = width;
+                                            double pictureHeight = height;
+                                            string alt = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.HasValue ? picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value : "Image";
+
+                                            if (picture.ShapeProperties != null && picture.ShapeProperties.Transform2D != null)
+                                            {
+                                                if (picture.ShapeProperties.Transform2D.Offset != null)
+                                                {
+                                                    if (!Double.IsNaN(pictureLeft))
+                                                    {
+                                                        pictureLeft += picture.ShapeProperties.Transform2D.Offset.X != null && picture.ShapeProperties.Transform2D.Offset.X.HasValue ? picture.ShapeProperties.Transform2D.Offset.X.Value / 914400 * 96 : 0;
+                                                    }
+                                                    if (!Double.IsNaN(pictureTop))
+                                                    {
+                                                        pictureTop += picture.ShapeProperties.Transform2D.Offset.Y != null && picture.ShapeProperties.Transform2D.Offset.Y.HasValue ? picture.ShapeProperties.Transform2D.Offset.Y.Value / 914400 * 96 : 0;
+                                                    }
+                                                }
+                                                if (picture.ShapeProperties.Transform2D.Extents != null)
+                                                {
+                                                    if (!Double.IsNaN(pictureWidth))
+                                                    {
+                                                        pictureWidth += picture.ShapeProperties.Transform2D.Extents.Cx != null && picture.ShapeProperties.Transform2D.Extents.Cx.HasValue ? picture.ShapeProperties.Transform2D.Extents.Cx.Value / 914400 * 96 : 0;
+                                                    }
+                                                    if (!Double.IsNaN(pictureHeight))
+                                                    {
+                                                        pictureHeight += picture.ShapeProperties.Transform2D.Extents.Cy != null && picture.ShapeProperties.Transform2D.Extents.Cy.HasValue ? picture.ShapeProperties.Transform2D.Extents.Cy.Value / 914400 * 96 : 0;
+                                                    }
+                                                }
+                                                if (picture.ShapeProperties.Transform2D.Rotation != null && picture.ShapeProperties.Transform2D.Rotation.HasValue)
+                                                {
+                                                    rotation = picture.ShapeProperties.Transform2D.Rotation.Value;
+                                                }
+                                            }
+
+                                            ImagePart imagePart = worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) as ImagePart;
+
+                                            string base64;
+
+                                            Stream imageStream = imagePart.GetStream();
+                                            imageStream.Seek(0, SeekOrigin.Begin);
+
+                                            byte[] datas = new byte[imageStream.Length];
+
+                                            imageStream.Read(datas);
+
+                                            base64 = Convert.ToBase64String(datas, Base64FormattingOptions.None);
+
+                                            tableHtml += $"\n{new string(' ', 8)}<img alt=\"{alt}\" src=\"data:{imagePart.ContentType};base64,{base64}\" style=\"position: absolute; left: {(Double.IsNaN(pictureLeft) == false ? pictureLeft + "px" : "0px")}; top: {(Double.IsNaN(pictureTop) == false ? pictureTop + "px" : "0px")}; width: {(Double.IsNaN(pictureWidth) == false ? pictureWidth + "px" : "auto")}; height: {(Double.IsNaN(pictureHeight) == false ? pictureHeight + "px" : "auto")}; {(rotation != 0 ? $"transform: rotate(-{rotation}deg);" : "")}\"/>";
+                                        }
+                                        catch
+                                        {
+                                            continue;
+                                        }
+                                    }
+                                }
+
+                                foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape in oneCellAnchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape>())
+                                {
+                                    try
+                                    {
+                                        if (shape.NonVisualShapeProperties != null && shape.NonVisualShapeProperties.NonVisualDrawingProperties != null && shape.NonVisualShapeProperties.NonVisualDrawingProperties.Hidden != null && shape.NonVisualShapeProperties.NonVisualDrawingProperties.Hidden.HasValue ? shape.NonVisualShapeProperties.NonVisualDrawingProperties.Hidden.Value : false)
+                                        {
+                                            continue;
+                                        }
+
+                                        int rotation = 0;
+                                        double shapeLeft = left;
+                                        double shapeTop = top;
+                                        double shapeWidth = width;
+                                        double shapeHeight = height;
+
+                                        if (shape.ShapeProperties != null && shape.ShapeProperties.Transform2D != null)
+                                        {
+                                            if (shape.ShapeProperties.Transform2D.Offset != null)
+                                            {
+                                                if (!Double.IsNaN(shapeLeft))
+                                                {
+                                                    shapeLeft += shape.ShapeProperties.Transform2D.Offset.X != null && shape.ShapeProperties.Transform2D.Offset.X.HasValue ? shape.ShapeProperties.Transform2D.Offset.X.Value / 914400 * 96 : 0;
+                                                }
+                                                if (!Double.IsNaN(shapeTop))
+                                                {
+                                                    shapeTop += shape.ShapeProperties.Transform2D.Offset.Y != null && shape.ShapeProperties.Transform2D.Offset.Y.HasValue ? shape.ShapeProperties.Transform2D.Offset.Y.Value / 914400 * 96 : 0;
+                                                }
+                                            }
+                                            if (shape.ShapeProperties.Transform2D.Extents != null)
+                                            {
+                                                if (!Double.IsNaN(shapeWidth))
+                                                {
+                                                    shapeWidth += shape.ShapeProperties.Transform2D.Extents.Cx != null && shape.ShapeProperties.Transform2D.Extents.Cx.HasValue ? shape.ShapeProperties.Transform2D.Extents.Cx.Value / 914400 * 96 : 0;
+                                                }
+                                                if (!Double.IsNaN(shapeHeight))
+                                                {
+                                                    shapeHeight += shape.ShapeProperties.Transform2D.Extents.Cy != null && shape.ShapeProperties.Transform2D.Extents.Cy.HasValue ? shape.ShapeProperties.Transform2D.Extents.Cy.Value / 914400 * 96 : 0;
+                                                }
+                                            }
+                                            if (shape.ShapeProperties.Transform2D.Rotation != null && shape.ShapeProperties.Transform2D.Rotation.HasValue)
+                                            {
+                                                rotation = shape.ShapeProperties.Transform2D.Rotation.Value;
+                                            }
+                                        }
+
+                                        string text = shape.TextBody != null ? shape.TextBody.InnerText : "";
+
+                                        tableHtml += $"\n{new string(' ', 8)}<p style=\"position: absolute; left: {(Double.IsNaN(shapeLeft) == false ? shapeLeft + "px" : "0px")}; top: {(Double.IsNaN(shapeTop) == false ? shapeTop + "px" : "0px")}; width: {(Double.IsNaN(shapeWidth) == false ? shapeWidth + "px" : "auto")}; height: {(Double.IsNaN(shapeHeight) == false ? shapeHeight + "px" : "auto")}; {(rotation != 0 ? $"transform: rotate(-{rotation}deg);" : "")}\">{text}</p>";
+                                    }
+                                    catch
+                                    {
+                                        continue;
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                continue;
                             }
                         }
 
