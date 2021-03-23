@@ -435,7 +435,7 @@ namespace XlsxToHtmlConverter
                     WorkbookPart workbook = doc.WorkbookPart;
                     WorkbookStylesPart styles = workbook.WorkbookStylesPart;
                     IEnumerable<Sheet> sheets = workbook.Workbook.Descendants<Sheet>();
-                    SharedStringTable sharedStringTable = workbook.GetPartsOfType<SharedStringTablePart>().FirstOrDefault().SharedStringTable;
+                    SharedStringTable sharedStringTable = workbook.GetPartsOfType<SharedStringTablePart>().FirstOrDefault()?.SharedStringTable;
 
                     progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs(0, sheets.Count()));
 
