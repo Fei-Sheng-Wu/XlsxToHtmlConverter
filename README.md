@@ -66,12 +66,6 @@ Also, you can use custom config and progress callback event together.
 string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName, config, converterProgressCallbackEvent);
 ```
 
-## Commercial Samples
-
-|Otpos PDF Editor|
-|    :--------:   |
-|[![Fivicon](http://pdf-editor.otpos.com/content/img/favicon.png)](http://pdf-editor.otpos.com/)|
-
 ## License
 
 This project is under the [MIT License](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.1.14/LICENSE.txt).
