@@ -435,7 +435,7 @@ namespace XlsxToHtmlConverter
                     WorkbookPart workbook = doc.WorkbookPart;
                     WorkbookStylesPart styles = workbook.WorkbookStylesPart;
                     IEnumerable<Sheet> sheets = workbook.Workbook.Descendants<Sheet>();
-                    SharedStringTable sharedStringTable = workbook.GetPartsOfType<SharedStringTablePart>().FirstOrDefault()?.SharedStringTable;
+                    SharedStringTable sharedStringTable = workbook.GetPartsOfType<SharedStringTablePart>().FirstOrDefault().SharedStringTable;
 
                     progressCallbackEvent?.Invoke(doc, new ConverterProgressCallbackEventArgs(0, sheets.Count()));
 
@@ -787,32 +787,39 @@ namespace XlsxToHtmlConverter
                                         {
                                             try
                                             {
-                                                NumberingFormat numberingFormat = styles.Stylesheet.NumberingFormats.ChildElements.First(x => ((NumberingFormat)x).NumberFormatId == cellFormat.NumberFormatId.Value) as NumberingFormat;
-
-                                                if (cellFormat.NumberFormatId.Value != 0 && numberingFormat.FormatCode.Value != "@")
+                                                if (styles.Stylesheet.NumberingFormats != null)
                                                 {
-                                                    string format = numberingFormat.FormatCode.Value.Replace("&quot;", "");
+                                                    NumberingFormat numberingFormat = styles.Stylesheet.NumberingFormats.ChildElements.First(x => ((NumberingFormat)x).NumberFormatId == cellFormat.NumberFormatId.Value) as NumberingFormat;
 
-                                                    if (format.ToLower() == "d")
+                                                    if (cellFormat.NumberFormatId.Value != 0 && numberingFormat.FormatCode.Value != "@")
                                                     {
-                                                        cellValue = dateValue.Day.ToString();
-                                                    }
-                                                    else if (format.ToLower() == "m")
-                                                    {
-                                                        cellValue = dateValue.Month.ToString();
-                                                    }
-                                                    else if (format.ToLower() == "y")
-                                                    {
-                                                        cellValue = dateValue.Year.ToString();
+                                                        string format = numberingFormat.FormatCode.Value.Replace("&quot;", "");
+
+                                                        if (format.ToLower() == "d")
+                                                        {
+                                                            cellValue = dateValue.Day.ToString();
+                                                        }
+                                                        else if (format.ToLower() == "m")
+                                                        {
+                                                            cellValue = dateValue.Month.ToString();
+                                                        }
+                                                        else if (format.ToLower() == "y")
+                                                        {
+                                                            cellValue = dateValue.Year.ToString();
+                                                        }
+                                                        else
+                                                        {
+                                                            cellValue = dateValue.ToString(format);
+                                                        }
                                                     }
                                                     else
                                                     {
-                                                        cellValue = dateValue.ToString(format);
+                                                        cellValue = dateValue.ToString();
                                                     }
                                                 }
                                                 else
                                                 {
-                                                    cellValue = dateValue.ToString();
+                                                    cellValue = cell.CellValue.Text;
                                                 }
                                             }
                                             catch
