@@ -1,14 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
-    <Version>1.1.14</Version>
+    <TargetFramework>net6.0</TargetFramework>
+    <Version>1.1.15</Version>
     <Authors>FeiShengWu</Authors>
-    <Company>Atoyot Software Inc.</Company>
-    <Description>A xlsx to html file converter. Support fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures. Support progress callback event. It uses .Net Core 3.0 as framework and only depends on the Open Xml SDK.</Description>
-    <Copyright>Copyright © 2020 Atoyot Software Inc.</Copyright>
+    <Company></Company>
+    <Description>A xlsx to html file converter. Support cell fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures drawing. Support progress callback event. It uses .Net Core 3.0 as framework and only depends on the Open Xml SDK.</Description>
+    <Copyright>Copyright © 2024 FeiShengWu</Copyright>
     <PackageProjectUrl>https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/</PackageProjectUrl>
     <PackageLicenseFile>MIT License.txt</PackageLicenseFile>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
