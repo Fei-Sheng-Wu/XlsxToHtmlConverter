@@ -1,6 +1,6 @@
 # XlsxToHtmlConverter
 
-[![Target Framework](https://img.shields.io/badge/%2ENet%20-6.0-green.svg?style=flat-square)](https://docs.microsoft.com/en-us/dotnet/core/about)
+[![Target Framework](https://img.shields.io/badge/.Net%20-6.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
 [![Nuget](https://img.shields.io/badge/Nuget-v1.2.7-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.7)
 [![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.7/LICENSE.txt)
 
