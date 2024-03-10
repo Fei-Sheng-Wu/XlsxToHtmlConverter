@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Version>1.2.7</Version>
+    <Authors>FeiShengWu</Authors>
+    <Company></Company>
+    <Description>A xlsx to html file converter. Support cell fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures drawing. Support progress callback event. It uses .Net 6.0 as framework and only depends on the Open Xml SDK.</Description>
+    <Copyright>Copyright © 2024 FeiShengWu</Copyright>
+    <PackageProjectUrl>https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/</PackageProjectUrl>
+    <PackageLicenseFile>MIT License.txt</PackageLicenseFile>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>$(AssemblyName)</Title>
+    <PackageTags>C#; Excel; Xlsx; Html; Webpage; Converter; Data; Spreadsheet; OpenXML</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="2.10.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="MIT License.txt">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>
