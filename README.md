@@ -1,8 +1,8 @@
 # XlsxToHtmlConverter
 
 [![Target Framework](https://img.shields.io/badge/%2ENet%20-6.0-green.svg?style=flat-square)](https://docs.microsoft.com/en-us/dotnet/core/about)
-[![Nuget](https://img.shields.io/badge/Nuget-v1.2.1-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.1)
-[![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.1/LICENSE.txt)
+[![Nuget](https://img.shields.io/badge/Nuget-v1.2.7-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.7)
+[![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.7/LICENSE.txt)
 
 > A xlsx to html file converter. Support cell fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures drawing. Support progress callback event. It uses .Net 6.0 as framework and only depends on the Open Xml SDK.
 
@@ -22,7 +22,7 @@
 
 ## How to Use
 
-Only one line to convert xlsx file to html string.
+Only one line to convert a xlsx file to html string.
 
 ```c#
 string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName);
@@ -34,7 +34,7 @@ Or if xlsx file data is in the stream, convert the stream.
 string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileStream);
 ```
 
-You can even set your custom converter config.
+There are also flexible custom converter configurations.
 
 ```c#
 XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
@@ -51,7 +51,7 @@ XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterCo
 string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName, config);
 ```
 
-And you can convert file with progress callback event.
+A progress callback event can be used to monitor the progress.
 
 ```c#
 EventHandler<XlsxToHtmlConverter.ConverterProgressCallbackEventArgs> converterProgressCallbackEvent = null;
@@ -60,7 +60,7 @@ converterProgressCallbackEvent += ConverterProgressCallback;
 string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName, converterProgressCallbackEvent);
 ```
 
-Also, you can use custom config and progress callback event together.
+And all of them can be used together.
 
 ```c#
 string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName, config, converterProgressCallbackEvent);
@@ -68,4 +68,4 @@ string html = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName, config, co
 
 ## License
 
-This project is under the [MIT License](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.1/LICENSE.txt).
+This project is under the [MIT License](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.7/LICENSE.txt).
