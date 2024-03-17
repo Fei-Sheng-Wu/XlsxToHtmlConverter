@@ -44,8 +44,8 @@ namespace XlsxToHtmlConverter.Test
             try
             {
                 //Create the progress callback
-                EventHandler<XlsxToHtmlConverter.ConverterProgressCallbackEventArgs> converterProgressCallbackEvent = null;
-                converterProgressCallbackEvent += ConverterProgressCallback;
+                EventHandler<XlsxToHtmlConverter.ConverterProgressCallbackEventArgs> progressCallback = null;
+                progressCallback += ConverterProgressCallback;
 
                 //Convert the Xlsx file
                 using (MemoryStream inputStream = new MemoryStream())
@@ -59,7 +59,7 @@ namespace XlsxToHtmlConverter.Test
                     };
 
                     using FileStream outputStream = new FileStream(htmlFileName, FileMode.Create);
-                    XlsxToHtmlConverter.Converter.ConvertXlsx(inputStream, outputStream, config, converterProgressCallbackEvent);
+                    XlsxToHtmlConverter.Converter.ConvertXlsx(inputStream, outputStream, config, progressCallback);
                 }
 
                 //Open the Html file
