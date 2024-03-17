@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 namespace XlsxToHtmlConverter.Test
 {
@@ -11,7 +12,7 @@ namespace XlsxToHtmlConverter.Test
             string xlsxFileName;
             string htmlFileName;
 
-            //Get input and output file paths
+            //Get the input and output file paths
             if (args != null && args.Length == 2)
             {
                 xlsxFileName = args[0];
@@ -20,7 +21,7 @@ namespace XlsxToHtmlConverter.Test
             else if (args != null && args.Length == 1)
             {
                 xlsxFileName = args[0];
-                htmlFileName = System.IO.Path.ChangeExtension(xlsxFileName, "html");
+                htmlFileName = Path.ChangeExtension(xlsxFileName, "html");
             }
             else
             {
@@ -42,15 +43,26 @@ namespace XlsxToHtmlConverter.Test
 
             try
             {
-                //Create progress callback event
+                //Create the progress callback
                 EventHandler<XlsxToHtmlConverter.ConverterProgressCallbackEventArgs> converterProgressCallbackEvent = null;
                 converterProgressCallbackEvent += ConverterProgressCallback;
 
-                //Convert document
-                string htmlString = XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName, converterProgressCallbackEvent);
-                System.IO.File.WriteAllText(htmlFileName, htmlString);
+                //Convert the Xlsx file
+                using (MemoryStream inputStream = new())
+                {
+                    byte[] byteArray = File.ReadAllBytes(xlsxFileName);
+                    inputStream.Write(byteArray, 0, byteArray.Length);
 
-                //Open html file
+                    XlsxToHtmlConverter.ConverterConfig config = new()
+                    {
+                        PageTitle = Path.GetFileName(xlsxFileName)
+                    };
+
+                    using FileStream outputStream = new(htmlFileName, FileMode.Create);
+                    XlsxToHtmlConverter.Converter.ConvertXlsx(inputStream, outputStream, config, converterProgressCallbackEvent);
+                }
+
+                //Open the Html file
                 try
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(htmlFileName) { UseShellExecute = true, CreateNoWindow = true });
@@ -62,19 +74,17 @@ namespace XlsxToHtmlConverter.Test
                 }
                 finally
                 {
-                    //Exit
                     Environment.Exit(1);
                 }
             }
             catch (Exception ex)
             {
-                //Output error
+                //Output the error
                 Console.SetCursorPosition(0, Console.CursorTop - 1);
                 Console.WriteLine("Error: " + ex.Message);
                 Console.WriteLine("\nPress Enter key to exit.");
                 Console.ReadLine();
 
-                //Exit
                 Environment.Exit(0);
             }
         }
@@ -83,7 +93,7 @@ namespace XlsxToHtmlConverter.Test
         {
             //Output the progress
             Console.SetCursorPosition(0, Console.CursorTop - 1);
-            Console.WriteLine(String.Format("{0:##0.00}% ({1} of {2})", e.ProgressPercent, e.CurrentSheet, e.TotalSheets).PadRight(String.Format("100.00% ({0} of {0})", e.TotalSheets).Length + 1) + new string('█', (int)(e.ProgressPercent / 2)) + new string('░', (int)((100 - e.ProgressPercent) / 2)));
+            Console.WriteLine(string.Format("{0:##0.00}% (Sheet {1} of {2} | Row {3} of {4})", e.ProgressPercent, e.CurrentSheet, e.TotalSheets, e.CurrentRow, e.TotalRows) + new string(' ', 5) + new string('█', (int)(e.ProgressPercent / 2)) + new string('░', (int)((100 - e.ProgressPercent) / 2)));
         }
     }
 }
