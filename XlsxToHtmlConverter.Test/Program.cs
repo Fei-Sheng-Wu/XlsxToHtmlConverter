@@ -48,17 +48,17 @@ namespace XlsxToHtmlConverter.Test
                 converterProgressCallbackEvent += ConverterProgressCallback;
 
                 //Convert the Xlsx file
-                using (MemoryStream inputStream = new())
+                using (MemoryStream inputStream = new MemoryStream())
                 {
                     byte[] byteArray = File.ReadAllBytes(xlsxFileName);
                     inputStream.Write(byteArray, 0, byteArray.Length);
 
-                    XlsxToHtmlConverter.ConverterConfig config = new()
+                    XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
                     {
                         PageTitle = Path.GetFileName(xlsxFileName)
                     };
 
-                    using FileStream outputStream = new(htmlFileName, FileMode.Create);
+                    using FileStream outputStream = new FileStream(htmlFileName, FileMode.Create);
                     XlsxToHtmlConverter.Converter.ConvertXlsx(inputStream, outputStream, config, converterProgressCallbackEvent);
                 }
 
