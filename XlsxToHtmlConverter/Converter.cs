@@ -174,7 +174,7 @@ namespace XlsxToHtmlConverter
                         }
                         Worksheet sheet = worksheet.Worksheet;
 
-                        if (config.ConvertTitle == true)
+                        if (config.ConvertSheetNameTitle == true)
                         {
                             writer.Write($"\n{new string(' ', 4)}<h5 {(sheet.SheetProperties != null && sheet.SheetProperties.TabColor != null ? "style=\"border-bottom-color: " + GetColorFromColorType(document, sheet.SheetProperties.TabColor, System.Drawing.Color.Transparent) + ";\"" : "")}>{currentSheet.Name}</h5>");
                         }
@@ -1836,7 +1836,7 @@ namespace XlsxToHtmlConverter
             this.ConvertStyle = true;
             this.ConvertSize = true;
             this.ConvertPicture = true;
-            this.ConvertTitle = true;
+            this.ConvertSheetNameTitle = true;
             this.ConvertHiddenSheet = false;
             this.ConvertFirstSheetOnly = false;
             this.ConvertHtmlBodyOnly = false;
@@ -1880,9 +1880,9 @@ namespace XlsxToHtmlConverter
         public bool ConvertPicture { get; set; }
 
         /// <summary>
-        /// Gets or sets whether to convert Xlsx sheet title or not.
+        /// Gets or sets whether to convert Xlsx sheet names to titles or not.
         /// </summary>
-        public bool ConvertTitle { get; set; }
+        public bool ConvertSheetNameTitle { get; set; }
 
         /// <summary>
         /// Gets or sets whether to convert Xlsx hidden sheets or not.
