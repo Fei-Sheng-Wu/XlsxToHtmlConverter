@@ -89,7 +89,7 @@ namespace XlsxToHtmlConverter.Test
             }
         }
 
-        private static void ConverterProgressCallback(object sender, ConverterProgressCallbackEventArgs e)
+        private static void ConverterProgressCallback(object sender, XlsxToHtmlConverter.ConverterProgressCallbackEventArgs e)
         {
             //Output the progress
             Console.SetCursorPosition(0, Console.CursorTop - 1);
