@@ -7,6 +7,8 @@ namespace XlsxToHtmlConverter.Test
     {
         public static void Main(string[] args)
         {
+            Console.Clear();
+            Console.SetCursorPosition(0, 0);
             Console.CursorVisible = false;
 
             string xlsxFileName;
@@ -43,23 +45,19 @@ namespace XlsxToHtmlConverter.Test
 
             try
             {
-                //Create the progress callback
-                EventHandler<XlsxToHtmlConverter.ConverterProgressCallbackEventArgs> progressCallback = null;
-                progressCallback += ConverterProgressCallback;
+                //Set up the progress callback
+                EventHandler<XlsxToHtmlConverter.ConverterProgressCallbackEventArgs> progressCallback = ConverterProgressCallback;
+
+                //Adjust the conversion configurations
+                XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
+                {
+                    PageTitle = Path.GetFileName(xlsxFileName)
+                };
 
                 //Convert the Xlsx file
-                using (MemoryStream inputStream = new MemoryStream())
+                using (FileStream outputStream = new FileStream(htmlFileName, FileMode.Create))
                 {
-                    byte[] byteArray = File.ReadAllBytes(xlsxFileName);
-                    inputStream.Write(byteArray, 0, byteArray.Length);
-
-                    XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
-                    {
-                        PageTitle = Path.GetFileName(xlsxFileName)
-                    };
-
-                    using FileStream outputStream = new FileStream(htmlFileName, FileMode.Create);
-                    XlsxToHtmlConverter.Converter.ConvertXlsx(inputStream, outputStream, config, progressCallback);
+                    XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFileName, outputStream, config, progressCallback);
                 }
 
                 //Open the Html file
