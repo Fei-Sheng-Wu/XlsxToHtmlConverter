@@ -4,8 +4,8 @@
 [![Target Framework](https://img.shields.io/badge/.Net-%E2%89%A55.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/5.0)
 [![Target Framework](https://img.shields.io/badge/.Net%20Core-%E2%89%A53.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/3.0)
 [![Target Framework](https://img.shields.io/badge/.Net%20Standard-%E2%89%A52.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/platform/dotnet-standard)
-[![Nuget](https://img.shields.io/badge/Nuget-v1.2.15-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.15)
-[![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.15/LICENSE.txt)
+[![Nuget](https://img.shields.io/badge/Nuget-v1.2.17-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.17)
+[![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.17/LICENSE.txt)
 
 > A Xlsx to Html file converter and parser. Support cell fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures. Support progress callback. It only depends on the Microsoft Open Xml SDK.
 
@@ -24,11 +24,11 @@
 
 ### Original Xlsx File
 
-![Original Xlsx File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/59e1dae0c66f3526653d82dedbe538164f19e6d2/screenshot-xlsx.png)
+![Original Xlsx File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.17/screenshot-xlsx.png)
 
 ### Converted Html File
 
-![Converted Html File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/59e1dae0c66f3526653d82dedbe538164f19e6d2/screenshot-html.png)
+![Converted Html File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.17/screenshot-html.png)
 
 ## How to Use
 
@@ -100,4 +100,4 @@ private static void ConverterProgressCallback(object sender, XlsxToHtmlConverter
 
 ## License
 
-This project is under the [MIT License](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.15/LICENSE.txt).
+This project is under the [MIT License](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/1.2.17/LICENSE.txt).
