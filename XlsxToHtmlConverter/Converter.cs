@@ -190,8 +190,8 @@ namespace XlsxToHtmlConverter
 
                         if (config.ConvertSheetNameTitle)
                         {
-                            string tabColor = sheet.SheetProperties != null && sheet.SheetProperties.TabColor != null ? ColorTypeToHtml(workbook, sheet.SheetProperties.TabColor) : "";
-                            writer.Write($"\n{new string(' ', 4)}<h5{(!string.IsNullOrEmpty(tabColor) ? " style=\"border-bottom-color: " + tabColor + ";\"" : "")}>{(currentSheet.Name != null && currentSheet.Name.HasValue ? currentSheet.Name.Value : "Untitled")}</h5>");
+                            string tabColor = sheet.SheetProperties != null && sheet.SheetProperties.TabColor != null ? ColorTypeToHtml(workbook, sheet.SheetProperties.TabColor) : string.Empty;
+                            writer.Write($"\n{new string(' ', 4)}<h5{(!string.IsNullOrEmpty(tabColor) ? " style=\"border-bottom-color: " + tabColor + ";\"" : string.Empty)}>{(currentSheet.Name != null && currentSheet.Name.HasValue ? currentSheet.Name.Value : "Untitled")}</h5>");
                         }
 
                         writer.Write($"\n{new string(' ', 4)}<div style=\"position: relative;\">");
@@ -330,7 +330,7 @@ namespace XlsxToHtmlConverter
                             Cell[] cells = new Cell[columnsCount];
                             for (int i = 0; i < columnsCount; i++)
                             {
-                                cells[i] = new Cell() { CellValue = new CellValue(""), CellReference = ((char)(64 + i + 1)).ToString() + row.RowIndex };
+                                cells[i] = new Cell() { CellValue = new CellValue(string.Empty), CellReference = ((char)(64 + i + 1)).ToString() + row.RowIndex };
                             }
                             foreach (Cell cell in row.Descendants<Cell>())
                             {
@@ -373,12 +373,12 @@ namespace XlsxToHtmlConverter
                                     cellFormat = stylesheetCellFormat;
                                 }
 
-                                string numberFormatCode = "";
+                                string numberFormatCode = string.Empty;
                                 bool isNumberFormatDate = false;
                                 switch (cellFormat != null && cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || (cellFormat.ApplyNumberFormat.HasValue && cellFormat.ApplyNumberFormat.Value)) ? (int)cellFormat.NumberFormatId.Value : 0)
                                 {
                                     case 0:
-                                        numberFormatCode = "";
+                                        numberFormatCode = string.Empty;
                                         break;
                                     case 1:
                                         numberFormatCode = "0";
@@ -478,8 +478,8 @@ namespace XlsxToHtmlConverter
                                         break;
                                 }
 
-                                string cellValue = "";
-                                string cellValueRaw = "";
+                                string cellValue = string.Empty;
+                                string cellValueRaw = string.Empty;
                                 if (cell.CellValue != null)
                                 {
                                     cellValue = !string.IsNullOrEmpty(cell.CellValue.Text) ? cell.CellValue.Text : cell.CellValue.InnerText;
@@ -488,7 +488,7 @@ namespace XlsxToHtmlConverter
                                     {
                                         if (sharedString.HasChildren)
                                         {
-                                            cellValue = "";
+                                            cellValue = string.Empty;
 
                                             Run runLast = null;
                                             foreach (OpenXmlElement element in sharedString.Descendants())
@@ -535,6 +535,8 @@ namespace XlsxToHtmlConverter
 
                                     if (!string.IsNullOrEmpty(numberFormatCode))
                                     {
+                                        numberFormatCode = string.Concat(numberFormatCode.Split('_', '*', '\"', '(', ')'));
+
                                         if ((isNumberFormatDate || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && double.TryParse(cellValue, out double cellValueDate))
                                         {
                                             DateTime dateValue = DateTime.FromOADate(cellValueDate).Date;
@@ -555,9 +557,31 @@ namespace XlsxToHtmlConverter
                                                 cellValue = dateValue.ToString(numberFormatCode.Replace("m", "M"));
                                             }
                                         }
-                                        else if (numberFormatCode != "@")
+                                        else
                                         {
-                                            cellValue = string.Format($"{{0:{numberFormatCode}}}", cellValue);
+                                            string[] numberFormatCodeComponents = numberFormatCode.Split(';');
+                                            if (double.TryParse(cellValue, out double cellValueNumber))
+                                            {
+                                                if (cellValueNumber > 0)
+                                                {
+                                                    numberFormatCode = numberFormatCodeComponents.Length >= 1 ? numberFormatCodeComponents[0] : numberFormatCode;
+                                                }
+                                                else if (cellValueNumber < 0)
+                                                {
+                                                    numberFormatCode = numberFormatCodeComponents.Length >= 2 ? numberFormatCodeComponents[1] : numberFormatCode;
+                                                }
+                                                else
+                                                {
+                                                    numberFormatCode = numberFormatCodeComponents.Length >= 3 ? numberFormatCodeComponents[2] : numberFormatCode;
+                                                }
+
+                                                cellValue = numberFormatCode.Contains("@") ? numberFormatCode.Replace("@", cellValue) : cellValueNumber.ToString(numberFormatCode);
+                                            }
+                                            else
+                                            {
+                                                numberFormatCode = numberFormatCodeComponents.Length >= 4 ? numberFormatCodeComponents[3] : numberFormatCode;
+                                                cellValue = numberFormatCode.Contains("@") ? numberFormatCode.Replace("@", cellValue) : cellValue;
+                                            }
                                         }
                                     }
                                 }
@@ -760,7 +784,7 @@ namespace XlsxToHtmlConverter
 
         private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional)
         {
-            string htmlAttributes = "";
+            string htmlAttributes = string.Empty;
             foreach (KeyValuePair<string, string> pair in attributes)
             {
                 if (!string.IsNullOrEmpty(pair.Key) && !string.IsNullOrEmpty(pair.Value))
@@ -793,7 +817,7 @@ namespace XlsxToHtmlConverter
 
             if (fill != null && fill.PatternFill != null && fill.PatternFill.PatternType != null && fill.PatternFill.PatternType.HasValue && fill.PatternFill.PatternType.Value != PatternValues.None)
             {
-                string background = "";
+                string background = string.Empty;
                 if (fill.PatternFill.ForegroundColor != null)
                 {
                     background = ColorTypeToHtml(workbook, fill.PatternFill.ForegroundColor);
@@ -916,7 +940,7 @@ namespace XlsxToHtmlConverter
         {
             if (type == null)
             {
-                return "";
+                return string.Empty;
             }
 
             RgbaColor rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
@@ -1128,7 +1152,7 @@ namespace XlsxToHtmlConverter
                         rgbColor = HexToRgba("#FFFFFF");
                         break;
                     default:
-                        return "";
+                        return string.Empty;
                 }
             }
             else if (type.Theme != null && type.Theme.HasValue && workbook.ThemePart != null && workbook.ThemePart.Theme != null && workbook.ThemePart.Theme.ThemeElements != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme.HasChildren && type.Theme.Value < workbook.ThemePart.Theme.ThemeElements.ColorScheme.ChildElements.Count && workbook.ThemePart.Theme.ThemeElements.ColorScheme.ChildElements[(int)type.Theme.Value] is DocumentFormat.OpenXml.Drawing.Color2Type color)
@@ -1245,7 +1269,7 @@ namespace XlsxToHtmlConverter
                             rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
                             break;
                         default:
-                            return "";
+                            return string.Empty;
                     };
                 }
                 else if (color.PresetColor != null && color.PresetColor.Val != null && color.PresetColor.Val.HasValue)
@@ -1823,17 +1847,17 @@ namespace XlsxToHtmlConverter
                             rgbColor = new RgbaColor() { R = 112, G = 128, B = 144, A = 1 };
                             break;
                         default:
-                            return "";
+                            return string.Empty;
                     };
                 }
                 else
                 {
-                    return "";
+                    return string.Empty;
                 }
             }
             else
             {
-                return "";
+                return string.Empty;
             }
 
             if (type.Tint != null && type.Tint.HasValue)
@@ -1869,7 +1893,7 @@ namespace XlsxToHtmlConverter
 
         private static RgbaColor HexToRgba(string hex)
         {
-            string hexTrimmed = hex.Replace("#", "");
+            string hexTrimmed = hex.Replace("#", string.Empty);
             if (hexTrimmed.Length < 6)
             {
                 return new RgbaColor() { R = 0, G = 0, B = 0, A = 0 };
@@ -1878,10 +1902,10 @@ namespace XlsxToHtmlConverter
             {
                 return new RgbaColor()
                 {
-                    R = Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length == 8 ? 2 : 0, 2), 16),
-                    G = Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length == 8 ? 4 : 2, 2), 16),
-                    B = Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length == 8 ? 6 : 4, 2), 16),
-                    A = hexTrimmed.Length == 8 ? Convert.ToInt32(hexTrimmed.Substring(0, 2), 16) / 255.0 : 1
+                    R = Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length >= 8 ? 2 : 0, 2), 16),
+                    G = Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length >= 8 ? 4 : 2, 2), 16),
+                    B = Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length >= 8 ? 6 : 4, 2), 16),
+                    A = hexTrimmed.Length >= 8 ? Convert.ToInt32(hexTrimmed.Substring(0, 2), 16) / 255.0 : 1
                 };
             }
         }
@@ -1972,7 +1996,7 @@ namespace XlsxToHtmlConverter
             {
                 htmlStyle.Add("font-style", italic.Val == null || (italic.Val.HasValue && italic.Val.Value) ? "italic" : "normal");
             }
-            string textDecoraion = "";
+            string textDecoraion = string.Empty;
             if (strike != null)
             {
                 textDecoraion += strike.Val == null || (strike.Val.HasValue && strike.Val.Value) ? " line-through" : " none";
@@ -2144,7 +2168,7 @@ namespace XlsxToHtmlConverter
 
                         drawings.Add(new DrawingInfo()
                         {
-                            Prefix = $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{(properties != null && properties.Description != null && properties.Description.HasValue ? " alt=\"" + properties.Description.Value + "\"" : "")}",
+                            Prefix = $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{(properties != null && properties.Description != null && properties.Description.HasValue ? " alt=\"" + properties.Description.Value + "\"" : string.Empty)}",
                             Postfix = "/>",
                             Hidden = properties != null && properties.Hidden != null && properties.Hidden.HasValue && properties.Hidden.Value,
                             Left = left,
@@ -2164,7 +2188,7 @@ namespace XlsxToHtmlConverter
                     continue;
                 }
 
-                string text = shape.TextBody != null ? shape.TextBody.InnerText : "";
+                string text = shape.TextBody != null ? shape.TextBody.InnerText : string.Empty;
 
                 DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties properties = null;
                 if (shape.NonVisualShapeProperties != null)
@@ -2223,7 +2247,7 @@ namespace XlsxToHtmlConverter
                     }
                 }
 
-                writer.Write($"\n{new string(' ', 8)}{drawingInfo.Prefix} style=\"position: absolute; left: {(!double.IsNaN(leftActual) ? leftActual : 0)}px; top: {(!double.IsNaN(topActual) ? topActual : 0)}px; width: {(!double.IsNaN(widthActual) ? widthActual + "px" : "auto")}; height: {(!double.IsNaN(heightActual) ? heightActual + "px" : "auto")}px;{(rotation != 0 ? $" transform: rotate(-{rotation}deg);" : "")}{(drawingInfo.Hidden ? " visibility: hidden;" : "")}\"{drawingInfo.Postfix}");
+                writer.Write($"\n{new string(' ', 8)}{drawingInfo.Prefix} style=\"position: absolute; left: {(!double.IsNaN(leftActual) ? leftActual : 0)}px; top: {(!double.IsNaN(topActual) ? topActual : 0)}px; width: {(!double.IsNaN(widthActual) ? widthActual + "px" : "auto")}; height: {(!double.IsNaN(heightActual) ? heightActual + "px" : "auto")}px;{(rotation != 0 ? $" transform: rotate(-{rotation}deg);" : string.Empty)}{(drawingInfo.Hidden ? " visibility: hidden;" : string.Empty)}\"{drawingInfo.Postfix}");
             }
         }
 
