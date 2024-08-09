@@ -533,54 +533,33 @@ namespace XlsxToHtmlConverter
                                         cellValueRaw = cellValue;
                                     }
 
-                                    if (!string.IsNullOrEmpty(numberFormatCode))
+                                    if (!string.IsNullOrEmpty(numberFormatCode) && (cellFormat == null || cellFormat.ApplyNumberFormat == null || (cellFormat.ApplyNumberFormat.HasValue && cellFormat.ApplyNumberFormat.Value)))
                                     {
-                                        numberFormatCode = string.Concat(numberFormatCode.Split('_', '*', '\"', '(', ')'));
-
                                         if ((isNumberFormatDate || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && double.TryParse(cellValue, out double cellValueDate))
                                         {
                                             DateTime dateValue = DateTime.FromOADate(cellValueDate).Date;
-                                            if (numberFormatCode.ToLower() == "d")
-                                            {
-                                                cellValue = dateValue.Day.ToString();
-                                            }
-                                            else if (numberFormatCode.ToLower() == "m")
-                                            {
-                                                cellValue = dateValue.Month.ToString();
-                                            }
-                                            else if (numberFormatCode.ToLower() == "y")
-                                            {
-                                                cellValue = dateValue.Year.ToString();
-                                            }
-                                            else
-                                            {
-                                                cellValue = dateValue.ToString(numberFormatCode.Replace("m", "M"));
-                                            }
+                                            cellValue = dateValue.ToString(numberFormatCode.Replace("m", "M"));
                                         }
                                         else
                                         {
                                             string[] numberFormatCodeComponents = numberFormatCode.Split(';');
-                                            if (double.TryParse(cellValue, out double cellValueNumber))
+                                            if (numberFormatCodeComponents.Length > 1 && double.TryParse(cellValue, out double cellValueNumber))
                                             {
-                                                if (cellValueNumber > 0)
+                                                if (cellValueNumber > 0 || (numberFormatCodeComponents.Length == 2 && cellValueNumber == 0))
                                                 {
-                                                    numberFormatCode = numberFormatCodeComponents.Length >= 1 ? numberFormatCodeComponents[0] : numberFormatCode;
-                                                }
-                                                else if (cellValueNumber < 0)
-                                                {
-                                                    numberFormatCode = numberFormatCodeComponents.Length >= 2 ? numberFormatCodeComponents[1] : numberFormatCode;
+                                                    numberFormatCode = numberFormatCodeComponents[0];
                                                 }
                                                 else
                                                 {
-                                                    numberFormatCode = numberFormatCodeComponents.Length >= 3 ? numberFormatCodeComponents[2] : numberFormatCode;
+                                                    numberFormatCode = cellValueNumber < 0 ? numberFormatCodeComponents[1] : (numberFormatCodeComponents.Length >= 3 ? numberFormatCodeComponents[2] : numberFormatCode);
                                                 }
 
-                                                cellValue = numberFormatCode.Contains("@") ? numberFormatCode.Replace("@", cellValue) : cellValueNumber.ToString(numberFormatCode);
+                                                cellValue = GetFormattedNumber(cellValue, numberFormatCode, false);
                                             }
                                             else
                                             {
                                                 numberFormatCode = numberFormatCodeComponents.Length >= 4 ? numberFormatCodeComponents[3] : numberFormatCode;
-                                                cellValue = numberFormatCode.Contains("@") ? numberFormatCode.Replace("@", cellValue) : cellValue;
+                                                cellValue = GetFormattedNumber(cellValue, numberFormatCode, false);
                                             }
                                         }
                                     }
@@ -616,15 +595,13 @@ namespace XlsxToHtmlConverter
                                                 continue;
                                             }
 
-                                            if (formattingRule.Type != null && formattingRule.Type.HasValue && formattingRule.GetFirstChild<Formula>() is Formula formula)
+                                            if (formattingRule.Type != null && formattingRule.Type.HasValue)
                                             {
-                                                ConditionalFormattingOperatorValues ruleOperator = formattingRule.Operator != null && formattingRule.Operator.HasValue ? formattingRule.Operator.Value : ConditionalFormattingOperatorValues.Equal;
-                                                string formulaText = formula.Text.Trim('"');
-
                                                 bool formattingCondition = false;
-                                                if (formattingRule.Type == ConditionalFormatValues.CellIs)
+                                                if (formattingRule.Type == ConditionalFormatValues.CellIs && formattingRule.GetFirstChild<Formula>() is Formula formula)
                                                 {
-                                                    switch (ruleOperator)
+                                                    string formulaText = formula.Text.Trim('"');
+                                                    switch (formattingRule.Operator != null && formattingRule.Operator.HasValue ? formattingRule.Operator.Value : ConditionalFormattingOperatorValues.Equal)
                                                     {
                                                         case ConditionalFormattingOperatorValues.Equal:
                                                             formattingCondition = cellValueRaw == formulaText;
@@ -642,13 +619,24 @@ namespace XlsxToHtmlConverter
                                                             continue;
                                                     }
                                                 }
-                                                else if (formattingRule.Type == ConditionalFormatValues.BeginsWith)
+                                                else if (formattingRule.Text != null && formattingRule.Text.HasValue)
                                                 {
-                                                    formattingCondition = cellValueRaw.StartsWith(formulaText);
-                                                }
-                                                else if (formattingRule.Type == ConditionalFormatValues.EndsWith)
-                                                {
-                                                    formattingCondition = cellValueRaw.EndsWith(formulaText);
+                                                    if (formattingRule.Type == ConditionalFormatValues.BeginsWith)
+                                                    {
+                                                        formattingCondition = cellValueRaw.StartsWith(formattingRule.Text.Value);
+                                                    }
+                                                    else if (formattingRule.Type == ConditionalFormatValues.EndsWith)
+                                                    {
+                                                        formattingCondition = cellValueRaw.EndsWith(formattingRule.Text.Value);
+                                                    }
+                                                    else if (formattingRule.Type == ConditionalFormatValues.ContainsText)
+                                                    {
+                                                        formattingCondition = cellValueRaw.Contains(formattingRule.Text.Value);
+                                                    }
+                                                    else if (formattingRule.Type == ConditionalFormatValues.NotContainsText)
+                                                    {
+                                                        formattingCondition = !cellValueRaw.Contains(formattingRule.Text.Value);
+                                                    }
                                                 }
 
                                                 if (formattingCondition)
@@ -682,6 +670,7 @@ namespace XlsxToHtmlConverter
 
                         if (worksheet.DrawingsPart != null && worksheet.DrawingsPart.WorksheetDrawing != null)
                         {
+                            //TODO: position scaled-adjustments
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
                             {
                                 if (absoluteAnchor == null)
@@ -693,10 +682,8 @@ namespace XlsxToHtmlConverter
                                 double top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null && absoluteAnchor.Position.Y.HasValue ? (double)absoluteAnchor.Position.Y.Value / 2 * 96 / 72 : double.NaN;
                                 double width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null && absoluteAnchor.Extent.Cx.HasValue ? (double)absoluteAnchor.Extent.Cx.Value / 914400 * 96 : double.NaN;
                                 double height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null && absoluteAnchor.Extent.Cy.HasValue ? (double)absoluteAnchor.Extent.Cy.Value / 914400 * 96 : double.NaN;
-
                                 DrawingsToHtml(worksheet, absoluteAnchor, writer, left, top, width, height, config.ConvertPicture);
                             }
-
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
                             {
                                 if (oneCellAnchor == null)
@@ -708,10 +695,8 @@ namespace XlsxToHtmlConverter
                                 double top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && int.TryParse(oneCellAnchor.FromMarker.RowId.Text, out int rowId) ? rowHeights.Take(Math.Min(rowHeights.Count, rowId)).Sum() + (oneCellAnchor.FromMarker.RowOffset != null && double.TryParse(oneCellAnchor.FromMarker.RowOffset.Text, out double rowOffset) ? rowOffset / 914400 * 96 : 0) : double.NaN;
                                 double width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null && oneCellAnchor.Extent.Cx.HasValue ? (double)oneCellAnchor.Extent.Cx.Value / 914400 * 96 : double.NaN;
                                 double height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null && oneCellAnchor.Extent.Cy.HasValue ? (double)oneCellAnchor.Extent.Cy.Value / 914400 * 96 : double.NaN;
-
                                 DrawingsToHtml(worksheet, oneCellAnchor, writer, left, top, width, height, config.ConvertPicture);
                             }
-
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor>())
                             {
                                 if (twoCellAnchor == null)
@@ -723,13 +708,7 @@ namespace XlsxToHtmlConverter
                                 double fromTop = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.RowId != null && int.TryParse(twoCellAnchor.FromMarker.RowId.Text, out int fromRowId) ? rowHeights.Take(Math.Min(rowHeights.Count, fromRowId)).Sum() + (twoCellAnchor.FromMarker.RowOffset != null && double.TryParse(twoCellAnchor.FromMarker.RowOffset.Text, out double fromRowOffset) ? fromRowOffset / 914400 * 96 : 0) : double.NaN;
                                 double toLeft = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.ColumnId != null && int.TryParse(twoCellAnchor.ToMarker.ColumnId.Text, out int toColumnId) ? columnWidths.Take(Math.Min(columnWidths.Count, toColumnId)).Sum() + (twoCellAnchor.ToMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.ToMarker.ColumnOffset.Text, out double toColumnOffset) ? toColumnOffset / 914400 * 96 : 0) : double.NaN;
                                 double toTop = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.RowId != null && int.TryParse(twoCellAnchor.ToMarker.RowId.Text, out int toRowId) ? rowHeights.Take(Math.Min(rowHeights.Count, toRowId)).Sum() + (twoCellAnchor.ToMarker.RowOffset != null && double.TryParse(twoCellAnchor.ToMarker.RowOffset.Text, out double toRowOffset) ? toRowOffset / 914400 * 96 : 0) : double.NaN;
-
-                                double left = Math.Min(fromLeft, toLeft);
-                                double top = Math.Min(fromTop, toTop);
-                                double width = Math.Abs(toLeft - fromLeft);
-                                double height = Math.Abs(toTop - fromTop);
-
-                                DrawingsToHtml(worksheet, twoCellAnchor, writer, left, top, width, height, config.ConvertPicture);
+                                DrawingsToHtml(worksheet, twoCellAnchor, writer, Math.Min(fromLeft, toLeft), Math.Min(fromTop, toTop), Math.Abs(toLeft - fromLeft), Math.Abs(toTop - fromTop), config.ConvertPicture);
                             }
                         }
 
@@ -809,6 +788,208 @@ namespace XlsxToHtmlConverter
                 }
             }
             return original;
+        }
+
+        private static string GetFormattedNumber(string value, string format, bool isPercentageIgnored)
+        {
+            if (string.IsNullOrEmpty(format))
+            {
+                return value;
+            }
+
+            bool isValueNumber = double.TryParse(value, out double valueNumber);
+            if (isValueNumber)
+            {
+                if (double.IsNaN(valueNumber))
+                {
+                    return GetFormattedNumber("NaN", format, isPercentageIgnored);
+                }
+                value = valueNumber.ToString();
+            }
+            else if (!format.Contains("@"))
+            {
+                return value;
+            }
+
+            int indexNumberStart = 0;
+            int indexNumberEnd = 0;
+            int indexValueRight = 0;
+            int[] indexValueLeft = Array.Empty<int>();
+
+            int indexPeriodValue = value.IndexOf('.');
+            indexPeriodValue = indexPeriodValue < 0 ? value.Length : indexPeriodValue;
+
+            int indexPeriodFormat = format.Length;
+            if (isValueNumber)
+            {
+                int lengthNumber = 0;
+                bool isHandlingNumber = false;
+                for (indexPeriodFormat = 0; indexPeriodFormat < format.Length; indexPeriodFormat++)
+                {
+                    char formatChar = format[indexPeriodFormat];
+                    bool isDigit = formatChar == '0' || formatChar == '#' || formatChar == '?' || formatChar == ',';
+                    if (!isHandlingNumber && isDigit)
+                    {
+                        lengthNumber = 1;
+                        isHandlingNumber = true;
+                        indexNumberStart = indexPeriodFormat;
+                    }
+                    else if (isHandlingNumber)
+                    {
+                        if (!isDigit)
+                        {
+                            break;
+                        }
+                        lengthNumber += formatChar != ',' ? 1 : 0;
+                    }
+                }
+
+                if (lengthNumber < indexPeriodValue)
+                {
+                    return GetFormattedNumber(value, format.Insert(indexNumberStart, new string('#', indexPeriodValue - lengthNumber)), isPercentageIgnored);
+                }
+
+                int offsetLeft = 0;
+                int lengthLeft = indexPeriodFormat - indexNumberStart;
+                indexValueLeft = new int[lengthLeft];
+                for (int i = 1; i <= lengthLeft; i++)
+                {
+                    if (format[indexPeriodFormat - i] == ',')
+                    {
+                        offsetLeft++;
+                        continue;
+                    }
+                    else if (i == 1 && indexPeriodValue - i == 0 && value[0] == '0')
+                    {
+                        indexValueLeft[lengthLeft - 1] = -1;
+                        continue;
+                    }
+                    indexValueLeft[lengthLeft - i] = indexPeriodValue - i + offsetLeft;
+                }
+
+                indexNumberEnd = indexPeriodFormat;
+                for (int i = indexPeriodFormat + 1; i < format.Length; i++)
+                {
+                    char formatChar = format[i];
+                    if (formatChar == '0' || formatChar == '#' || formatChar == '?')
+                    {
+                        indexNumberEnd = i;
+                    }
+                }
+            }
+
+            string result = string.Empty;
+
+            bool isEscapingNumber = false;
+            for (int i = 0; i < format.Length; i++)
+            {
+                char formatChar = format[i];
+
+                if (formatChar == '[' && i < format.Length - 1)
+                {
+                    i++;
+                    while (i < format.Length && format[i] != '\"')
+                    {
+                        //TODO: condition
+                        i++;
+                    }
+                    continue;
+                }
+
+                if (formatChar == '\"' && i < format.Length - 1)
+                {
+                    i++;
+                    while (i < format.Length && format[i] != '\"')
+                    {
+                        result += format[i];
+                        i++;
+                    }
+                    continue;
+                }
+
+                int distance = indexPeriodFormat - i;
+                indexValueRight += distance < 0 && formatChar != '0' && formatChar != '#' && formatChar != '?' ? 1 : 0;
+
+                switch (formatChar)
+                {
+                    case '@':
+                        result += value;
+                        break;
+                    case '_':
+                        i++;
+                        result += "&nbsp;";
+                        break;
+                    case '*':
+                        i++;
+                        result += i < format.Length ? format[i].ToString() : string.Empty;
+                        break;
+                    case '\\':
+                        i++;
+                        result += i < format.Length ? format[i].ToString() : string.Empty;
+                        break;
+                    case '%':
+                        if (!isPercentageIgnored && isValueNumber)
+                        {
+                            return GetFormattedNumber((valueNumber * 100).ToString(), format, true);
+                        }
+                        result += "%";
+                        break;
+                    case 'E':
+                        //TODO: scientific notation
+                        result += "E";
+                        break;
+                    default:
+                        if (isValueNumber && formatChar == ',')
+                        {
+                            if (isEscapingNumber)
+                            {
+                                result += ",";
+                            }
+                        }
+                        else if (isValueNumber && formatChar == '/')
+                        {
+                            //TODO: fraction
+                            result += "/";
+                        }
+                        else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
+                        {
+                            int indexDigit = -1;
+                            if (distance > 0 && i >= indexNumberStart && i - indexNumberStart < indexValueLeft.Length)
+                            {
+                                indexDigit = indexValueLeft[i - indexNumberStart];
+                            }
+                            else if (distance < 0)
+                            {
+                                indexDigit = indexPeriodValue + indexValueRight + 1;
+                                indexValueRight++;
+                            }
+
+                            if (indexDigit >= 0 && indexDigit < value.Length)
+                            {
+                                isEscapingNumber = true;
+                                if (i >= indexNumberEnd && indexDigit < value.Length - 1 && int.TryParse(value[indexDigit].ToString(), out int digitCurrent) && int.TryParse(value[indexDigit + 1].ToString(), out int digitNext))
+                                {
+                                    result += (digitNext >= 5 ? 1 : 0) + digitCurrent;
+                                }
+                                else
+                                {
+                                    result += value[indexDigit];
+                                }
+                            }
+                            else
+                            {
+                                result += formatChar == '0' ? "0" : (formatChar == '?' ? "&nbsp;" : string.Empty);
+                            }
+                        }
+                        else
+                        {
+                            result += formatChar;
+                        }
+                        break;
+                }
+            }
+
+            return result;
         }
 
         private static Dictionary<string, string> CellFormatToHtml(WorkbookPart workbook, Cell cell, Fill fill, Font font, Border border, Alignment alignment, ref string cellValue, string cellValueRaw)
@@ -2012,10 +2193,10 @@ namespace XlsxToHtmlConverter
                         textDecoraion += " underline";
                         break;
                     case UnderlineValues.Double:
-                        textDecoraion += " underline";
+                        textDecoraion += " underline double";
                         break;
                     case UnderlineValues.DoubleAccounting:
-                        textDecoraion += " underline";
+                        textDecoraion += " underline double";
                         break;
                 }
             }
@@ -2196,6 +2377,7 @@ namespace XlsxToHtmlConverter
                     properties = shape.NonVisualShapeProperties.NonVisualDrawingProperties;
                 }
 
+                //TODO: shape styles
                 drawings.Add(new DrawingInfo()
                 {
                     Prefix = "<p",
