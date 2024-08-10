@@ -827,6 +827,11 @@ namespace XlsxToHtmlConverter
                 for (indexPeriodFormat = 0; indexPeriodFormat < format.Length; indexPeriodFormat++)
                 {
                     char formatChar = format[indexPeriodFormat];
+                    if (formatChar == '@')
+                    {
+                        lengthNumber += value.Length;
+                    }
+
                     bool isDigit = formatChar == '0' || formatChar == '#' || formatChar == '?' || formatChar == ',';
                     if (!isHandlingNumber && isDigit)
                     {
@@ -841,6 +846,20 @@ namespace XlsxToHtmlConverter
                             break;
                         }
                         lengthNumber += formatChar != ',' ? 1 : 0;
+                    }
+                }
+
+                indexNumberEnd = indexPeriodFormat;
+                for (int i = indexPeriodFormat + 1; i < format.Length; i++)
+                {
+                    char formatChar = format[i];
+                    if (formatChar == '@')
+                    {
+                        lengthNumber += value.Length;
+                    }
+                    else if (formatChar == '0' || formatChar == '#' || formatChar == '?')
+                    {
+                        indexNumberEnd = i;
                     }
                 }
 
@@ -865,16 +884,6 @@ namespace XlsxToHtmlConverter
                         continue;
                     }
                     indexValueLeft[lengthLeft - i] = indexPeriodValue - i + offsetLeft;
-                }
-
-                indexNumberEnd = indexPeriodFormat;
-                for (int i = indexPeriodFormat + 1; i < format.Length; i++)
-                {
-                    char formatChar = format[i];
-                    if (formatChar == '0' || formatChar == '#' || formatChar == '?')
-                    {
-                        indexNumberEnd = i;
-                    }
                 }
             }
 
