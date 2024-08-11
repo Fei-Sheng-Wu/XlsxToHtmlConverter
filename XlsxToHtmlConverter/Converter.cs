@@ -553,12 +553,12 @@ namespace XlsxToHtmlConverter
                                                     numberFormatCode = cellValueNumber < 0 ? numberFormatCodeComponents[1] : (numberFormatCodeComponents.Length >= 3 ? numberFormatCodeComponents[2] : numberFormatCode);
                                                 }
 
-                                                cellValue = GetFormattedNumber(cellValue, numberFormatCode, false);
+                                                cellValue = GetFormattedNumber(cellValue, numberFormatCode);
                                             }
                                             else
                                             {
                                                 numberFormatCode = numberFormatCodeComponents.Length >= 4 ? numberFormatCodeComponents[3] : numberFormatCode;
-                                                cellValue = GetFormattedNumber(cellValue, numberFormatCode, false);
+                                                cellValue = GetFormattedNumber(cellValue, numberFormatCode);
                                             }
                                         }
                                     }
@@ -774,7 +774,7 @@ namespace XlsxToHtmlConverter
             return original;
         }
 
-        private static string GetFormattedNumber(string value, string format, bool isPercentageIgnored)
+        private static string GetFormattedNumber(string value, string format)
         {
             if (string.IsNullOrEmpty(format))
             {
@@ -797,12 +797,17 @@ namespace XlsxToHtmlConverter
             int indexStartFormat = format.Length;
             int indexPeriodFormat = format.Length;
             int indexEndFormat = format.Length;
+            bool isPeriodRequired = false;
+
+            string scientificPower = "0";
+            bool isScientificNegative = false;
+            bool isScientificExtension = false;
 
             int increment = 1;
-            int indexFormat = 0;
             int indexActual = 0;
-            string result = string.Empty;
+            int indexFormat = 0;
             bool isFormatting = false;
+            string result = string.Empty;
             while (indexFormat < format.Length || !isFormatting)
             {
                 if (indexFormat >= format.Length)
@@ -810,17 +815,17 @@ namespace XlsxToHtmlConverter
                     indexPeriodFormat = Math.Min(indexEndFormat + 1, indexPeriodFormat);
 
                     increment = -1;
-                    indexFormat = indexPeriodFormat - 1;
                     indexActual = indexPeriodActual;
+                    indexFormat = indexPeriodFormat - 1;
                     isFormatting = true;
                     continue;
                 }
-                else if (indexFormat < 0 && isFormatting)
+                else if (indexFormat < 0)
                 {
-                    increment = 1;
-                    indexFormat = indexPeriodFormat;
-                    indexActual = indexPeriodActual;
                     result = new string(result.Reverse().ToArray());
+                    increment = 1;
+                    indexActual = indexPeriodActual;
+                    indexFormat = indexPeriodFormat;
                     continue;
                 }
 
@@ -830,6 +835,7 @@ namespace XlsxToHtmlConverter
                     indexFormat += increment;
                     while (indexFormat >= 0 && indexFormat < format.Length && format[indexFormat] != '[' && format[indexFormat] != ']')
                     {
+                        //TODO: conditions
                         indexFormat += increment;
                     }
                     indexFormat += increment;
@@ -840,90 +846,147 @@ namespace XlsxToHtmlConverter
                     indexFormat += increment;
                     while (indexFormat >= 0 && indexFormat < format.Length && format[indexFormat] != '\"')
                     {
-                        result += isFormatting ? format[indexFormat].ToString() : "";
+                        result += isFormatting ? format[indexFormat].ToString() : string.Empty;
                         indexFormat += increment;
                     }
                     indexFormat += increment;
                     continue;
                 }
-                else if ((increment > 0 && indexFormat + increment < format.Length && (formatChar == '\\' || formatChar == '*')) || (increment < 0 && indexFormat + increment >= 0 && (format[indexFormat + increment] == '\\' || format[indexFormat + increment] == '*')))
+                else if ((increment > 0 && indexFormat + 1 < format.Length && (formatChar == '\\' || formatChar == '*')) || (increment < 0 && indexFormat - 1 >= 0 && (format[indexFormat - 1] == '\\' || format[indexFormat - 1] == '*')))
                 {
-                    result += isFormatting ? format[increment > 0 ? indexFormat + increment : indexFormat].ToString() : "";
+                    result += isFormatting ? format[increment > 0 ? indexFormat + 1 : indexFormat].ToString() : string.Empty;
                     indexFormat += increment * 2;
                     continue;
                 }
-                else if ((increment > 0 && indexFormat + increment < format.Length && formatChar == '_') || (increment < 0 && indexFormat + increment >= 0 && format[indexFormat + increment] == '_'))
+                else if ((increment > 0 && indexFormat + 1 < format.Length && formatChar == '_') || (increment < 0 && indexFormat - 1 >= 0 && format[indexFormat - 1] == '_'))
                 {
-                    result += isFormatting ? (increment > 0 ? "&nbsp;" : ";psbn&") : "";
+                    result += isFormatting ? (increment > 0 ? "&nbsp;" : ";psbn&") : string.Empty;
                     indexFormat += increment * 2;
+                    continue;
+                }
+                else if (isFormatting && indexFormat - 1 >= 0 && format[indexFormat - 1] == 'E' && (formatChar == '+' || formatChar == '-'))
+                {
+                    result = new string(result.Reverse().ToArray());
+                    increment = 1;
+                    indexFormat = indexEndFormat + 1;
                     continue;
                 }
 
-                if (!isFormatting)
+                if (!isFormatting && isValueNumber)
                 {
                     if (formatChar == '.')
                     {
-                        indexPeriodFormat = indexFormat;
+                        indexPeriodFormat = Math.Min(indexFormat, indexPeriodFormat);
                     }
                     else if (formatChar == '0' || formatChar == '#' || formatChar == '?')
                     {
                         indexStartFormat = Math.Min(indexFormat, indexStartFormat);
                         indexEndFormat = indexFormat;
+                        isPeriodRequired = (indexFormat > indexPeriodFormat && (formatChar == '0' || formatChar == '?') && scientificPower == "0") || isPeriodRequired;
+                    }
+                    else if (formatChar == '%')
+                    {
+                        value = (valueNumber * 100).ToString();
+                        indexPeriodActual = value.IndexOf('.');
+                        indexPeriodActual = indexPeriodActual < 0 ? value.Length : indexPeriodActual;
+                    }
+                    else if (formatChar == 'E' && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
+                    {
+                        if (indexPeriodActual > 1)
+                        {
+                            isScientificNegative = false;
+                            scientificPower = (indexPeriodActual - 1).ToString();
+                            value = (valueNumber / Math.Pow(10, indexPeriodActual - 1)).ToString();
+                            indexPeriodActual = value.IndexOf('.');
+                            indexPeriodActual = indexPeriodActual < 0 ? value.Length : indexPeriodActual;
+                        }
+                        else if (indexPeriodActual > 0 && value.Length > indexPeriodActual && value[0] == '0')
+                        {
+                            int digit = 0;
+                            for (int i = indexPeriodActual + 1; i < value.Length; i++)
+                            {
+                                if (value[i] != '0')
+                                {
+                                    digit = i;
+                                    break;
+                                }
+                            }
+                            if (digit > indexPeriodActual)
+                            {
+                                isScientificNegative = true;
+                                scientificPower = (digit - indexPeriodActual).ToString();
+                                value = (valueNumber * Math.Pow(10, digit - indexPeriodActual)).ToString();
+                                indexPeriodActual = value.IndexOf('.');
+                                indexPeriodActual = indexPeriodActual < 0 ? value.Length : indexPeriodActual;
+                            }
+                        }
+                        indexFormat++;
                     }
                 }
-                else
+                else if (isFormatting)
                 {
-                    switch (formatChar)
+                    if (formatChar == '@')
                     {
-                        case '@':
-                            result += increment > 0 ? value : new string(value.Reverse().ToArray());
-                            break;
-                        case '%':
-                            if (!isPercentageIgnored && isValueNumber)
+                        result += increment > 0 ? value : new string(value.Reverse().ToArray());
+                    }
+                    else if (isValueNumber && formatChar == '.')
+                    {
+                        if (isPeriodRequired || indexActual + increment < value.Length)
+                        {
+                            result += ".";
+                        }
+                    }
+                    else if (isValueNumber && formatChar == ',')
+                    {
+                        if (indexActual + increment >= 0 && indexActual + increment < value.Length)
+                        {
+                            result += ",";
+                        }
+                    }
+                    else if (isValueNumber && formatChar == '/')
+                    {
+                        //TODO: fractions
+                        result += "/";
+                    }
+                    else if (isValueNumber && formatChar == 'E' && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
+                    {
+                        result = (!isScientificNegative ? (format[indexFormat + 1] == '-' ? "E" : "+E") : "-E") + new string(result.Reverse().ToArray());
+                        increment = -1;
+                        indexActual = scientificPower.Length;
+                        indexFormat = indexEndFormat;
+                        isScientificExtension = true;
+                        continue;
+                    }
+                    else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
+                    {
+                        indexActual += increment;
+                        if (indexActual >= 0 && indexActual < (!isScientificExtension ? value.Length : scientificPower.Length) && (formatChar != '?' || indexActual > 0 || value[indexActual] != '0' || isScientificExtension))
+                        {
+                            if (!isScientificExtension)
                             {
-                                return GetFormattedNumber((valueNumber * 100).ToString(), format, true);
-                            }
-                            result += "%";
-                            break;
-                        case 'E':
-                            //TODO: scientific notation
-                            result += "E";
-                            break;
-                        default:
-                            if (isValueNumber && formatChar == ',')
-                            {
-                                if (indexActual + increment >= 0)
+                                result += increment > 0 && (indexFormat >= indexEndFormat || (indexFormat + 2 < format.Length && format[indexFormat + 1] == 'E' && (format[indexFormat + 2] == '+' || format[indexFormat + 2] == '-'))) && indexActual + 1 < value.Length && int.TryParse(value[indexActual].ToString(), out int current) && int.TryParse(value[indexActual + 1].ToString(), out int next) ? ((next >= 5 ? 1 : 0) + current).ToString() : value[indexActual].ToString();
+                                if (indexFormat <= indexStartFormat)
                                 {
-                                    result += ",";
-                                }
-                            }
-                            else if (isValueNumber && formatChar == '/')
-                            {
-                                //TODO: fraction
-                                result += "/";
-                            }
-                            else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
-                            {
-                                indexActual += increment;
-                                if (indexActual >= 0 && indexActual < value.Length && (formatChar != '?' || indexActual > 0 || value[indexActual] != '0'))
-                                {
-                                    result += increment > 0 && indexFormat >= indexEndFormat && indexActual + increment < value.Length && int.TryParse(value[indexActual].ToString(), out int digitCurrent) && int.TryParse(value[indexActual + increment].ToString(), out int digitNext) ? ((digitNext >= 5 ? 1 : 0) + digitCurrent).ToString() : value[indexActual].ToString();
-
-                                    if (indexFormat <= indexStartFormat)
-                                    {
-                                        result += new string(value.Substring(0, indexActual).Reverse().ToArray());
-                                    }
-                                }
-                                else
-                                {
-                                    result += formatChar == '0' ? "0" : (formatChar == '?' ? (increment > 0 ? "&nbsp;" : ";psbn&") : string.Empty);
+                                    result += new string(value.Substring(0, indexActual).Reverse().ToArray());
                                 }
                             }
                             else
                             {
-                                result += formatChar;
+                                result = result.Insert(scientificPower.Length - indexActual - 1, scientificPower[indexActual].ToString());
+                                if (indexFormat - 2 >= 0 && format[indexFormat - 2] == 'E' && (format[indexFormat - 1] == '+' || format[indexFormat - 1] == '-'))
+                                {
+                                    result = result.Insert(1, new string(scientificPower.Substring(0, indexActual).Reverse().ToArray()));
+                                }
                             }
-                            break;
+                        }
+                        else
+                        {
+                            result += formatChar == '0' ? "0" : (formatChar == '?' ? (increment > 0 ? "&nbsp;" : ";psbn&") : string.Empty);
+                        }
+                    }
+                    else
+                    {
+                        result += formatChar;
                     }
                 }
 
