@@ -127,10 +127,9 @@ namespace XlsxToHtmlConverter
         {
             config = config ?? ConverterConfig.DefaultSettings;
 
-            outputHtml.Seek(0, SeekOrigin.Begin);
-            outputHtml.SetLength(0);
-
             StreamWriter writer = new StreamWriter(outputHtml, config.Encoding, 65536);
+            writer.BaseStream.Seek(0, SeekOrigin.Begin);
+            writer.BaseStream.SetLength(0);
 
             try
             {
@@ -673,11 +672,6 @@ namespace XlsxToHtmlConverter
                             //TODO: position scaled-adjustments
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
                             {
-                                if (absoluteAnchor == null)
-                                {
-                                    continue;
-                                }
-
                                 double left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null && absoluteAnchor.Position.X.HasValue ? (double)absoluteAnchor.Position.X.Value / 2 * 96 / 72 : double.NaN;
                                 double top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null && absoluteAnchor.Position.Y.HasValue ? (double)absoluteAnchor.Position.Y.Value / 2 * 96 / 72 : double.NaN;
                                 double width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null && absoluteAnchor.Extent.Cx.HasValue ? (double)absoluteAnchor.Extent.Cx.Value / 914400 * 96 : double.NaN;
@@ -686,11 +680,6 @@ namespace XlsxToHtmlConverter
                             }
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
                             {
-                                if (oneCellAnchor == null)
-                                {
-                                    continue;
-                                }
-
                                 double left = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && int.TryParse(oneCellAnchor.FromMarker.ColumnId.Text, out int columnId) ? columnWidths.Take(Math.Min(columnWidths.Count, columnId)).Sum() + (oneCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(oneCellAnchor.FromMarker.ColumnOffset.Text, out double columnOffset) ? columnOffset / 914400 * 96 : 0) : double.NaN;
                                 double top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && int.TryParse(oneCellAnchor.FromMarker.RowId.Text, out int rowId) ? rowHeights.Take(Math.Min(rowHeights.Count, rowId)).Sum() + (oneCellAnchor.FromMarker.RowOffset != null && double.TryParse(oneCellAnchor.FromMarker.RowOffset.Text, out double rowOffset) ? rowOffset / 914400 * 96 : 0) : double.NaN;
                                 double width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null && oneCellAnchor.Extent.Cx.HasValue ? (double)oneCellAnchor.Extent.Cx.Value / 914400 * 96 : double.NaN;
@@ -699,11 +688,6 @@ namespace XlsxToHtmlConverter
                             }
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor>())
                             {
-                                if (twoCellAnchor == null)
-                                {
-                                    continue;
-                                }
-
                                 double fromLeft = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.ColumnId != null && int.TryParse(twoCellAnchor.FromMarker.ColumnId.Text, out int fromColumnId) ? columnWidths.Take(Math.Min(columnWidths.Count, fromColumnId)).Sum() + (twoCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.FromMarker.ColumnOffset.Text, out double fromColumnOffset) ? fromColumnOffset / 914400 * 96 : 0) : double.NaN;
                                 double fromTop = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.RowId != null && int.TryParse(twoCellAnchor.FromMarker.RowId.Text, out int fromRowId) ? rowHeights.Take(Math.Min(rowHeights.Count, fromRowId)).Sum() + (twoCellAnchor.FromMarker.RowOffset != null && double.TryParse(twoCellAnchor.FromMarker.RowOffset.Text, out double fromRowOffset) ? fromRowOffset / 914400 * 96 : 0) : double.NaN;
                                 double toLeft = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.ColumnId != null && int.TryParse(twoCellAnchor.ToMarker.ColumnId.Text, out int toColumnId) ? columnWidths.Take(Math.Min(columnWidths.Count, toColumnId)).Sum() + (twoCellAnchor.ToMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.ToMarker.ColumnOffset.Text, out double toColumnOffset) ? toColumnOffset / 914400 * 96 : 0) : double.NaN;
@@ -723,13 +707,13 @@ namespace XlsxToHtmlConverter
             }
             catch (Exception ex)
             {
-                outputHtml.Seek(0, SeekOrigin.Begin);
-                outputHtml.SetLength(0);
+                writer.BaseStream.Seek(0, SeekOrigin.Begin);
+                writer.BaseStream.SetLength(0);
                 writer.Write(config.ErrorMessage.Replace("{EXCEPTION}", ex.Message));
             }
             finally
             {
-                outputHtml.Seek(0, SeekOrigin.Begin);
+                writer.BaseStream.Seek(0, SeekOrigin.Begin);
                 writer.Close();
                 writer.Dispose();
             }
@@ -800,10 +784,6 @@ namespace XlsxToHtmlConverter
             bool isValueNumber = double.TryParse(value, out double valueNumber);
             if (isValueNumber)
             {
-                if (double.IsNaN(valueNumber))
-                {
-                    return GetFormattedNumber("NaN", format, isPercentageIgnored);
-                }
                 value = valueNumber.ToString();
             }
             else if (!format.Contains("@"))
@@ -811,191 +791,143 @@ namespace XlsxToHtmlConverter
                 return value;
             }
 
-            int indexNumberStart = 0;
-            int indexNumberEnd = 0;
-            int indexValueRight = 0;
-            int[] indexValueLeft = Array.Empty<int>();
+            int indexPeriodActual = value.IndexOf('.');
+            indexPeriodActual = indexPeriodActual < 0 ? value.Length : indexPeriodActual;
 
-            int indexPeriodValue = value.IndexOf('.');
-            indexPeriodValue = indexPeriodValue < 0 ? value.Length : indexPeriodValue;
-
+            int indexStartFormat = format.Length;
             int indexPeriodFormat = format.Length;
-            if (isValueNumber)
-            {
-                int lengthNumber = 0;
-                bool isHandlingNumber = false;
-                for (indexPeriodFormat = 0; indexPeriodFormat < format.Length; indexPeriodFormat++)
-                {
-                    char formatChar = format[indexPeriodFormat];
-                    if (formatChar == '@')
-                    {
-                        lengthNumber += value.Length;
-                    }
+            int indexEndFormat = format.Length;
 
-                    bool isDigit = formatChar == '0' || formatChar == '#' || formatChar == '?' || formatChar == ',';
-                    if (!isHandlingNumber && isDigit)
-                    {
-                        lengthNumber = 1;
-                        isHandlingNumber = true;
-                        indexNumberStart = indexPeriodFormat;
-                    }
-                    else if (isHandlingNumber)
-                    {
-                        if (!isDigit)
-                        {
-                            break;
-                        }
-                        lengthNumber += formatChar != ',' ? 1 : 0;
-                    }
+            int increment = 1;
+            int indexFormat = 0;
+            int indexActual = 0;
+            string result = string.Empty;
+            bool isFormatting = false;
+            while (indexFormat < format.Length || !isFormatting)
+            {
+                if (indexFormat >= format.Length)
+                {
+                    indexPeriodFormat = Math.Min(indexEndFormat + 1, indexPeriodFormat);
+
+                    increment = -1;
+                    indexFormat = indexPeriodFormat - 1;
+                    indexActual = indexPeriodActual;
+                    isFormatting = true;
+                    continue;
+                }
+                else if (indexFormat < 0 && isFormatting)
+                {
+                    increment = 1;
+                    indexFormat = indexPeriodFormat;
+                    indexActual = indexPeriodActual;
+                    result = new string(result.Reverse().ToArray());
+                    continue;
                 }
 
-                indexNumberEnd = indexPeriodFormat;
-                for (int i = indexPeriodFormat + 1; i < format.Length; i++)
+                char formatChar = format[indexFormat];
+                if ((formatChar == '[' || formatChar == ']') && indexFormat + increment >= 0 && indexFormat + increment < format.Length)
                 {
-                    char formatChar = format[i];
-                    if (formatChar == '@')
+                    indexFormat += increment;
+                    while (indexFormat >= 0 && indexFormat < format.Length && format[indexFormat] != '[' && format[indexFormat] != ']')
                     {
-                        lengthNumber += value.Length;
+                        indexFormat += increment;
+                    }
+                    indexFormat += increment;
+                    continue;
+                }
+                else if (formatChar == '\"' && indexFormat + increment >= 0 && indexFormat + increment < format.Length)
+                {
+                    indexFormat += increment;
+                    while (indexFormat >= 0 && indexFormat < format.Length && format[indexFormat] != '\"')
+                    {
+                        result += isFormatting ? format[indexFormat].ToString() : "";
+                        indexFormat += increment;
+                    }
+                    indexFormat += increment;
+                    continue;
+                }
+                else if ((increment > 0 && indexFormat + increment < format.Length && (formatChar == '\\' || formatChar == '*')) || (increment < 0 && indexFormat + increment >= 0 && (format[indexFormat + increment] == '\\' || format[indexFormat + increment] == '*')))
+                {
+                    result += isFormatting ? format[increment > 0 ? indexFormat + increment : indexFormat].ToString() : "";
+                    indexFormat += increment * 2;
+                    continue;
+                }
+                else if ((increment > 0 && indexFormat + increment < format.Length && formatChar == '_') || (increment < 0 && indexFormat + increment >= 0 && format[indexFormat + increment] == '_'))
+                {
+                    result += isFormatting ? (increment > 0 ? "&nbsp;" : ";psbn&") : "";
+                    indexFormat += increment * 2;
+                    continue;
+                }
+
+                if (!isFormatting)
+                {
+                    if (formatChar == '.')
+                    {
+                        indexPeriodFormat = indexFormat;
                     }
                     else if (formatChar == '0' || formatChar == '#' || formatChar == '?')
                     {
-                        indexNumberEnd = i;
+                        indexStartFormat = Math.Min(indexFormat, indexStartFormat);
+                        indexEndFormat = indexFormat;
                     }
                 }
-
-                if (lengthNumber < indexPeriodValue)
+                else
                 {
-                    return GetFormattedNumber(value, format.Insert(indexNumberStart, new string('#', indexPeriodValue - lengthNumber)), isPercentageIgnored);
-                }
-
-                int offsetLeft = 0;
-                int lengthLeft = indexPeriodFormat - indexNumberStart;
-                indexValueLeft = new int[lengthLeft];
-                for (int i = 1; i <= lengthLeft; i++)
-                {
-                    if (format[indexPeriodFormat - i] == ',')
+                    switch (formatChar)
                     {
-                        offsetLeft++;
-                        continue;
-                    }
-                    else if (i == 1 && indexPeriodValue - i == 0 && value[0] == '0')
-                    {
-                        indexValueLeft[lengthLeft - 1] = -1;
-                        continue;
-                    }
-                    indexValueLeft[lengthLeft - i] = indexPeriodValue - i + offsetLeft;
-                }
-            }
-
-            string result = string.Empty;
-
-            bool isEscapingNumber = false;
-            for (int i = 0; i < format.Length; i++)
-            {
-                char formatChar = format[i];
-
-                if (formatChar == '[' && i < format.Length - 1)
-                {
-                    i++;
-                    while (i < format.Length && format[i] != '\"')
-                    {
-                        //TODO: condition
-                        i++;
-                    }
-                    continue;
-                }
-
-                if (formatChar == '\"' && i < format.Length - 1)
-                {
-                    i++;
-                    while (i < format.Length && format[i] != '\"')
-                    {
-                        result += format[i];
-                        i++;
-                    }
-                    continue;
-                }
-
-                int distance = indexPeriodFormat - i;
-                indexValueRight += distance < 0 && formatChar != '0' && formatChar != '#' && formatChar != '?' ? 1 : 0;
-
-                switch (formatChar)
-                {
-                    case '@':
-                        result += value;
-                        break;
-                    case '_':
-                        i++;
-                        result += "&nbsp;";
-                        break;
-                    case '*':
-                        i++;
-                        result += i < format.Length ? format[i].ToString() : string.Empty;
-                        break;
-                    case '\\':
-                        i++;
-                        result += i < format.Length ? format[i].ToString() : string.Empty;
-                        break;
-                    case '%':
-                        if (!isPercentageIgnored && isValueNumber)
-                        {
-                            return GetFormattedNumber((valueNumber * 100).ToString(), format, true);
-                        }
-                        result += "%";
-                        break;
-                    case 'E':
-                        //TODO: scientific notation
-                        result += "E";
-                        break;
-                    default:
-                        if (isValueNumber && formatChar == ',')
-                        {
-                            if (isEscapingNumber)
+                        case '@':
+                            result += increment > 0 ? value : new string(value.Reverse().ToArray());
+                            break;
+                        case '%':
+                            if (!isPercentageIgnored && isValueNumber)
                             {
-                                result += ",";
+                                return GetFormattedNumber((valueNumber * 100).ToString(), format, true);
                             }
-                        }
-                        else if (isValueNumber && formatChar == '/')
-                        {
-                            //TODO: fraction
-                            result += "/";
-                        }
-                        else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
-                        {
-                            int indexDigit = -1;
-                            if (distance > 0 && i >= indexNumberStart && i - indexNumberStart < indexValueLeft.Length)
+                            result += "%";
+                            break;
+                        case 'E':
+                            //TODO: scientific notation
+                            result += "E";
+                            break;
+                        default:
+                            if (isValueNumber && formatChar == ',')
                             {
-                                indexDigit = indexValueLeft[i - indexNumberStart];
-                            }
-                            else if (distance < 0)
-                            {
-                                indexDigit = indexPeriodValue + indexValueRight + 1;
-                                indexValueRight++;
-                            }
-
-                            if (indexDigit >= 0 && indexDigit < value.Length)
-                            {
-                                isEscapingNumber = true;
-                                if (i >= indexNumberEnd && indexDigit < value.Length - 1 && int.TryParse(value[indexDigit].ToString(), out int digitCurrent) && int.TryParse(value[indexDigit + 1].ToString(), out int digitNext))
+                                if (indexActual + increment >= 0)
                                 {
-                                    result += (digitNext >= 5 ? 1 : 0) + digitCurrent;
+                                    result += ",";
+                                }
+                            }
+                            else if (isValueNumber && formatChar == '/')
+                            {
+                                //TODO: fraction
+                                result += "/";
+                            }
+                            else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
+                            {
+                                indexActual += increment;
+                                if (indexActual >= 0 && indexActual < value.Length && (formatChar != '?' || indexActual > 0 || value[indexActual] != '0'))
+                                {
+                                    result += increment > 0 && indexFormat >= indexEndFormat && indexActual + increment < value.Length && int.TryParse(value[indexActual].ToString(), out int digitCurrent) && int.TryParse(value[indexActual + increment].ToString(), out int digitNext) ? ((digitNext >= 5 ? 1 : 0) + digitCurrent).ToString() : value[indexActual].ToString();
+
+                                    if (indexFormat <= indexStartFormat)
+                                    {
+                                        result += new string(value.Substring(0, indexActual).Reverse().ToArray());
+                                    }
                                 }
                                 else
                                 {
-                                    result += value[indexDigit];
+                                    result += formatChar == '0' ? "0" : (formatChar == '?' ? (increment > 0 ? "&nbsp;" : ";psbn&") : string.Empty);
                                 }
                             }
                             else
                             {
-                                result += formatChar == '0' ? "0" : (formatChar == '?' ? "&nbsp;" : string.Empty);
+                                result += formatChar;
                             }
-                        }
-                        else
-                        {
-                            result += formatChar;
-                        }
-                        break;
+                            break;
+                    }
                 }
+
+                indexFormat += increment;
             }
 
             return result;
@@ -2207,6 +2139,9 @@ namespace XlsxToHtmlConverter
                     case UnderlineValues.DoubleAccounting:
                         textDecoraion += " underline double";
                         break;
+                    default:
+                        textDecoraion += " underline";
+                        break;
                 }
             }
             if (!string.IsNullOrEmpty(textDecoraion))
@@ -2319,7 +2254,7 @@ namespace XlsxToHtmlConverter
             }
         }
 
-        private static void DrawingsToHtml(WorksheetPart worksheet, OpenXmlCompositeElement anchor, StreamWriter writer, double left, double top, double width, double height, bool isPictureWanted)
+        private static void DrawingsToHtml(WorksheetPart worksheet, OpenXmlCompositeElement anchor, StreamWriter writer, double left, double top, double width, double height, bool isPictureAllowed)
         {
             if (anchor == null)
             {
@@ -2328,11 +2263,11 @@ namespace XlsxToHtmlConverter
 
             List<DrawingInfo> drawings = new List<DrawingInfo>();
 
-            if (isPictureWanted)
+            if (isPictureAllowed)
             {
                 foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture in anchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>())
                 {
-                    if (picture == null || picture.BlipFill == null || picture.BlipFill.Blip == null)
+                    if (picture.BlipFill == null || picture.BlipFill.Blip == null)
                     {
                         continue;
                     }
@@ -2360,7 +2295,7 @@ namespace XlsxToHtmlConverter
                         {
                             Prefix = $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{(properties != null && properties.Description != null && properties.Description.HasValue ? " alt=\"" + properties.Description.Value + "\"" : string.Empty)}",
                             Postfix = "/>",
-                            Hidden = properties != null && properties.Hidden != null && properties.Hidden.HasValue && properties.Hidden.Value,
+                            IsHidden = properties != null && properties.Hidden != null && properties.Hidden.HasValue && properties.Hidden.Value,
                             Left = left,
                             Top = top,
                             Width = width,
@@ -2373,11 +2308,6 @@ namespace XlsxToHtmlConverter
 
             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape in anchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape>())
             {
-                if (shape == null)
-                {
-                    continue;
-                }
-
                 string text = shape.TextBody != null ? shape.TextBody.InnerText : string.Empty;
 
                 DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties properties = null;
@@ -2391,7 +2321,7 @@ namespace XlsxToHtmlConverter
                 {
                     Prefix = "<p",
                     Postfix = $">{text}</p>",
-                    Hidden = properties != null && properties.Hidden != null && properties.Hidden.HasValue && properties.Hidden.Value,
+                    IsHidden = properties != null && properties.Hidden != null && properties.Hidden.HasValue && properties.Hidden.Value,
                     Left = left,
                     Top = top,
                     Width = width,
@@ -2438,7 +2368,7 @@ namespace XlsxToHtmlConverter
                     }
                 }
 
-                writer.Write($"\n{new string(' ', 8)}{drawingInfo.Prefix} style=\"position: absolute; left: {(!double.IsNaN(leftActual) ? leftActual : 0)}px; top: {(!double.IsNaN(topActual) ? topActual : 0)}px; width: {(!double.IsNaN(widthActual) ? widthActual + "px" : "auto")}; height: {(!double.IsNaN(heightActual) ? heightActual + "px" : "auto")}px;{(rotation != 0 ? $" transform: rotate(-{rotation}deg);" : string.Empty)}{(drawingInfo.Hidden ? " visibility: hidden;" : string.Empty)}\"{drawingInfo.Postfix}");
+                writer.Write($"\n{new string(' ', 8)}{drawingInfo.Prefix} style=\"position: absolute; left: {(!double.IsNaN(leftActual) ? leftActual : 0)}px; top: {(!double.IsNaN(topActual) ? topActual : 0)}px; width: {(!double.IsNaN(widthActual) ? widthActual + "px" : "auto")}; height: {(!double.IsNaN(heightActual) ? heightActual + "px" : "auto")}px;{(rotation != 0 ? $" transform: rotate(-{rotation}deg);" : string.Empty)}{(drawingInfo.IsHidden ? " visibility: hidden;" : string.Empty)}\"{drawingInfo.Postfix}");
             }
         }
 
@@ -2467,7 +2397,7 @@ namespace XlsxToHtmlConverter
         {
             public string Prefix { get; set; }
             public string Postfix { get; set; }
-            public bool Hidden { get; set; }
+            public bool IsHidden { get; set; }
             public double Left { get; set; }
             public double Top { get; set; }
             public double Width { get; set; }
