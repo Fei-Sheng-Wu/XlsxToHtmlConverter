@@ -7,7 +7,7 @@
 [![Nuget](https://img.shields.io/badge/Nuget-v1.2.17%20%28%E2%89%A519.0K%20Total%20Downloads%29-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.17)
 [![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 
-> A Xlsx to Html file converter and parser. Support cell fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures. Support progress callback. It only depends on the Microsoft Open Xml SDK.
+> A Xlsx to Html file converter and parser. Support cell fills, fonts, borders, alignments, and other styles. Support custom column widths, row heights, and merged cells. Support numbering and conditional formats. Support multiple sheets and hidden sheets. Support pictures. Support progress callback. Only depends on the Microsoft Open Xml SDK.
 
 ## Dependencies
 
@@ -15,11 +15,12 @@
 
 ## Main Features
 
-- [x] Cell fill, font, border, alignment, and other styles
-- [x] Custom column width and row height
-- [x] Vertical and/or horizontal merged cells
-- [x] Sheet tab color and hidden sheet
-- [x] Pictures embedding as Base64 images
+- [x] Cell fills, fonts, borders, alignments, and other styles
+- [x] Custom column widths and row heights
+- [x] Vertical and horizontal merged cells
+- [x] Numbering formats and conditional formats
+- [x] Sheet tab titles, colors, and hidden sheets
+- [x] Picture embeddings as Base64 images
 - [x] Conversion progress callback
 
 ### Original Xlsx File
@@ -53,7 +54,7 @@ string filename = @"C:\path\to\file.xlsx";
 XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream);
 ```
 
-A third optional parameter can be set to decide whether to use `MemoryStream` or `FileStream`. When set to `false`, it uses a `FileStream` to read the file instead of loading the entire file into a `MemoryStream` at once, which reduces the memory usage but at the cost of slowing down the conversion significantly.
+A third optional parameter can be set to decide whether to use `MemoryStream` or `FileStream`. When set to `false`, it uses a `FileStream` to read the file instead of loading the entire file into a `MemoryStream` at once, which reduces the memory usage for larger files but at the cost of slowing down the conversion significantly.
 
 ```c#
 XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream, false);
@@ -63,20 +64,20 @@ XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream, false);
 
 `ConverterConfig` include flexible and customizable conversion configurations.
 
-> In cases where the converter is unable to produce the correct stylings, it is suggested to set `ConvertStyle` to `false`, which will ensure the conversion of all the content with default stylings.
+> In cases where the converter is unable to produce the correct stylings, it is suggested to set `ConvertStyles` to `false`, which will ensure the conversion of all the content with default stylings.
 
 ```c#
 XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
 {
     PageTitle = "My Title",
-    PresetStyles = "body { background-color: skyblue; } table { width: 100%; }",
-    ErrorMessage = "Oh, no. An error occured.",
+    PresetStyles = XlsxToHtmlConverter.ConverterConfig.DefaultPresetStyles + "body { background-color: skyblue; } table { width: 100%; }",
+    ErrorMessage = "An error occured: {EXCEPTION}",
     Encoding = System.Text.Encoding.UTF8,
-    ConvertStyle = true,
-    ConvertSize = true,
-    ConvertPicture = true,
-    ConvertSheetNameTitle = true,
-    ConvertHiddenSheet = false,
+    ConvertStyles = true,
+    ConvertSizes = true,
+    ConvertPictures = true,
+    ConvertSheetTitles = true,
+    ConvertHiddenSheets = false,
     ConvertFirstSheetOnly = false,
     ConvertHtmlBodyOnly = false
 };
