@@ -162,9 +162,79 @@ namespace XlsxToHtmlConverter
 
                     WorkbookStylesPart styles = workbook.WorkbookStylesPart;
                     Stylesheet stylesheet = styles != null && styles.Stylesheet != null ? styles.Stylesheet : null;
+                    Tuple<Dictionary<string, string>, string>[] htmlStyleCellFormats = new Tuple<Dictionary<string, string>, string>[stylesheet != null && stylesheet.CellFormats != null && stylesheet.CellFormats.HasChildren ? stylesheet.CellFormats.ChildElements.Count : 0];
+                    for (int stylesheetFormatIndex = 0; stylesheetFormatIndex < htmlStyleCellFormats.Length; stylesheetFormatIndex++)
+                    {
+                        if (stylesheet.CellFormats.ChildElements[stylesheetFormatIndex] is CellFormat cellFormat)
+                        {
+                            Fill fill = (cellFormat.ApplyFill == null || (cellFormat.ApplyFill.HasValue && cellFormat.ApplyFill.Value)) && cellFormat.FillId != null && cellFormat.FillId.HasValue && stylesheet.Fills != null && stylesheet.Fills.HasChildren && cellFormat.FillId.Value < stylesheet.Fills.ChildElements.Count ? (Fill)stylesheet.Fills.ChildElements[(int)cellFormat.FillId.Value] : null;
+                            Font font = (cellFormat.ApplyFont == null || (cellFormat.ApplyFont.HasValue && cellFormat.ApplyFont.Value)) && cellFormat.FontId != null && cellFormat.FontId.HasValue && stylesheet.Fonts != null && stylesheet.Fonts.HasChildren && cellFormat.FontId.Value < stylesheet.Fonts.ChildElements.Count ? (Font)stylesheet.Fonts.ChildElements[(int)cellFormat.FontId.Value] : null;
+                            Border border = (cellFormat.ApplyBorder == null || (cellFormat.ApplyBorder.HasValue && cellFormat.ApplyBorder.Value)) && cellFormat.BorderId != null && cellFormat.BorderId.HasValue && stylesheet.Borders != null && stylesheet.Borders.HasChildren && cellFormat.BorderId.Value < stylesheet.Borders.ChildElements.Count ? (Border)stylesheet.Borders.ChildElements[(int)cellFormat.BorderId.Value] : null;
+                            htmlStyleCellFormats[stylesheetFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, fill, font, border, cellFormat.ApplyAlignment == null || (cellFormat.ApplyAlignment.HasValue && cellFormat.ApplyAlignment.Value) ? cellFormat.Alignment : null, out string cellValueContainer), cellValueContainer);
+                        }
+                    }
+                    Tuple<Dictionary<string, string>, string>[] htmlStyleDifferentialFormats = new Tuple<Dictionary<string, string>, string>[stylesheet != null && stylesheet.DifferentialFormats != null && stylesheet.DifferentialFormats.HasChildren ? stylesheet.DifferentialFormats.ChildElements.Count : 0];
+                    for (int stylesheetFormatIndex = 0; stylesheetFormatIndex < htmlStyleDifferentialFormats.Length; stylesheetFormatIndex++)
+                    {
+                        if (stylesheet.DifferentialFormats.ChildElements[stylesheetFormatIndex] is DifferentialFormat differentialFormat)
+                        {
+                            htmlStyleDifferentialFormats[stylesheetFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer), cellValueContainer);
+                        }
+                    }
 
                     IEnumerable<SharedStringTablePart> sharedStringTables = workbook.GetPartsOfType<SharedStringTablePart>();
                     SharedStringTable sharedStringTable = sharedStringTables.Any() ? sharedStringTables.First().SharedStringTable : null;
+                    Tuple<string, string>[] cellValueSharedStrings = new Tuple<string, string>[sharedStringTable != null && sharedStringTable.HasChildren ? sharedStringTable.ChildElements.Count : 0];
+                    for (int sharedStringIndex = 0; sharedStringIndex < cellValueSharedStrings.Length; sharedStringIndex++)
+                    {
+                        if (sharedStringTable.ChildElements[sharedStringIndex] is SharedStringItem sharedString)
+                        {
+                            string cellValue = string.Empty;
+                            string cellValueRaw = string.Empty;
+                            if (sharedString.HasChildren)
+                            {
+                                Run runLast = null;
+                                foreach (OpenXmlElement element in sharedString.Descendants())
+                                {
+                                    if (element is Text text)
+                                    {
+                                        if (runLast == null || (runLast.Text != null && runLast.Text != text))
+                                        {
+                                            cellValue += GetEscapedString(text.Text);
+                                            cellValueRaw += text.Text;
+                                        }
+                                        runLast = null;
+                                    }
+                                    else if (element is Run run && run.Text != null)
+                                    {
+                                        runLast = run;
+
+                                        Dictionary<string, string> htmlStyleRun = new Dictionary<string, string>();
+                                        if (config.ConvertStyle && run.RunProperties is RunProperties runProperties)
+                                        {
+                                            if (runProperties.GetFirstChild<RunFont>() is RunFont runFont && runFont.Val != null && runFont.Val.HasValue)
+                                            {
+                                                htmlStyleRun.Add("font-family", runFont.Val.Value);
+                                            }
+                                            htmlStyleRun = JoinHtmlAttributes(htmlStyleRun, FontToHtml(workbook, runProperties.GetFirstChild<Color>(), runProperties.GetFirstChild<FontSize>(), runProperties.GetFirstChild<Bold>(), runProperties.GetFirstChild<Italic>(), runProperties.GetFirstChild<Strike>(), runProperties.GetFirstChild<Underline>()));
+                                        }
+
+                                        string runContent = string.IsNullOrEmpty(run.Text.Text) ? run.Text.InnerText : run.Text.Text;
+                                        cellValue += $"<p style=\"display: inline;{GetHtmlAttributesString(htmlStyleRun, true)}\">{GetEscapedString(runContent)}</p>";
+                                        cellValueRaw += runContent;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                string text = sharedString.Text != null && !string.IsNullOrEmpty(sharedString.Text.Text) ? sharedString.Text.Text : sharedString.Text.InnerText;
+                                cellValue = GetEscapedString(text);
+                                cellValueRaw = text;
+                            }
+
+                            cellValueSharedStrings[sharedStringIndex] = new Tuple<string, string>(cellValue, cellValueRaw);
+                        }
+                    }
 
                     int sheetIndex = 0;
                     int sheetsCount = config.ConvertFirstSheetOnly ? Math.Min(sheets.Count(), 1) : sheets.Count();
@@ -257,17 +327,13 @@ namespace XlsxToHtmlConverter
                         }
                         else
                         {
-                            foreach (Row row in rows)
+                            foreach (Cell cell in rows.SelectMany(x => x.Descendants<Cell>()))
                             {
-                                foreach (Cell cell in row.Descendants<Cell>())
+                                if (cell.CellReference != null && cell.CellReference.HasValue)
                                 {
-                                    if (cell.CellReference == null || !cell.CellReference.HasValue)
-                                    {
-                                        continue;
-                                    }
-
                                     columnsCount = Math.Max(columnsCount, GetColumnIndex(cell.CellReference.Value) + 1);
                                     rowsCount = Math.Max(rowsCount, GetRowIndex(cell.CellReference.Value));
+
                                 }
                             }
                         }
@@ -278,12 +344,7 @@ namespace XlsxToHtmlConverter
                         {
                             foreach (Column column in columnsGroup.Descendants<Column>())
                             {
-                                if (column == null || column.Min == null || !column.Min.HasValue || column.Max == null || !column.Max.HasValue)
-                                {
-                                    continue;
-                                }
-
-                                for (int i = (int)column.Min.Value; i <= (int)column.Max.Value; i++)
+                                for (int i = column.Min != null && column.Min.HasValue ? (int)column.Min.Value : 0; i <= (column.Max != null && column.Max.HasValue ? (int)column.Max.Value : 0); i++)
                                 {
                                     if (column.CustomWidth != null && column.CustomWidth.HasValue && column.CustomWidth.Value && column.Width != null && column.Width.HasValue)
                                     {
@@ -365,12 +426,8 @@ namespace XlsxToHtmlConverter
                                     }
                                 }
 
-                                CellFormat cellFormat = null;
                                 int styleIndex = cell.StyleIndex != null && cell.StyleIndex.HasValue ? (int)cell.StyleIndex.Value : (row.StyleIndex != null && row.StyleIndex.HasValue ? (int)row.StyleIndex.Value : -1);
-                                if (styleIndex >= 0 && stylesheet != null && stylesheet.CellFormats != null && stylesheet.CellFormats.HasChildren && styleIndex < stylesheet.CellFormats.ChildElements.Count && stylesheet.CellFormats.ChildElements[styleIndex] is CellFormat stylesheetCellFormat)
-                                {
-                                    cellFormat = stylesheetCellFormat;
-                                }
+                                CellFormat cellFormat = styleIndex >= 0 && stylesheet != null && stylesheet.CellFormats != null && stylesheet.CellFormats.HasChildren && styleIndex < stylesheet.CellFormats.ChildElements.Count && stylesheet.CellFormats.ChildElements[styleIndex] is CellFormat stylesheetCellFormat ? stylesheetCellFormat : null;
 
                                 string numberFormatCode = string.Empty;
                                 bool isNumberFormatDate = false;
@@ -483,89 +540,49 @@ namespace XlsxToHtmlConverter
                                 {
                                     cellValue = !string.IsNullOrEmpty(cell.CellValue.Text) ? cell.CellValue.Text : cell.CellValue.InnerText;
 
-                                    if (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.SharedString && sharedStringTable != null && int.TryParse(cellValue, out int sharedStringId) && sharedStringTable.HasChildren && sharedStringId < sharedStringTable.ChildElements.Count && sharedStringTable.ChildElements[sharedStringId] is SharedStringItem sharedString)
+                                    bool isSharedString = false;
+                                    if (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.SharedString && int.TryParse(cellValue, out int sharedStringId) && sharedStringId >= 0 && sharedStringId < cellValueSharedStrings.Length && cellValueSharedStrings[sharedStringId] != null)
                                     {
-                                        if (sharedString.HasChildren)
-                                        {
-                                            cellValue = string.Empty;
-
-                                            Run runLast = null;
-                                            foreach (OpenXmlElement element in sharedString.Descendants())
-                                            {
-                                                if (element is Text text)
-                                                {
-                                                    if (runLast == null || (runLast.Text != null && runLast.Text != text))
-                                                    {
-                                                        cellValue += text.Text;
-                                                        cellValueRaw += text.Text;
-                                                    }
-                                                    runLast = null;
-                                                }
-                                                else if (element is Run run && run.Text != null)
-                                                {
-                                                    runLast = run;
-
-                                                    Dictionary<string, string> htmlStyleRun = new Dictionary<string, string>();
-                                                    if (config.ConvertStyle && run.RunProperties is RunProperties runProperties)
-                                                    {
-                                                        if (runProperties.GetFirstChild<RunFont>() is RunFont runFont && runFont.Val != null && runFont.Val.HasValue)
-                                                        {
-                                                            htmlStyleRun.Add("font-family", runFont.Val.Value);
-                                                        }
-                                                        htmlStyleRun = JoinHtmlAttributes(htmlStyleRun, FontToHtml(workbook, runProperties.GetFirstChild<Color>(), runProperties.GetFirstChild<FontSize>(), runProperties.GetFirstChild<Bold>(), runProperties.GetFirstChild<Italic>(), runProperties.GetFirstChild<Strike>(), runProperties.GetFirstChild<Underline>()));
-                                                    }
-
-                                                    string runContent = string.IsNullOrEmpty(run.Text.Text) ? run.Text.InnerText : run.Text.Text;
-                                                    cellValue += $"<p style=\"display: inline;{GetHtmlAttributesString(htmlStyleRun, true)}\">{runContent}</p>";
-                                                    cellValueRaw += runContent;
-                                                }
-                                            }
-                                        }
-                                        else
-                                        {
-                                            cellValue = sharedString.Text != null && !string.IsNullOrEmpty(sharedString.Text.Text) ? sharedString.Text.Text : sharedString.Text.InnerText;
-                                        }
+                                        isSharedString = true;
+                                        cellValue = cellValueSharedStrings[sharedStringId].Item1;
+                                        cellValueRaw = cellValueSharedStrings[sharedStringId].Item2;
                                     }
-
-                                    if (string.IsNullOrEmpty(cellValueRaw))
+                                    else
                                     {
                                         cellValueRaw = cellValue;
                                     }
 
-                                    if (!string.IsNullOrEmpty(numberFormatCode) && (cellFormat == null || cellFormat.ApplyNumberFormat == null || (cellFormat.ApplyNumberFormat.HasValue && cellFormat.ApplyNumberFormat.Value)))
+                                    if (!string.IsNullOrEmpty(numberFormatCode))
                                     {
-                                        if ((isNumberFormatDate || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && double.TryParse(cellValue, out double cellValueDate))
+                                        if ((isNumberFormatDate || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && double.TryParse(cellValueRaw, out double cellValueDate))
                                         {
                                             DateTime dateValue = DateTime.FromOADate(cellValueDate).Date;
-                                            cellValue = dateValue.ToString(numberFormatCode.Replace("m", "M"));
+                                            cellValue = GetEscapedString(dateValue.ToString(numberFormatCode.Replace("m", "M")));
                                         }
                                         else
                                         {
                                             string[] numberFormatCodeComponents = numberFormatCode.Split(';');
-                                            if (numberFormatCodeComponents.Length > 1 && double.TryParse(cellValue, out double cellValueNumber))
+                                            if (numberFormatCodeComponents.Length > 1 && double.TryParse(cellValueRaw, out double cellValueNumber))
                                             {
-                                                if (cellValueNumber > 0 || (numberFormatCodeComponents.Length == 2 && cellValueNumber == 0))
-                                                {
-                                                    numberFormatCode = numberFormatCodeComponents[0];
-                                                }
-                                                else
-                                                {
-                                                    numberFormatCode = cellValueNumber < 0 ? numberFormatCodeComponents[1] : (numberFormatCodeComponents.Length >= 3 ? numberFormatCodeComponents[2] : numberFormatCode);
-                                                }
-
-                                                cellValue = GetFormattedNumber(cellValue, numberFormatCode);
+                                                int indexComponent = cellValueNumber > 0 || (numberFormatCodeComponents.Length == 2 && cellValueNumber == 0) ? 0 : (cellValueNumber < 0 ? 1 : (numberFormatCodeComponents.Length >= 3 ? 2 : -1));
+                                                numberFormatCode = indexComponent >= 0 ? numberFormatCodeComponents[indexComponent] : numberFormatCode;
                                             }
                                             else
                                             {
                                                 numberFormatCode = numberFormatCodeComponents.Length >= 4 ? numberFormatCodeComponents[3] : numberFormatCode;
-                                                cellValue = GetFormattedNumber(cellValue, numberFormatCode);
                                             }
+                                            cellValue = GetEscapedString(GetFormattedNumber(cellValueRaw, numberFormatCode));
                                         }
+                                    }
+                                    else if (!isSharedString)
+                                    {
+                                        cellValue = GetEscapedString(cellValue);
                                     }
                                 }
 
                                 Dictionary<string, string> htmlStyleCell = new Dictionary<string, string>();
-                                if (config.ConvertStyle && stylesheet != null)
+                                string cellValueContainer = "{0}";
+                                if (config.ConvertStyle)
                                 {
                                     if (!isNumberFormatDate)
                                     {
@@ -575,17 +592,16 @@ namespace XlsxToHtmlConverter
                                             htmlStyleCell.Add("text-align", horizontalTextAlignment);
                                         }
                                     }
-                                    if (cellFormat != null)
+                                    if (styleIndex >= 0 && styleIndex < htmlStyleCellFormats.Length && htmlStyleCellFormats[styleIndex] != null)
                                     {
-                                        Fill fill = (cellFormat.ApplyFill == null || (cellFormat.ApplyFill.HasValue && cellFormat.ApplyFill.Value)) && cellFormat.FillId != null && cellFormat.FillId.HasValue && stylesheet.Fills != null && stylesheet.Fills.HasChildren && cellFormat.FillId.Value < stylesheet.Fills.ChildElements.Count ? (Fill)stylesheet.Fills.ChildElements[(int)cellFormat.FillId.Value] : null;
-                                        Font font = (cellFormat.ApplyFont == null || (cellFormat.ApplyFont.HasValue && cellFormat.ApplyFont.Value)) && cellFormat.FontId != null && cellFormat.FontId.HasValue && stylesheet.Fonts != null && stylesheet.Fonts.HasChildren && cellFormat.FontId.Value < stylesheet.Fonts.ChildElements.Count ? (Font)stylesheet.Fonts.ChildElements[(int)cellFormat.FontId.Value] : null;
-                                        Border border = (cellFormat.ApplyBorder == null || (cellFormat.ApplyBorder.HasValue && cellFormat.ApplyBorder.Value)) && cellFormat.BorderId != null && cellFormat.BorderId.HasValue && stylesheet.Borders != null && stylesheet.Borders.HasChildren && cellFormat.BorderId.Value < stylesheet.Borders.ChildElements.Count ? (Border)stylesheet.Borders.ChildElements[(int)cellFormat.BorderId.Value] : null;
-                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, CellFormatToHtml(workbook, cell, fill, font, border, cellFormat.ApplyAlignment == null || (cellFormat.ApplyAlignment.HasValue && cellFormat.ApplyAlignment.Value) ? cellFormat.Alignment : null, ref cellValue, cellValueRaw));
+                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, htmlStyleCellFormats[styleIndex].Item1);
+                                        cellValueContainer = cellValueContainer.Replace("{0}", htmlStyleCellFormats[styleIndex].Item2);
                                     }
 
                                     int differentialStyleIndex = -1;
-                                    if (cell.CellReference != null && cell.CellReference.HasValue && conditionalFormatting != null && conditionalFormatting.SequenceOfReferences != null && conditionalFormatting.SequenceOfReferences.HasValue && conditionalFormatting.SequenceOfReferences.Any(x => x.HasValue ? x.Value == cell.CellReference.Value : (x.InnerText != null && x.InnerText == cell.CellReference.Value)))
+                                    if (conditionalFormatting != null && false)
                                     {
+                                        //TODO: check reference sequences
                                         int priorityCurrent = int.MaxValue;
                                         foreach (ConditionalFormattingRule formattingRule in conditionalFormatting.Elements<ConditionalFormattingRule>())
                                         {
@@ -597,7 +613,7 @@ namespace XlsxToHtmlConverter
                                             if (formattingRule.Type != null && formattingRule.Type.HasValue)
                                             {
                                                 bool formattingCondition = false;
-                                                if (formattingRule.Type == ConditionalFormatValues.CellIs && formattingRule.GetFirstChild<Formula>() is Formula formula)
+                                                if (formattingRule.Type.Value == ConditionalFormatValues.CellIs && formattingRule.GetFirstChild<Formula>() is Formula formula)
                                                 {
                                                     string formulaText = formula.Text.Trim('"');
                                                     switch (formattingRule.Operator != null && formattingRule.Operator.HasValue ? formattingRule.Operator.Value : ConditionalFormattingOperatorValues.Equal)
@@ -614,27 +630,24 @@ namespace XlsxToHtmlConverter
                                                         case ConditionalFormattingOperatorValues.ContainsText:
                                                             formattingCondition = cellValueRaw.Contains(formulaText);
                                                             break;
-                                                        default:
-                                                            continue;
                                                     }
                                                 }
                                                 else if (formattingRule.Text != null && formattingRule.Text.HasValue)
                                                 {
-                                                    if (formattingRule.Type == ConditionalFormatValues.BeginsWith)
+                                                    switch (formattingRule.Type.Value)
                                                     {
-                                                        formattingCondition = cellValueRaw.StartsWith(formattingRule.Text.Value);
-                                                    }
-                                                    else if (formattingRule.Type == ConditionalFormatValues.EndsWith)
-                                                    {
-                                                        formattingCondition = cellValueRaw.EndsWith(formattingRule.Text.Value);
-                                                    }
-                                                    else if (formattingRule.Type == ConditionalFormatValues.ContainsText)
-                                                    {
-                                                        formattingCondition = cellValueRaw.Contains(formattingRule.Text.Value);
-                                                    }
-                                                    else if (formattingRule.Type == ConditionalFormatValues.NotContainsText)
-                                                    {
-                                                        formattingCondition = !cellValueRaw.Contains(formattingRule.Text.Value);
+                                                        case ConditionalFormatValues.BeginsWith:
+                                                            formattingCondition = cellValueRaw.StartsWith(formattingRule.Text.Value);
+                                                            break;
+                                                        case ConditionalFormatValues.EndsWith:
+                                                            formattingCondition = cellValueRaw.EndsWith(formattingRule.Text.Value);
+                                                            break;
+                                                        case ConditionalFormatValues.ContainsText:
+                                                            formattingCondition = cellValueRaw.Contains(formattingRule.Text.Value);
+                                                            break;
+                                                        case ConditionalFormatValues.NotContainsText:
+                                                            formattingCondition = !cellValueRaw.Contains(formattingRule.Text.Value);
+                                                            break;
                                                     }
                                                 }
 
@@ -647,13 +660,14 @@ namespace XlsxToHtmlConverter
                                             priorityCurrent = formattingRule.Priority.Value;
                                         }
                                     }
-                                    if (differentialStyleIndex >= 0 && stylesheet.DifferentialFormats != null && stylesheet.DifferentialFormats.HasChildren && differentialStyleIndex < stylesheet.DifferentialFormats.ChildElements.Count && stylesheet.DifferentialFormats.ChildElements[differentialStyleIndex] is DifferentialFormat differentialCellFormat)
+                                    if (differentialStyleIndex >= 0 && differentialStyleIndex < htmlStyleDifferentialFormats.Length && htmlStyleDifferentialFormats[differentialStyleIndex] != null)
                                     {
-                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, CellFormatToHtml(workbook, cell, differentialCellFormat.Fill, differentialCellFormat.Font, differentialCellFormat.Border, differentialCellFormat.Alignment, ref cellValue, cellValueRaw));
+                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, htmlStyleDifferentialFormats[differentialStyleIndex].Item1);
+                                        cellValueContainer = cellValueContainer.Replace("{0}", htmlStyleDifferentialFormats[differentialStyleIndex].Item2);
                                     }
                                 }
 
-                                writer.Write($"\n{new string(' ', 16)}<td colspan=\"{columnSpanned}\" rowspan=\"{rowSpanned}\" style=\"height: {(double.IsNaN(cellHeightActual) ? "auto" : cellHeightActual + "px")}; width: {(double.IsNaN(cellWidthActual) ? "auto" : cellWidthActual + "px")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValue}</td>");
+                                writer.Write($"\n{new string(' ', 16)}<td colspan=\"{columnSpanned}\" rowspan=\"{rowSpanned}\" style=\"height: {(double.IsNaN(cellHeightActual) ? "auto" : cellHeightActual + "px")}; width: {(double.IsNaN(cellWidthActual) ? "auto" : cellWidthActual + "px")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
 
                                 columnIndex += columnSpanned;
                             }
@@ -745,6 +759,11 @@ namespace XlsxToHtmlConverter
             return match.Success && int.TryParse(match.Value, out int rowIndex) ? rowIndex : 0;
         }
 
+        private static string GetEscapedString(string value)
+        {
+            return System.Web.HttpUtility.HtmlEncode(value).Replace(" ", "&nbsp;");
+        }
+
         private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional)
         {
             string htmlAttributes = string.Empty;
@@ -760,6 +779,11 @@ namespace XlsxToHtmlConverter
 
         private static Dictionary<string, string> JoinHtmlAttributes(Dictionary<string, string> original, Dictionary<string, string> joined)
         {
+            if (joined == null)
+            {
+                return original;
+            }
+
             foreach (KeyValuePair<string, string> pair in joined)
             {
                 if (original.ContainsKey(pair.Key))
@@ -782,18 +806,13 @@ namespace XlsxToHtmlConverter
             }
 
             bool isValueNumber = double.TryParse(value, out double valueNumber);
-            if (isValueNumber)
-            {
-                value = valueNumber.ToString();
-            }
-            else if (!format.Contains("@"))
+            if (!isValueNumber && !format.Contains("@"))
             {
                 return value;
             }
 
             int[] indexes = new int[6] { value.Length, format.Length, format.Length, format.Length, 0, 0 };
             bool isPeriodRequired = false;
-
             Action actionUpdateValue = () =>
             {
                 value = isValueNumber ? valueNumber.ToString() : value;
@@ -806,7 +825,7 @@ namespace XlsxToHtmlConverter
             bool isScientificNegative = false;
             bool isFormattingScientific = false;
 
-            int increment = 1;
+            bool isIncreasing = true;
             bool isFormatting = false;
             string result = string.Empty;
             string resultFormatted = string.Empty;
@@ -816,7 +835,7 @@ namespace XlsxToHtmlConverter
                 {
                     indexes[2] = Math.Min(indexes[3] + 1, indexes[2]);
 
-                    increment = -1;
+                    isIncreasing = false;
                     indexes[4] = indexes[0];
                     indexes[5] = indexes[2] - 1;
                     isFormatting = true;
@@ -825,57 +844,56 @@ namespace XlsxToHtmlConverter
                 else if (indexes[5] < 0)
                 {
                     result = new string(result.Reverse().ToArray());
-                    increment = 1;
+                    isIncreasing = true;
                     indexes[4] = indexes[0];
                     indexes[5] = indexes[2];
                     continue;
                 }
 
                 char formatChar = format[indexes[5]];
-                if ((increment > 0 && indexes[5] + 1 < format.Length && formatChar == '\\') || (increment < 0 && indexes[5] - 1 >= 0 && format[indexes[5] - 1] == '\\'))
+                if ((isIncreasing && indexes[5] + 1 < format.Length && formatChar == '\\') || (!isIncreasing && indexes[5] > 0 && format[indexes[5] - 1] == '\\'))
                 {
-                    result += isFormatting ? format[increment > 0 ? indexes[5] + 1 : indexes[5]].ToString() : string.Empty;
-                    indexes[5] += increment * 2;
+                    result += isFormatting ? format[isIncreasing ? indexes[5] + 1 : indexes[5]].ToString() : string.Empty;
+                    indexes[5] += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if ((formatChar == '[' || formatChar == ']') && indexes[5] + increment >= 0 && indexes[5] + increment < format.Length)
+                else if (isIncreasing ? formatChar == '[' && indexes[5] + 1 < format.Length : formatChar == ']' && indexes[5] > 0)
                 {
-                    indexes[5] += increment;
-                    while (indexes[5] >= 0 && indexes[5] < format.Length && format[indexes[5]] != '[' && format[indexes[5]] != ']')
+                    do
                     {
                         //TODO: conditions
-                        indexes[5] += increment;
-                    }
-                    indexes[5] += increment;
+                        indexes[5] += isIncreasing ? 1 : -1;
+                    } while (isIncreasing ? indexes[5] + 1 < format.Length && format[indexes[5] + 1] != ']' : indexes[5] > 0 && format[indexes[5] - 1] != '[');
+                    indexes[5] += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if (formatChar == '\"' && indexes[5] + increment >= 0 && indexes[5] + increment < format.Length)
+                else if (formatChar == '\"' && (isIncreasing ? indexes[5] + 1 < format.Length : indexes[5] > 0))
                 {
-                    indexes[5] += increment;
-                    while (indexes[5] >= 0 && indexes[5] < format.Length && format[indexes[5]] != '\"')
+                    do
                     {
+                        indexes[5] += isIncreasing ? 1 : -1;
                         result += isFormatting ? format[indexes[5]].ToString() : string.Empty;
-                        indexes[5] += increment;
                     }
-                    indexes[5] += increment;
+                    while (isIncreasing ? indexes[5] + 1 < format.Length && format[indexes[5] + 1] != '\"' : indexes[5] > 0 && format[indexes[5] - 1] != '\"');
+                    indexes[5] += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if ((increment > 0 && indexes[5] + 1 < format.Length && formatChar == '*') || (increment < 0 && indexes[5] - 1 >= 0 && format[indexes[5] - 1] == '*'))
+                else if ((isIncreasing && indexes[5] + 1 < format.Length && formatChar == '*') || (!isIncreasing && indexes[5] > 0 && format[indexes[5] - 1] == '*'))
                 {
-                    result += isFormatting ? format[increment > 0 ? indexes[5] + 1 : indexes[5]].ToString() : string.Empty;
-                    indexes[5] += increment * 2;
+                    result += isFormatting ? format[isIncreasing ? indexes[5] + 1 : indexes[5]].ToString() : string.Empty;
+                    indexes[5] += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if ((increment > 0 && indexes[5] + 1 < format.Length && formatChar == '_') || (increment < 0 && indexes[5] - 1 >= 0 && format[indexes[5] - 1] == '_'))
+                else if ((isIncreasing && indexes[5] + 1 < format.Length && formatChar == '_') || (!isIncreasing && indexes[5] > 0 && format[indexes[5] - 1] == '_'))
                 {
-                    result += isFormatting ? (increment > 0 ? "&nbsp;" : ";psbn&") : string.Empty;
-                    indexes[5] += increment * 2;
+                    result += isFormatting ? " " : string.Empty;
+                    indexes[5] += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if (isFormatting && increment < 0 && indexes[5] - 1 >= 0 && format[indexes[5] - 1] == 'E' && (formatChar == '+' || formatChar == '-'))
+                else if (isFormatting && !isIncreasing && indexes[5] > 0 && format[indexes[5] - 1] == 'E' && (formatChar == '+' || formatChar == '-'))
                 {
                     result = resultFormatted + new string(result.Reverse().ToArray());
-                    increment = 1;
+                    isIncreasing = true;
                     indexes[5] = indexes[3] + 1;
                     isFormattingScientific = false;
                     continue;
@@ -898,7 +916,7 @@ namespace XlsxToHtmlConverter
                         valueNumber *= 100;
                         actionUpdateValue.Invoke();
                     }
-                    else if (formatChar == 'E' && increment > 0 && indexes[5] + 1 < format.Length && (format[indexes[5] + 1] == '+' || format[indexes[5] + 1] == '-'))
+                    else if (formatChar == 'E' && isIncreasing && indexes[5] + 1 < format.Length && (format[indexes[5] + 1] == '+' || format[indexes[5] + 1] == '-'))
                     {
                         if (indexes[0] > 1)
                         {
@@ -929,37 +947,113 @@ namespace XlsxToHtmlConverter
                         indexes[2] = Math.Min(indexes[5], indexes[2]);
                         indexes[5]++;
                     }
+                    else if (formatChar == '/')
+                    {
+                        //TODO: fractions
+                        double valueAbsolute = Math.Abs(valueNumber);
+                        int valueFloor = (int)Math.Floor(valueAbsolute);
+                        valueAbsolute -= valueFloor;
+
+                        int fractionNumerator = 1;
+                        int fractionDenominator = 1;
+                        double maxError = valueAbsolute * 0.001;
+                        if (valueAbsolute == 0)
+                        {
+                            fractionNumerator = 0;
+                            fractionDenominator = 1;
+                        }
+                        else if (valueAbsolute < maxError)
+                        {
+                            fractionNumerator = valueNumber > 0 ? valueFloor : -valueFloor;
+                            fractionDenominator = 1;
+                        }
+                        else if (1 - maxError < valueAbsolute)
+                        {
+                            fractionNumerator = valueNumber > 0 ? (valueFloor + 1) : -(valueFloor + 1);
+                            fractionDenominator = 1;
+                        }
+                        else
+                        {
+                            int[] fractionParts = new int[4] { 0, 1, 1, 1 };
+                            Func<int, int, int, int, Func<int, int, bool>, bool> actionFindNewValue = (indexNumerator, indexDenominator, incrementNumerator, incrementDenominator, function) =>
+                            {
+                                fractionParts[indexNumerator] += incrementNumerator;
+                                fractionParts[indexDenominator] += incrementDenominator;
+                                if (function.Invoke(fractionParts[indexNumerator], fractionParts[indexDenominator]))
+                                {
+                                    int weight = 1;
+                                    do
+                                    {
+                                        weight *= 2;
+                                        fractionParts[indexNumerator] += incrementNumerator * weight;
+                                        fractionParts[indexDenominator] += incrementDenominator * weight;
+                                    }
+                                    while (function.Invoke(fractionParts[indexNumerator], fractionParts[indexDenominator]));
+                                    do
+                                    {
+                                        weight /= 2;
+                                        int decrementNumerator = incrementNumerator * weight;
+                                        int decrementDenominator = incrementDenominator * weight;
+                                        if (!function.Invoke(fractionParts[indexNumerator] - decrementNumerator, fractionParts[indexDenominator] - decrementDenominator))
+                                        {
+                                            fractionParts[indexNumerator] -= decrementNumerator;
+                                            fractionParts[indexDenominator] -= decrementDenominator;
+                                        }
+                                    }
+                                    while (weight > 1);
+                                }
+                                return true;
+                            };
+
+                            while (true)
+                            {
+                                int middleNumerator = fractionParts[0] + fractionParts[2];
+                                int middleDenominator = fractionParts[1] + fractionParts[3];
+                                if (middleDenominator * (valueAbsolute + maxError) < middleNumerator)
+                                {
+                                    actionFindNewValue(2, 3, fractionParts[0], fractionParts[1], (numerator, denominator) => (fractionParts[1] + denominator) * (valueAbsolute + maxError) < (fractionParts[0] + numerator));
+                                }
+                                else if (middleNumerator < (valueAbsolute - maxError) * middleDenominator)
+                                {
+                                    actionFindNewValue(0, 1, fractionParts[2], fractionParts[3], (numerator, denominator) => (numerator + fractionParts[2]) < (valueAbsolute - maxError) * (denominator + fractionParts[3]));
+                                }
+                                else
+                                {
+                                    fractionNumerator = valueNumber > 0 ? valueFloor * middleDenominator + middleNumerator : -(valueFloor * middleDenominator + middleNumerator);
+                                    fractionDenominator = middleDenominator;
+                                    break;
+                                }
+                            }
+                        }
+
+                        bool debug = true;
+                    }
                 }
                 else if (isFormatting)
                 {
                     if (formatChar == '@')
                     {
-                        result += increment > 0 ? value : new string(value.Reverse().ToArray());
+                        result += isIncreasing ? value : new string(value.Reverse().ToArray());
                     }
                     else if (isValueNumber && formatChar == '.')
                     {
-                        if (isPeriodRequired || (increment > 0 && indexes[4] + 1 < value.Length))
+                        if (isPeriodRequired || (isIncreasing && indexes[4] + 1 < value.Length))
                         {
                             result += ".";
                         }
                     }
                     else if (isValueNumber && formatChar == ',')
                     {
-                        if (indexes[4] + increment >= 0 && indexes[4] + increment < value.Length)
+                        if (isIncreasing ? indexes[4] + 1 < value.Length : indexes[4] > 0)
                         {
                             result += ",";
                         }
                     }
-                    else if (isValueNumber && formatChar == '/')
-                    {
-                        //TODO: fractions
-                        result += "/";
-                    }
-                    else if (isValueNumber && formatChar == 'E' && increment > 0 && indexes[5] + 1 < format.Length && (format[indexes[5] + 1] == '+' || format[indexes[5] + 1] == '-'))
+                    else if (isValueNumber && formatChar == 'E' && isIncreasing && indexes[5] + 1 < format.Length && (format[indexes[5] + 1] == '+' || format[indexes[5] + 1] == '-'))
                     {
                         resultFormatted = result + (!isScientificNegative ? (format[indexes[5] + 1] == '-' ? "E" : "E+") : "E-");
                         result = string.Empty;
-                        increment = -1;
+                        isIncreasing = false;
                         indexes[4] = scientificPower.Length;
                         indexes[5] = indexes[3];
                         isFormattingScientific = true;
@@ -967,13 +1061,12 @@ namespace XlsxToHtmlConverter
                     }
                     else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
                     {
-                        indexes[4] += increment;
-                        if (indexes[4] >= 0 && indexes[4] < (!isFormattingScientific ? value.Length : scientificPower.Length) && (formatChar != '?' || indexes[4] > 0 || value[indexes[4]] != '0' || isFormattingScientific))
+                        indexes[4] += isIncreasing ? 1 : -1;
+                        if (indexes[4] >= 0 && indexes[4] < (!isFormattingScientific ? value.Length : scientificPower.Length) && (formatChar == '0' || indexes[4] > 0 || value[indexes[4]] != '0' || isPeriodRequired || isFormattingScientific))
                         {
-                            if (increment > 0 && (indexes[5] >= indexes[3] || (indexes[5] + 2 < format.Length && format[indexes[5] + 1] == 'E' && (format[indexes[5] + 2] == '+' || format[indexes[5] + 2] == '-'))) && indexes[4] + 1 < value.Length && int.TryParse(value[indexes[4] + 1].ToString(), out int next) && next >= 5)
+                            if (isIncreasing && (indexes[5] >= indexes[3] || (indexes[5] + 2 < format.Length && format[indexes[5] + 1] == 'E' && (format[indexes[5] + 2] == '+' || format[indexes[5] + 2] == '-'))) && indexes[4] + 1 < value.Length && int.TryParse(value[indexes[4] + 1].ToString(), out int next) && next >= 5)
                             {
-                                valueNumber += (10 - next) / Math.Pow(10, indexes[4] + 1 - indexes[0]);
-                                actionUpdateValue.Invoke();
+                                return GetFormattedNumber((valueNumber + (11 - next) / Math.Pow(10, indexes[4] + 1 - indexes[0])).ToString(), format);
                             }
 
                             result += !isFormattingScientific ? value[indexes[4]].ToString() : scientificPower[indexes[4]].ToString();
@@ -984,7 +1077,7 @@ namespace XlsxToHtmlConverter
                         }
                         else
                         {
-                            result += formatChar == '0' ? "0" : (formatChar == '?' ? (increment > 0 ? "&nbsp;" : ";psbn&") : string.Empty);
+                            result += formatChar == '0' ? "0" : (formatChar == '?' ? " " : string.Empty);
                         }
                     }
                     else
@@ -993,15 +1086,16 @@ namespace XlsxToHtmlConverter
                     }
                 }
 
-                indexes[5] += increment;
+                indexes[5] += isIncreasing ? 1 : -1;
             }
 
             return result;
         }
 
-        private static Dictionary<string, string> CellFormatToHtml(WorkbookPart workbook, Cell cell, Fill fill, Font font, Border border, Alignment alignment, ref string cellValue, string cellValueRaw)
+        private static Dictionary<string, string> CellFormatToHtml(WorkbookPart workbook, Fill fill, Font font, Border border, Alignment alignment, out string cellValueContainer)
         {
             Dictionary<string, string> htmlStyle = new Dictionary<string, string>();
+            cellValueContainer = "{0}";
 
             if (fill != null && fill.PatternFill != null && fill.PatternFill.PatternType != null && fill.PatternFill.PatternType.HasValue && fill.PatternFill.PatternType.Value != PatternValues.None)
             {
@@ -1101,9 +1195,6 @@ namespace XlsxToHtmlConverter
                         case HorizontalAlignmentValues.Justify:
                             horizontalTextAlignment = "justify";
                             break;
-                        case HorizontalAlignmentValues.General:
-                            horizontalTextAlignment = GetGeneralAlignment(cell, cellValueRaw);
-                            break;
                     }
                 }
 
@@ -1117,7 +1208,7 @@ namespace XlsxToHtmlConverter
                 }
                 if (alignment.TextRotation != null && alignment.TextRotation.HasValue)
                 {
-                    cellValue = $"<div style=\"width: fit-content; transform: rotate(-{alignment.TextRotation.Value}deg);\">" + cellValue + "</div>";
+                    cellValueContainer = $"<div style=\"width: fit-content; rotate: -{alignment.TextRotation.Value}deg;\">{{0}}</div>";
                 }
             }
 
@@ -1345,6 +1436,7 @@ namespace XlsxToHtmlConverter
             }
             else if (type.Theme != null && type.Theme.HasValue && workbook.ThemePart != null && workbook.ThemePart.Theme != null && workbook.ThemePart.Theme.ThemeElements != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme.HasChildren && type.Theme.Value < workbook.ThemePart.Theme.ThemeElements.ColorScheme.ChildElements.Count && workbook.ThemePart.Theme.ThemeElements.ColorScheme.ChildElements[(int)type.Theme.Value] is DocumentFormat.OpenXml.Drawing.Color2Type color)
             {
+                //TODO: correct colors
                 if (color.RgbColorModelHex != null && color.RgbColorModelHex.Val != null && color.RgbColorModelHex.Val.HasValue)
                 {
                     rgbColor = HexToRgba(color.RgbColorModelHex.Val.Value);
