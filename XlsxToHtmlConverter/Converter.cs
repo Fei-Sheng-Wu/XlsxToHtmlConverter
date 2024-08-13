@@ -174,11 +174,11 @@ namespace XlsxToHtmlConverter
                         }
                     }
                     Tuple<Dictionary<string, string>, string>[] htmlStyleDifferentialFormats = new Tuple<Dictionary<string, string>, string>[stylesheet != null && stylesheet.DifferentialFormats != null && stylesheet.DifferentialFormats.HasChildren ? stylesheet.DifferentialFormats.ChildElements.Count : 0];
-                    for (int stylesheetFormatIndex = 0; stylesheetFormatIndex < htmlStyleDifferentialFormats.Length; stylesheetFormatIndex++)
+                    for (int stylesheetDifferentialFormatIndex = 0; stylesheetDifferentialFormatIndex < htmlStyleDifferentialFormats.Length; stylesheetDifferentialFormatIndex++)
                     {
-                        if (stylesheet.DifferentialFormats.ChildElements[stylesheetFormatIndex] is DifferentialFormat differentialFormat)
+                        if (stylesheet.DifferentialFormats.ChildElements[stylesheetDifferentialFormatIndex] is DifferentialFormat differentialFormat)
                         {
-                            htmlStyleDifferentialFormats[stylesheetFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer), cellValueContainer);
+                            htmlStyleDifferentialFormats[stylesheetDifferentialFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer), cellValueContainer);
                         }
                     }
 
@@ -194,7 +194,7 @@ namespace XlsxToHtmlConverter
                             if (sharedString.HasChildren)
                             {
                                 Run runLast = null;
-                                foreach (OpenXmlElement element in sharedString.Descendants())
+                                foreach (OpenXmlElement element in sharedString.Elements())
                                 {
                                     if (element is Text text)
                                     {
@@ -266,7 +266,7 @@ namespace XlsxToHtmlConverter
                         writer.Write($"\n{new string(' ', 4)}<div style=\"position: relative;\">");
                         writer.Write($"\n{new string(' ', 8)}<table>");
 
-                        double rowHeightDefault = sheet.SheetFormatProperties != null && sheet.SheetFormatProperties.DefaultRowHeight != null && sheet.SheetFormatProperties.DefaultRowHeight.HasValue ? sheet.SheetFormatProperties.DefaultRowHeight.Value / 0.75 : 20;
+                        double rowHeightDefault = sheet.SheetFormatProperties != null && sheet.SheetFormatProperties.DefaultRowHeight != null && sheet.SheetFormatProperties.DefaultRowHeight.HasValue ? sheet.SheetFormatProperties.DefaultRowHeight.Value / 0.75 : double.NaN;
 
                         bool isMergeCellsContained = false;
                         List<MergeCellInfo> mergeCells = new List<MergeCellInfo>();
@@ -281,22 +281,12 @@ namespace XlsxToHtmlConverter
                                     continue;
                                 }
 
-                                string[] range = mergeCell.Reference.Value.Split(':');
-                                int firstColumn = GetColumnIndex(range[0]);
-                                int secondColumn = GetColumnIndex(range[1]);
-                                int firstRow = GetRowIndex(range[0]);
-                                int secondRow = GetRowIndex(range[1]);
-
-                                int fromColumn = Math.Min(firstColumn, secondColumn);
-                                int toColumn = Math.Max(firstColumn, secondColumn);
-                                int fromRow = Math.Min(firstRow, secondRow);
-                                int toRow = Math.Max(firstRow, secondRow);
-
+                                GetReferenceRange(mergeCell.Reference.Value.Split(':'), out int fromColumn, out int fromRow, out int toColumn, out int toRow);
                                 mergeCells.Add(new MergeCellInfo()
                                 {
                                     FromColumn = fromColumn,
-                                    FromRow = fromRow,
                                     ToColumn = toColumn,
+                                    FromRow = fromRow,
                                     ToRow = toRow,
                                     ColumnSpanned = toColumn - fromColumn + 1,
                                     RowSpanned = toRow - fromRow + 1
@@ -304,36 +294,22 @@ namespace XlsxToHtmlConverter
                             }
                         }
 
-                        ConditionalFormatting conditionalFormatting = null;
-                        if (sheet.Elements<ConditionalFormatting>() is IEnumerable<ConditionalFormatting> conditionalFormattings && conditionalFormattings.Any())
-                        {
-                            conditionalFormatting = conditionalFormattings.First();
-                        }
-
-                        IEnumerable<Row> rows = sheet.Descendants<Row>();
-
                         int rowsCount = 0;
                         int columnsCount = 0;
                         if (sheet.SheetDimension != null && sheet.SheetDimension.Reference != null && sheet.SheetDimension.Reference.HasValue)
                         {
-                            string[] dimension = sheet.SheetDimension.Reference.Value.Split(':');
-                            int fromColumn = GetColumnIndex(dimension[0]);
-                            int toColumn = GetColumnIndex(dimension[1]);
-                            int fromRow = GetRowIndex(dimension[0]);
-                            int toRow = GetRowIndex(dimension[1]);
-
-                            rowsCount = toRow - fromColumn + 1;
+                            GetReferenceRange(sheet.SheetDimension.Reference.Value.Split(':'), out int fromColumn, out int fromRow, out int toColumn, out int toRow);
                             columnsCount = toColumn - fromColumn + 1;
+                            rowsCount = toRow - fromRow + 1;
                         }
                         else
                         {
-                            foreach (Cell cell in rows.SelectMany(x => x.Descendants<Cell>()))
+                            foreach (Cell cell in sheet.Descendants<Row>().SelectMany(x => x.Descendants<Cell>()))
                             {
                                 if (cell.CellReference != null && cell.CellReference.HasValue)
                                 {
                                     columnsCount = Math.Max(columnsCount, GetColumnIndex(cell.CellReference.Value) + 1);
                                     rowsCount = Math.Max(rowsCount, GetRowIndex(cell.CellReference.Value));
-
                                 }
                             }
                         }
@@ -356,7 +332,7 @@ namespace XlsxToHtmlConverter
 
                         int rowIndex = 0;
                         int rowIndexLast = 0;
-                        foreach (Row row in rows)
+                        foreach (Row row in sheet.Descendants<Row>())
                         {
                             rowIndex++;
 
@@ -364,8 +340,7 @@ namespace XlsxToHtmlConverter
                             {
                                 continue;
                             }
-
-                            if (row.RowIndex.Value - rowIndexLast > 1)
+                            else if (row.RowIndex.Value - rowIndexLast > 1)
                             {
                                 for (int i = 0; i < row.RowIndex.Value - rowIndexLast - 1; i++)
                                 {
@@ -381,17 +356,9 @@ namespace XlsxToHtmlConverter
                                 }
                             }
 
-                            int columnIndex = 0;
-                            double rowHeight = (row.CustomHeight == null || (row.CustomHeight.HasValue && row.CustomHeight.Value)) && row.Height != null && row.Height.HasValue ? row.Height.Value / 0.75 : rowHeightDefault;
-                            rowHeights[(int)row.RowIndex.Value - 1] = rowHeight;
-
                             writer.Write($"\n{new string(' ', 12)}<tr>");
 
                             Cell[] cells = new Cell[columnsCount];
-                            for (int i = 0; i < columnsCount; i++)
-                            {
-                                cells[i] = new Cell() { CellValue = new CellValue(string.Empty), CellReference = ((char)(64 + i + 1)).ToString() + row.RowIndex };
-                            }
                             foreach (Cell cell in row.Descendants<Cell>())
                             {
                                 if (cell.CellReference != null && cell.CellReference.HasValue)
@@ -399,24 +366,31 @@ namespace XlsxToHtmlConverter
                                     cells[GetColumnIndex(cell.CellReference.Value)] = cell;
                                 }
                             }
+                            for (int i = 0; i < columnsCount; i++)
+                            {
+                                cells[i] = cells[i] ?? new Cell() { CellValue = new CellValue(string.Empty), CellReference = ((char)(64 + i + 1)).ToString() + row.RowIndex };
+                            }
 
+                            double rowHeight = (row.CustomHeight == null || (row.CustomHeight.HasValue && row.CustomHeight.Value)) && row.Height != null && row.Height.HasValue ? row.Height.Value / 0.75 : rowHeightDefault;
+                            rowHeights[(int)row.RowIndex.Value - 1] = rowHeight;
+
+                            int columnIndex = 0;
                             foreach (Cell cell in cells)
                             {
+                                //TODO: proportional widths
                                 int columnSpanned = 1;
                                 int rowSpanned = 1;
-
                                 double cellHeightActual = config.ConvertSize ? rowHeight : double.NaN;
-                                double cellWidthActual = config.ConvertSize ? (columnIndex >= columnWidths.Count ? double.NaN : columnWidths[columnIndex]) : double.NaN;
-
+                                double cellWidthActual = config.ConvertSize && columnIndex < columnWidths.Count ? columnWidths[columnIndex] : double.NaN;
                                 if (isMergeCellsContained && cell.CellReference != null && cell.CellReference.HasValue)
                                 {
                                     int cellColumnIndex = GetColumnIndex(cell.CellReference.Value);
                                     int cellRowIndex = GetRowIndex(cell.CellReference.Value);
-
                                     if (mergeCells.Any(x => !(cellRowIndex == x.FromRow && cellColumnIndex == x.FromColumn) && cellRowIndex >= x.FromRow && cellRowIndex <= x.ToRow && cellColumnIndex >= x.FromColumn && cellColumnIndex <= x.ToColumn))
                                     {
                                         continue;
                                     }
+
                                     if (mergeCells.FirstOrDefault(x => x.FromColumn == cellColumnIndex && x.FromRow == cellRowIndex) is MergeCellInfo mergeCellInfo)
                                     {
                                         columnSpanned = mergeCellInfo.ColumnSpanned;
@@ -599,36 +573,91 @@ namespace XlsxToHtmlConverter
                                     }
 
                                     int differentialStyleIndex = -1;
-                                    if (conditionalFormatting != null && false)
+                                    foreach (ConditionalFormatting conditionalFormatting in sheet.Descendants<ConditionalFormatting>())
                                     {
-                                        //TODO: check reference sequences
-                                        int priorityCurrent = int.MaxValue;
-                                        foreach (ConditionalFormattingRule formattingRule in conditionalFormatting.Elements<ConditionalFormattingRule>())
+                                        if (conditionalFormatting.SequenceOfReferences != null && conditionalFormatting.SequenceOfReferences.HasValue)
                                         {
-                                            if (formattingRule == null || formattingRule.Priority == null || !formattingRule.Priority.HasValue || formattingRule.FormatId == null || !formattingRule.FormatId.HasValue || formattingRule.Priority.Value > priorityCurrent)
+                                            bool valid = false;
+                                            foreach (string references in conditionalFormatting.SequenceOfReferences.Items)
+                                            {
+                                                string[] range = references.Split(':');
+                                                if (range.Length > 1)
+                                                {
+                                                    int cellColumnIndex = GetColumnIndex(cell.CellReference.Value);
+                                                    int cellRowIndex = GetRowIndex(cell.CellReference.Value);
+                                                    GetReferenceRange(range, out int fromColumn, out int fromRow, out int toColumn, out int toRow);
+                                                    if (cellColumnIndex >= fromColumn && cellColumnIndex <= toColumn && cellRowIndex >= fromRow && cellRowIndex <= toRow)
+                                                    {
+                                                        valid = true;
+                                                        break;
+                                                    }
+                                                }
+                                                else if (cell.CellReference != null && cell.CellReference.HasValue && cell.CellReference.Value == references)
+                                                {
+                                                    valid = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (!valid)
                                             {
                                                 continue;
                                             }
+                                        }
 
+                                        int priorityCurrent = int.MaxValue;
+                                        foreach (ConditionalFormattingRule formattingRule in conditionalFormatting.Descendants<ConditionalFormattingRule>())
+                                        {
+                                            if (formattingRule.FormatId == null || !formattingRule.FormatId.HasValue)
+                                            {
+                                                continue;
+                                            }
+                                            else if (formattingRule.Priority != null && formattingRule.Priority.HasValue)
+                                            {
+                                                if (formattingRule.Priority.Value > priorityCurrent)
+                                                {
+                                                    continue;
+                                                }
+                                                priorityCurrent = formattingRule.Priority.Value;
+                                            }
+
+                                            //TODO: complete rules
                                             if (formattingRule.Type != null && formattingRule.Type.HasValue)
                                             {
                                                 bool formattingCondition = false;
                                                 if (formattingRule.Type.Value == ConditionalFormatValues.CellIs && formattingRule.GetFirstChild<Formula>() is Formula formula)
                                                 {
-                                                    string formulaText = formula.Text.Trim('"');
+                                                    string formulaValue = formula.Text.Trim('"');
                                                     switch (formattingRule.Operator != null && formattingRule.Operator.HasValue ? formattingRule.Operator.Value : ConditionalFormattingOperatorValues.Equal)
                                                     {
                                                         case ConditionalFormattingOperatorValues.Equal:
-                                                            formattingCondition = cellValueRaw == formulaText;
+                                                            formattingCondition = cellValueRaw == formulaValue;
+                                                            break;
+                                                        case ConditionalFormattingOperatorValues.NotEqual:
+                                                            formattingCondition = cellValueRaw != formulaValue;
                                                             break;
                                                         case ConditionalFormattingOperatorValues.BeginsWith:
-                                                            formattingCondition = cellValueRaw.StartsWith(formulaText);
+                                                            formattingCondition = cellValueRaw.StartsWith(formulaValue);
                                                             break;
                                                         case ConditionalFormattingOperatorValues.EndsWith:
-                                                            formattingCondition = cellValueRaw.EndsWith(formulaText);
+                                                            formattingCondition = cellValueRaw.EndsWith(formulaValue);
                                                             break;
                                                         case ConditionalFormattingOperatorValues.ContainsText:
-                                                            formattingCondition = cellValueRaw.Contains(formulaText);
+                                                            formattingCondition = cellValueRaw.Contains(formulaValue);
+                                                            break;
+                                                        case ConditionalFormattingOperatorValues.NotContains:
+                                                            formattingCondition = !cellValueRaw.Contains(formulaValue);
+                                                            break;
+                                                        case ConditionalFormattingOperatorValues.GreaterThan:
+                                                            formattingCondition = double.TryParse(formulaValue, out double formulaValueNumberGreaterThan) && double.TryParse(cellValueRaw, out double cellValueNumberGreaterThan) && cellValueNumberGreaterThan > formulaValueNumberGreaterThan;
+                                                            break;
+                                                        case ConditionalFormattingOperatorValues.GreaterThanOrEqual:
+                                                            formattingCondition = double.TryParse(formulaValue, out double formulaValueNumberGreaterThanOrEqual) && double.TryParse(cellValueRaw, out double cellValueNumberGreaterThanOrEqual) && cellValueNumberGreaterThanOrEqual >= formulaValueNumberGreaterThanOrEqual;
+                                                            break;
+                                                        case ConditionalFormattingOperatorValues.LessThan:
+                                                            formattingCondition = double.TryParse(formulaValue, out double formulaValueNumberLessThan) && double.TryParse(cellValueRaw, out double cellValueNumberLessThan) && cellValueNumberLessThan < formulaValueNumberLessThan;
+                                                            break;
+                                                        case ConditionalFormattingOperatorValues.LessThanOrEqual:
+                                                            formattingCondition = double.TryParse(formulaValue, out double formulaValueNumberLessThanOrEqual) && double.TryParse(cellValueRaw, out double cellValueNumberLessThanOrEqual) && cellValueNumberLessThanOrEqual <= formulaValueNumberLessThanOrEqual;
                                                             break;
                                                     }
                                                 }
@@ -656,8 +685,6 @@ namespace XlsxToHtmlConverter
                                                     differentialStyleIndex = (int)formattingRule.FormatId.Value;
                                                 }
                                             }
-
-                                            priorityCurrent = formattingRule.Priority.Value;
                                         }
                                     }
                                     if (differentialStyleIndex >= 0 && differentialStyleIndex < htmlStyleDifferentialFormats.Length && htmlStyleDifferentialFormats[differentialStyleIndex] != null)
@@ -667,7 +694,7 @@ namespace XlsxToHtmlConverter
                                     }
                                 }
 
-                                writer.Write($"\n{new string(' ', 16)}<td colspan=\"{columnSpanned}\" rowspan=\"{rowSpanned}\" style=\"height: {(double.IsNaN(cellHeightActual) ? "auto" : cellHeightActual + "px")}; width: {(double.IsNaN(cellWidthActual) ? "auto" : cellWidthActual + "px")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
+                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned != 1 ? " colspan=\"" + columnSpanned + "\"" : string.Empty)}{(rowSpanned != 1 ? " rowspan=\"" + rowSpanned + "\"" : string.Empty)} style=\"height: {(double.IsNaN(cellHeightActual) ? "auto" : cellHeightActual + "px")}; width: {(double.IsNaN(cellWidthActual) ? "auto" : cellWidthActual + "px")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
 
                                 columnIndex += columnSpanned;
                             }
@@ -684,7 +711,7 @@ namespace XlsxToHtmlConverter
                         if (worksheet.DrawingsPart != null && worksheet.DrawingsPart.WorksheetDrawing != null)
                         {
                             //TODO: position scaled-adjustments
-                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
+                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheet.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
                             {
                                 double left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null && absoluteAnchor.Position.X.HasValue ? (double)absoluteAnchor.Position.X.Value / 2 * 96 / 72 : double.NaN;
                                 double top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null && absoluteAnchor.Position.Y.HasValue ? (double)absoluteAnchor.Position.Y.Value / 2 * 96 / 72 : double.NaN;
@@ -692,7 +719,7 @@ namespace XlsxToHtmlConverter
                                 double height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null && absoluteAnchor.Extent.Cy.HasValue ? (double)absoluteAnchor.Extent.Cy.Value / 914400 * 96 : double.NaN;
                                 DrawingsToHtml(worksheet, absoluteAnchor, writer, left, top, width, height, config.ConvertPicture);
                             }
-                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
+                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
                             {
                                 double left = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && int.TryParse(oneCellAnchor.FromMarker.ColumnId.Text, out int columnId) ? columnWidths.Take(Math.Min(columnWidths.Count, columnId)).Sum() + (oneCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(oneCellAnchor.FromMarker.ColumnOffset.Text, out double columnOffset) ? columnOffset / 914400 * 96 : 0) : double.NaN;
                                 double top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && int.TryParse(oneCellAnchor.FromMarker.RowId.Text, out int rowId) ? rowHeights.Take(Math.Min(rowHeights.Count, rowId)).Sum() + (oneCellAnchor.FromMarker.RowOffset != null && double.TryParse(oneCellAnchor.FromMarker.RowOffset.Text, out double rowOffset) ? rowOffset / 914400 * 96 : 0) : double.NaN;
@@ -700,7 +727,7 @@ namespace XlsxToHtmlConverter
                                 double height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null && oneCellAnchor.Extent.Cy.HasValue ? (double)oneCellAnchor.Extent.Cy.Value / 914400 * 96 : double.NaN;
                                 DrawingsToHtml(worksheet, oneCellAnchor, writer, left, top, width, height, config.ConvertPicture);
                             }
-                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor>())
+                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor in worksheet.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor>())
                             {
                                 double fromLeft = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.ColumnId != null && int.TryParse(twoCellAnchor.FromMarker.ColumnId.Text, out int fromColumnId) ? columnWidths.Take(Math.Min(columnWidths.Count, fromColumnId)).Sum() + (twoCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.FromMarker.ColumnOffset.Text, out double fromColumnOffset) ? fromColumnOffset / 914400 * 96 : 0) : double.NaN;
                                 double fromTop = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.RowId != null && int.TryParse(twoCellAnchor.FromMarker.RowId.Text, out int fromRowId) ? rowHeights.Take(Math.Min(rowHeights.Count, fromRowId)).Sum() + (twoCellAnchor.FromMarker.RowOffset != null && double.TryParse(twoCellAnchor.FromMarker.RowOffset.Text, out double fromRowOffset) ? fromRowOffset / 914400 * 96 : 0) : double.NaN;
@@ -757,6 +784,18 @@ namespace XlsxToHtmlConverter
         {
             Match match = regexNumbers.Match(cellName);
             return match.Success && int.TryParse(match.Value, out int rowIndex) ? rowIndex : 0;
+        }
+
+        private static void GetReferenceRange(string[] range, out int fromColumn, out int fromRow, out int toColumn, out int toRow)
+        {
+            int firstColumn = range.Length > 1 ? GetColumnIndex(range[0]) : 0;
+            int firstRow = range.Length > 1 ? GetRowIndex(range[0]) : 0;
+            int secondColumn = range.Length > 1 ? GetColumnIndex(range[1]) : 0;
+            int secondRow = range.Length > 1 ? GetRowIndex(range[1]) : 0;
+            fromColumn = Math.Min(firstColumn, secondColumn);
+            fromRow = Math.Min(firstRow, secondRow);
+            toColumn = Math.Max(firstColumn, secondColumn);
+            toRow = Math.Max(firstRow, secondRow);
         }
 
         private static string GetEscapedString(string value)
@@ -1066,7 +1105,7 @@ namespace XlsxToHtmlConverter
                         {
                             if (isIncreasing && (indexes[5] >= indexes[3] || (indexes[5] + 2 < format.Length && format[indexes[5] + 1] == 'E' && (format[indexes[5] + 2] == '+' || format[indexes[5] + 2] == '-'))) && indexes[4] + 1 < value.Length && int.TryParse(value[indexes[4] + 1].ToString(), out int next) && next >= 5)
                             {
-                                return GetFormattedNumber((valueNumber + (11 - next) / Math.Pow(10, indexes[4] + 1 - indexes[0])).ToString(), format);
+                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexes[4] + 1 - indexes[0])).ToString(), format);
                             }
 
                             result += !isFormattingScientific ? value[indexes[4]].ToString() : scientificPower[indexes[4]].ToString();
@@ -1097,7 +1136,7 @@ namespace XlsxToHtmlConverter
             Dictionary<string, string> htmlStyle = new Dictionary<string, string>();
             cellValueContainer = "{0}";
 
-            if (fill != null && fill.PatternFill != null && fill.PatternFill.PatternType != null && fill.PatternFill.PatternType.HasValue && fill.PatternFill.PatternType.Value != PatternValues.None)
+            if (fill != null && fill.PatternFill != null && (fill.PatternFill.PatternType == null || (fill.PatternFill.PatternType.HasValue && fill.PatternFill.PatternType.Value != PatternValues.None)))
             {
                 string background = string.Empty;
                 if (fill.PatternFill.ForegroundColor != null)
