@@ -1,13 +1,13 @@
-# XlsxToHtmlConverter v1.2.18-dev
+# XlsxToHtmlConverter v1.2.18
 
 [![C#](https://img.shields.io/badge/C%23-100%25-blue.svg?style=flat-square)](https://docs.microsoft.com/en-us/dotnet/csharp/)
 [![Target Framework](https://img.shields.io/badge/.Net-%E2%89%A55.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/5.0)
 [![Target Framework](https://img.shields.io/badge/.Net%20Core-%E2%89%A53.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/3.0)
 [![Target Framework](https://img.shields.io/badge/.Net%20Standard-%E2%89%A52.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/platform/dotnet-standard)
-[![Nuget](https://img.shields.io/badge/Nuget-v1.2.17%20%28%E2%89%A519.0K%20Total%20Downloads%29-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.17)
+[![Nuget](https://img.shields.io/badge/Nuget-v1.2.18%20%28%E2%89%A519.0K%20Total%20Downloads%29-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.18)
 [![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 
-> A Xlsx to Html file converter and parser. Support cell fills, fonts, borders, alignments, and other styles. Support custom column widths, row heights, and merged cells. Support numbering and conditional formats. Support multiple sheets and hidden sheets. Support pictures. Support progress callback. Only depends on the Microsoft Open Xml SDK.
+> A Xlsx to Html file converter and parser. Support cell fills, fonts, borders, alignments, and other styles. Support custom column widths, row heights, and merged cells. Support numbering and basic conditional formats. Support multiple sheets and hidden sheets. Support pictures. Support progress callback. Only depends on the Microsoft Open Xml SDK.
 
 ## Dependencies
 
@@ -18,7 +18,7 @@
 - [x] Cell fills, fonts, borders, alignments, and other styles
 - [x] Custom column widths and row heights
 - [x] Vertical and horizontal merged cells
-- [x] Numbering formats and conditional formats
+- [x] Numbering formats and basic conditional formats
 - [x] Sheet tab titles, colors, and hidden sheets
 - [x] Picture embeddings as Base64 images
 - [x] Conversion progress callback
