@@ -887,19 +887,11 @@ namespace XlsxToHtmlConverter
             return index >= formulasCount && actionEvaluation.Invoke(parameters);
         }
 
-        static Random random = new Random(Environment.TickCount);
         private static string GetFormattedNumber(string value, string format)
         {
             if (string.IsNullOrEmpty(format))
             {
                 return value;
-            }
-
-            if (false)
-            {
-                int randomLength = 10;
-                value = new string(Enumerable.Repeat(" ", random.Next(randomLength)).Select(s => (char)random.Next(256)).ToArray());
-                format = new string(Enumerable.Repeat(" ", random.Next(randomLength)).Select(s => (char)random.Next(256)).ToArray());
             }
 
             bool isValueNumber = double.TryParse(value, out double valueNumber);
@@ -908,12 +900,6 @@ namespace XlsxToHtmlConverter
                 return value;
             }
 
-            //0 - index actual period
-            //1 - index format start
-            //2 - index format period
-            //3 - index format end
-            //4 - index actual
-            //5 - index format
             int[] indexes = new int[6] { value.Length, format.Length, format.Length, format.Length, 0, 0 };
             bool isPeriodRequired = false;
             Action actionUpdateValue = () =>
