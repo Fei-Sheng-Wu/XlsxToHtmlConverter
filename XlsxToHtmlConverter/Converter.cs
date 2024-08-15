@@ -406,8 +406,6 @@ namespace XlsxToHtmlConverter
                                     {
                                         columnSpanned = mergeCellInfo.ColumnSpanned;
                                         rowSpanned = mergeCellInfo.RowSpanned;
-                                        cellWidthActual = columnSpanned > 1 ? double.NaN : cellWidthActual;
-                                        cellHeightActual = rowSpanned > 1 ? double.NaN : cellHeightActual;
                                     }
                                 }
 
@@ -635,53 +633,46 @@ namespace XlsxToHtmlConverter
                                             bool isConditionMet = false;
                                             if (formattingRule.Type.Value == ConditionalFormatValues.CellIs && formattingRule.Operator != null && formattingRule.Operator.HasValue)
                                             {
-                                                if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.Equal)
+                                                switch (formattingRule.Operator.Value)
                                                 {
-                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formula && cellValueRaw == formula.Text.Trim('"');
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.NotEqual)
-                                                {
-                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formula && cellValueRaw != formula.Text.Trim('"');
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.BeginsWith)
-                                                {
-                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formula && cellValueRaw.StartsWith(formula.Text.Trim('"'));
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.EndsWith)
-                                                {
-                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formula && cellValueRaw.EndsWith(formula.Text.Trim('"'));
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.ContainsText)
-                                                {
-                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formula && cellValueRaw.Contains(formula.Text.Trim('"'));
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.NotContains)
-                                                {
-                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formula && !cellValueRaw.Contains(formula.Text.Trim('"'));
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.GreaterThan)
-                                                {
-                                                    isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] > x[1]);
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.GreaterThanOrEqual)
-                                                {
-                                                    isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] >= x[1]);
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.LessThan)
-                                                {
-                                                    isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] < x[1]);
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.LessThanOrEqual)
-                                                {
-                                                    isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] <= x[1]);
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.Between)
-                                                {
-                                                    isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] >= Math.Min(x[1], x[2]) && x[0] <= Math.Max(x[1], x[2]));
-                                                }
-                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.NotBetween)
-                                                {
-                                                    isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] < Math.Min(x[1], x[2]) || x[0] > Math.Max(x[1], x[2]));
+                                                    case ConditionalFormattingOperatorValues.Equal:
+                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaEqual && cellValueRaw == formulaEqual.Text.Trim('"');
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.NotEqual:
+
+                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaNotEqual && cellValueRaw != formulaNotEqual.Text.Trim('"');
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.BeginsWith:
+
+                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaBeginsWith && cellValueRaw.StartsWith(formulaBeginsWith.Text.Trim('"'));
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.EndsWith:
+                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaEndsWith && cellValueRaw.EndsWith(formulaEndsWith.Text.Trim('"'));
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.ContainsText:
+                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaContainsText && cellValueRaw.Contains(formulaContainsText.Text.Trim('"'));
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.NotContains:
+                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaNotContains && !cellValueRaw.Contains(formulaNotContains.Text.Trim('"'));
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.GreaterThan:
+                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] > x[1]);
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.GreaterThanOrEqual:
+                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] >= x[1]);
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.LessThan:
+                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] < x[1]);
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.LessThanOrEqual:
+                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] <= x[1]);
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.Between:
+                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] >= Math.Min(x[1], x[2]) && x[0] <= Math.Max(x[1], x[2]));
+                                                        break;
+                                                    case ConditionalFormattingOperatorValues.NotBetween:
+                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] < Math.Min(x[1], x[2]) || x[0] > Math.Max(x[1], x[2]));
+                                                        break;
                                                 }
                                             }
                                             else if (formattingRule.Type.Value == ConditionalFormatValues.BeginsWith && formattingRule.Text != null && formattingRule.Text.HasValue)
@@ -722,7 +713,7 @@ namespace XlsxToHtmlConverter
                                     }
                                 }
 
-                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned != 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned != 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)} style=\"width: {(!double.IsNaN(cellWidthActual) ? $"{cellWidthActual}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")}" : "auto")}; height: {(double.IsNaN(cellHeightActual) ? "auto" : $"{cellHeightActual}px")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
+                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned != 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned != 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)} style=\"width: {(!double.IsNaN(cellWidthActual) && columnSpanned == 1 ? $"{cellWidthActual}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")}" : "auto")}; height: {(!double.IsNaN(cellHeightActual) && rowSpanned == 1 ? $"{cellHeightActual}px" : "auto")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
                             }
 
                             writer.Write($"\n{new string(' ', 12)}</tr>");
@@ -896,11 +887,19 @@ namespace XlsxToHtmlConverter
             return index >= formulasCount && actionEvaluation.Invoke(parameters);
         }
 
+        static Random random = new Random(Environment.TickCount);
         private static string GetFormattedNumber(string value, string format)
         {
             if (string.IsNullOrEmpty(format))
             {
                 return value;
+            }
+
+            if (false)
+            {
+                int randomLength = 10;
+                value = new string(Enumerable.Repeat(" ", random.Next(randomLength)).Select(s => (char)random.Next(256)).ToArray());
+                format = new string(Enumerable.Repeat(" ", random.Next(randomLength)).Select(s => (char)random.Next(256)).ToArray());
             }
 
             bool isValueNumber = double.TryParse(value, out double valueNumber);
@@ -909,6 +908,12 @@ namespace XlsxToHtmlConverter
                 return value;
             }
 
+            //0 - index actual period
+            //1 - index format start
+            //2 - index format period
+            //3 - index format end
+            //4 - index actual
+            //5 - index format
             int[] indexes = new int[6] { value.Length, format.Length, format.Length, format.Length, 0, 0 };
             bool isPeriodRequired = false;
             Action actionUpdateValue = () =>
@@ -958,6 +963,7 @@ namespace XlsxToHtmlConverter
                 {
                     do
                     {
+                        //TODO: conditions
                         indexes[5] += isIncreasing ? 1 : -1;
                     } while (isIncreasing ? indexes[5] + 1 < format.Length && format[indexes[5] + 1] != ']' : indexes[5] > 0 && format[indexes[5] - 1] != '[');
                     indexes[5] += isIncreasing ? 2 : -2;
@@ -1040,6 +1046,87 @@ namespace XlsxToHtmlConverter
                         }
                         indexes[2] = Math.Min(indexes[5], indexes[2]);
                         indexes[5]++;
+                    }
+                    else if (formatChar == '/')
+                    {
+                        //TODO: fractions
+                        double valueAbsolute = Math.Abs(valueNumber);
+                        int valueFloor = (int)Math.Floor(valueAbsolute);
+                        valueAbsolute -= valueFloor;
+
+                        int fractionNumerator = 1;
+                        int fractionDenominator = 1;
+                        double maxError = valueAbsolute * 0.001;
+                        if (valueAbsolute == 0)
+                        {
+                            fractionNumerator = 0;
+                            fractionDenominator = 1;
+                        }
+                        else if (valueAbsolute < maxError)
+                        {
+                            fractionNumerator = valueNumber > 0 ? valueFloor : -valueFloor;
+                            fractionDenominator = 1;
+                        }
+                        else if (1 - maxError < valueAbsolute)
+                        {
+                            fractionNumerator = valueNumber > 0 ? (valueFloor + 1) : -(valueFloor + 1);
+                            fractionDenominator = 1;
+                        }
+                        else
+                        {
+                            int[] fractionParts = new int[4] { 0, 1, 1, 1 };
+                            Func<int, int, int, int, Func<int, int, bool>, bool> actionFindNewValue = (indexNumerator, indexDenominator, incrementNumerator, incrementDenominator, actionEvaluation) =>
+                            {
+                                fractionParts[indexNumerator] += incrementNumerator;
+                                fractionParts[indexDenominator] += incrementDenominator;
+                                if (actionEvaluation.Invoke(fractionParts[indexNumerator], fractionParts[indexDenominator]))
+                                {
+                                    int weight = 1;
+                                    do
+                                    {
+                                        weight *= 2;
+                                        fractionParts[indexNumerator] += incrementNumerator * weight;
+                                        fractionParts[indexDenominator] += incrementDenominator * weight;
+                                    }
+                                    while (actionEvaluation.Invoke(fractionParts[indexNumerator], fractionParts[indexDenominator]));
+                                    do
+                                    {
+                                        weight /= 2;
+                                        int decrementNumerator = incrementNumerator * weight;
+                                        int decrementDenominator = incrementDenominator * weight;
+                                        if (!actionEvaluation.Invoke(fractionParts[indexNumerator] - decrementNumerator, fractionParts[indexDenominator] - decrementDenominator))
+                                        {
+                                            fractionParts[indexNumerator] -= decrementNumerator;
+                                            fractionParts[indexDenominator] -= decrementDenominator;
+                                        }
+                                    }
+                                    while (weight > 1);
+                                }
+                                return true;
+                            };
+
+                            while (true)
+                            {
+                                int middleNumerator = fractionParts[0] + fractionParts[2];
+                                int middleDenominator = fractionParts[1] + fractionParts[3];
+                                if (middleDenominator * (valueAbsolute + maxError) < middleNumerator)
+                                {
+                                    actionFindNewValue.Invoke(2, 3, fractionParts[0], fractionParts[1], (numerator, denominator) => (fractionParts[1] + denominator) * (valueAbsolute + maxError) < (fractionParts[0] + numerator));
+                                }
+                                else if (middleNumerator < (valueAbsolute - maxError) * middleDenominator)
+                                {
+                                    actionFindNewValue.Invoke(0, 1, fractionParts[2], fractionParts[3], (numerator, denominator) => (numerator + fractionParts[2]) < (valueAbsolute - maxError) * (denominator + fractionParts[3]));
+                                }
+                                else
+                                {
+                                    fractionNumerator = valueNumber > 0 ? valueFloor * middleDenominator + middleNumerator : -(valueFloor * middleDenominator + middleNumerator);
+                                    fractionDenominator = middleDenominator;
+                                    break;
+                                }
+                            }
+                        }
+
+                        bool debug = true;
                     }
                 }
                 else if (isFormatting)
@@ -1415,37 +1502,67 @@ namespace XlsxToHtmlConverter
                         return string.Empty;
                 }
             }
-            else if (type.Theme != null && type.Theme.HasValue)
+            else if (type.Theme != null && type.Theme.HasValue && workbook.ThemePart != null && workbook.ThemePart.Theme != null && workbook.ThemePart.Theme.ThemeElements != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme != null)
             {
                 DocumentFormat.OpenXml.Drawing.Color2Type themeColor = null;
-                int themeIndex = (int)type.Theme.Value + (type.Theme.Value < 4 ? (type.Theme.Value % 2 == 0 ? 1 : -1) : 0);
-                if (workbook.ThemePart != null && workbook.ThemePart.Theme != null && workbook.ThemePart.Theme.ThemeElements != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme.HasChildren && themeIndex >= 0 && themeIndex < workbook.ThemePart.Theme.ThemeElements.ColorScheme.ChildElements.Count && workbook.ThemePart.Theme.ThemeElements.ColorScheme.ChildElements[themeIndex] is DocumentFormat.OpenXml.Drawing.Color2Type themePartColorScheme)
+                switch (type.Theme.Value)
                 {
-                    themeColor = themePartColorScheme;
-                }
-                else
-                {
-                    return string.Empty;
+                    case 0:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Light1Color;
+                        break;
+                    case 1:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Dark1Color;
+                        break;
+                    case 2:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Light2Color;
+                        break;
+                    case 3:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Dark2Color;
+                        break;
+                    case 4:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Accent1Color;
+                        break;
+                    case 5:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Accent2Color;
+                        break;
+                    case 6:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Accent3Color;
+                        break;
+                    case 7:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Accent4Color;
+                        break;
+                    case 8:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Accent5Color;
+                        break;
+                    case 9:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Accent6Color;
+                        break;
+                    case 10:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Hyperlink;
+                        break;
+                    case 11:
+                        themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.FollowedHyperlinkColor;
+                        break;
                 }
 
-                if (themeColor.RgbColorModelHex != null && themeColor.RgbColorModelHex.Val != null && themeColor.RgbColorModelHex.Val.HasValue)
+                if (themeColor != null && themeColor.RgbColorModelHex != null && themeColor.RgbColorModelHex.Val != null && themeColor.RgbColorModelHex.Val.HasValue)
                 {
                     rgbColor = HexToRgba(themeColor.RgbColorModelHex.Val.Value);
                 }
-                else if (themeColor.RgbColorModelPercentage != null)
+                else if (themeColor != null && themeColor.RgbColorModelPercentage != null)
                 {
                     rgbColor.R = themeColor.RgbColorModelPercentage.RedPortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.RedPortion.Value / 100000.0 * 255) : 0;
                     rgbColor.G = themeColor.RgbColorModelPercentage.GreenPortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.GreenPortion.Value / 100000.0 * 255) : 0;
                     rgbColor.B = themeColor.RgbColorModelPercentage.BluePortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.BluePortion.Value / 100000.0 * 255) : 0;
                 }
-                else if (themeColor.HslColor != null)
+                else if (themeColor != null && themeColor.HslColor != null)
                 {
                     HlsToRgb(themeColor.HslColor.HueValue.HasValue ? themeColor.HslColor.HueValue.Value / 6000.0 : 0, themeColor.HslColor.LumValue.HasValue ? themeColor.HslColor.LumValue.Value : 0, themeColor.HslColor.SatValue.HasValue ? themeColor.HslColor.SatValue.Value : 0, out double red, out double green, out double blue);
                     rgbColor.R = (int)red;
                     rgbColor.G = (int)green;
                     rgbColor.B = (int)blue;
                 }
-                else if (themeColor.SystemColor != null)
+                else if (themeColor != null && themeColor.SystemColor != null)
                 {
                     if (themeColor.SystemColor.Val != null && themeColor.SystemColor.Val.HasValue)
                     {
@@ -1554,7 +1671,7 @@ namespace XlsxToHtmlConverter
                         return string.Empty;
                     }
                 }
-                else if (themeColor.PresetColor != null && themeColor.PresetColor.Val != null && themeColor.PresetColor.Val.HasValue)
+                else if (themeColor != null && themeColor.PresetColor != null && themeColor.PresetColor.Val != null && themeColor.PresetColor.Val.HasValue)
                 {
                     switch (themeColor.PresetColor.Val.Value)
                     {
@@ -2391,6 +2508,7 @@ namespace XlsxToHtmlConverter
                     properties = shape.NonVisualShapeProperties.NonVisualDrawingProperties;
                 }
 
+                //TODO: shape styles
                 drawings.Add(new DrawingInfo()
                 {
                     Prefix = "<p",
@@ -2411,6 +2529,21 @@ namespace XlsxToHtmlConverter
                 string htmlStyleTransform = string.Empty;
                 if (drawingInfo.ShapeProperties != null && drawingInfo.ShapeProperties.Transform2D != null)
                 {
+                    if (drawingInfo.ShapeProperties.Transform2D.Extents != null)
+                    {
+                        //TODO: drawing sizes
+                        if (false)
+                        {
+                            if (drawingInfo.ShapeProperties.Transform2D.Extents.Cx != null && drawingInfo.ShapeProperties.Transform2D.Extents.Cx.HasValue)
+                            {
+                                widthActual = $"{drawingInfo.ShapeProperties.Transform2D.Extents.Cx.Value / 914400 * 96}px";
+                            }
+                            if (drawingInfo.ShapeProperties.Transform2D.Extents.Cy != null && drawingInfo.ShapeProperties.Transform2D.Extents.Cy.HasValue)
+                            {
+                                heightActual = $"{drawingInfo.ShapeProperties.Transform2D.Extents.Cy.Value / 914400 * 96}px";
+                            }
+                        }
+                    }
                     if (drawingInfo.ShapeProperties.Transform2D.Offset != null)
                     {
                         if (drawingInfo.ShapeProperties.Transform2D.Offset.X != null && drawingInfo.ShapeProperties.Transform2D.Offset.X.HasValue)
