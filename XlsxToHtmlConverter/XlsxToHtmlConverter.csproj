@@ -2,16 +2,16 @@
 
   <PropertyGroup>
     <TargetFrameworks>net5.0;netcoreapp3.0;netstandard2.0</TargetFrameworks>
-    <Version>1.2.15</Version>
+    <Version>1.2.18</Version>
     <Authors>FeiShengWu</Authors>
     <Company></Company>
-    <Description>A Xlsx to Html file converter and parser. Support cell fill, font, border, alignment and other styles. Support custom column width and row height. Support vertical and/or horizontal merged cells. Support sheet tab color and hidden sheet. Support pictures. Support progress callback. It only depends on the Microsoft Open Xml SDK.</Description>
+    <Description>A Xlsx to Html file converter and parser. Support cell fills, fonts, borders, alignments, and other styles. Support custom column widths, row heights, and merged cells. Support numbering and conditional formats. Support multiple sheets and hidden sheets. Support pictures. Support progress callback. Only depends on the Microsoft Open Xml SDK.</Description>
     <Copyright>Copyright © 2024 FeiShengWu</Copyright>
     <PackageProjectUrl>https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter</PackageProjectUrl>
-    <PackageLicenseFile>MIT License.txt</PackageLicenseFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>$(AssemblyName)</Title>
-    <PackageTags>C#; Excel; Xlsx; Html; Webpage; Converter; Data; Spreadsheet; OpenXML</PackageTags>
+    <PackageTags>C#; Excel; Xlsx; Html; Webpage; Converter; Exporter; Parser; Data; Spreadsheet; OpenXML</PackageTags>
+    <PackageLicenseFile>MIT License.txt</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
