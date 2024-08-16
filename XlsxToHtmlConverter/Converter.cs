@@ -10,7 +10,7 @@ using DocumentFormat.OpenXml.Spreadsheet;
 namespace XlsxToHtmlConverter
 {
     /// <summary>
-    /// The Xlsx to Html converter class.
+    /// The Xlsx to Html converter.
     /// </summary>
     public class Converter
     {
@@ -127,7 +127,7 @@ namespace XlsxToHtmlConverter
         {
             config = config ?? ConverterConfig.DefaultSettings;
 
-            StreamWriter writer = new StreamWriter(outputHtml, config.Encoding, 65536);
+            StreamWriter writer = new StreamWriter(outputHtml, config.Encoding, config.BufferSize);
             writer.BaseStream.Seek(0, SeekOrigin.Begin);
             writer.BaseStream.SetLength(0);
 
@@ -170,7 +170,7 @@ namespace XlsxToHtmlConverter
                             Fill fill = (cellFormat.ApplyFill == null || (cellFormat.ApplyFill.HasValue && cellFormat.ApplyFill.Value)) && cellFormat.FillId != null && cellFormat.FillId.HasValue && stylesheet.Fills != null && stylesheet.Fills.HasChildren && cellFormat.FillId.Value < stylesheet.Fills.ChildElements.Count ? (Fill)stylesheet.Fills.ChildElements[(int)cellFormat.FillId.Value] : null;
                             Font font = (cellFormat.ApplyFont == null || (cellFormat.ApplyFont.HasValue && cellFormat.ApplyFont.Value)) && cellFormat.FontId != null && cellFormat.FontId.HasValue && stylesheet.Fonts != null && stylesheet.Fonts.HasChildren && cellFormat.FontId.Value < stylesheet.Fonts.ChildElements.Count ? (Font)stylesheet.Fonts.ChildElements[(int)cellFormat.FontId.Value] : null;
                             Border border = (cellFormat.ApplyBorder == null || (cellFormat.ApplyBorder.HasValue && cellFormat.ApplyBorder.Value)) && cellFormat.BorderId != null && cellFormat.BorderId.HasValue && stylesheet.Borders != null && stylesheet.Borders.HasChildren && cellFormat.BorderId.Value < stylesheet.Borders.ChildElements.Count ? (Border)stylesheet.Borders.ChildElements[(int)cellFormat.BorderId.Value] : null;
-                            htmlStyleCellFormats[stylesheetFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, fill, font, border, cellFormat.ApplyAlignment == null || (cellFormat.ApplyAlignment.HasValue && cellFormat.ApplyAlignment.Value) ? cellFormat.Alignment : null, out string cellValueContainer), cellValueContainer);
+                            htmlStyleCellFormats[stylesheetFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, fill, font, border, cellFormat.ApplyAlignment == null || (cellFormat.ApplyAlignment.HasValue && cellFormat.ApplyAlignment.Value) ? cellFormat.Alignment : null, out string cellValueContainer, config), cellValueContainer);
                         }
                     }
                     Tuple<Dictionary<string, string>, string>[] htmlStyleDifferentialFormats = new Tuple<Dictionary<string, string>, string>[stylesheet != null && stylesheet.DifferentialFormats != null && stylesheet.DifferentialFormats.HasChildren ? stylesheet.DifferentialFormats.ChildElements.Count : 0];
@@ -178,7 +178,7 @@ namespace XlsxToHtmlConverter
                     {
                         if (stylesheet.DifferentialFormats.ChildElements[stylesheetDifferentialFormatIndex] is DifferentialFormat differentialFormat)
                         {
-                            htmlStyleDifferentialFormats[stylesheetDifferentialFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer), cellValueContainer);
+                            htmlStyleDifferentialFormats[stylesheetDifferentialFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer, config), cellValueContainer);
                         }
                     }
 
@@ -210,17 +210,18 @@ namespace XlsxToHtmlConverter
                                         runLast = run;
 
                                         Dictionary<string, string> htmlStyleRun = new Dictionary<string, string>();
+                                        string cellValueContainer = "{0}";
                                         if (config.ConvertStyles && run.RunProperties is RunProperties runProperties)
                                         {
                                             if (runProperties.GetFirstChild<RunFont>() is RunFont runFont && runFont.Val != null && runFont.Val.HasValue)
                                             {
                                                 htmlStyleRun.Add("font-family", runFont.Val.Value);
                                             }
-                                            htmlStyleRun = JoinHtmlAttributes(htmlStyleRun, FontToHtml(workbook, runProperties.GetFirstChild<Color>(), runProperties.GetFirstChild<FontSize>(), runProperties.GetFirstChild<Bold>(), runProperties.GetFirstChild<Italic>(), runProperties.GetFirstChild<Strike>(), runProperties.GetFirstChild<Underline>()));
+                                            htmlStyleRun = JoinHtmlAttributes(htmlStyleRun, FontToHtml(workbook, runProperties.GetFirstChild<Color>(), runProperties.GetFirstChild<FontSize>(), runProperties.GetFirstChild<Bold>(), runProperties.GetFirstChild<Italic>(), runProperties.GetFirstChild<Strike>(), runProperties.GetFirstChild<Underline>(), out cellValueContainer, config));
                                         }
 
                                         string runContent = string.IsNullOrEmpty(run.Text.Text) ? run.Text.InnerText : run.Text.Text;
-                                        cellValue += $"<p style=\"display: inline;{GetHtmlAttributesString(htmlStyleRun, true)}\">{GetEscapedString(runContent)}</p>";
+                                        cellValue += $"<p style=\"display: inline;{GetHtmlAttributesString(htmlStyleRun, true)}\">{cellValueContainer.Replace("{0}", GetEscapedString(runContent))}</p>";
                                         cellValueRaw += runContent;
                                     }
                                 }
@@ -247,40 +248,14 @@ namespace XlsxToHtmlConverter
                         }
 
                         Worksheet worksheet = worksheetPart.Worksheet;
-
                         if (config.ConvertSheetTitles)
                         {
-                            string tabColor = worksheet.SheetProperties != null && worksheet.SheetProperties.TabColor != null ? ColorTypeToHtml(workbook, worksheet.SheetProperties.TabColor) : string.Empty;
+                            string tabColor = worksheet.SheetProperties != null && worksheet.SheetProperties.TabColor != null ? ColorTypeToHtml(workbook, worksheet.SheetProperties.TabColor, config) : string.Empty;
                             writer.Write($"\n{new string(' ', 4)}<h5{(!string.IsNullOrEmpty(tabColor) ? $" style=\"border-bottom-color: {tabColor};\"" : string.Empty)}>{(sheet.Name != null && sheet.Name.HasValue ? sheet.Name.Value : "Untitled")}</h5>");
                         }
 
                         writer.Write($"\n{new string(' ', 4)}<div style=\"position: relative;\">");
                         writer.Write($"\n{new string(' ', 8)}<table>");
-
-                        bool isMergeCellsContained = false;
-                        List<MergeCellInfo> mergeCells = new List<MergeCellInfo>();
-                        if (worksheet.Descendants<MergeCells>().FirstOrDefault() is MergeCells mergeCellsGroup)
-                        {
-                            isMergeCellsContained = true;
-                            foreach (MergeCell mergeCell in mergeCellsGroup.Cast<MergeCell>())
-                            {
-                                if (mergeCell.Reference == null || !mergeCell.Reference.HasValue)
-                                {
-                                    continue;
-                                }
-
-                                GetReferenceRange(mergeCell.Reference.Value, out int mergeCellFromColumn, out int mergeCellFromRow, out int mergeCellToColumn, out int mergeCellToRow);
-                                mergeCells.Add(new MergeCellInfo()
-                                {
-                                    FromColumn = mergeCellFromColumn,
-                                    ToColumn = mergeCellToColumn,
-                                    FromRow = mergeCellFromRow,
-                                    ToRow = mergeCellToRow,
-                                    ColumnSpanned = mergeCellToColumn - mergeCellFromColumn + 1,
-                                    RowSpanned = mergeCellToRow - mergeCellFromRow + 1
-                                });
-                            }
-                        }
 
                         int[] sheetDimension = new int[4] { 1, 1, 1, 1 };
                         if (worksheet.SheetDimension != null && worksheet.SheetDimension.Reference != null && worksheet.SheetDimension.Reference.HasValue)
@@ -299,11 +274,25 @@ namespace XlsxToHtmlConverter
                             }
                         }
 
+                        List<int[]> mergeCells = new List<int[]>();
+                        if (worksheet.Descendants<MergeCells>().FirstOrDefault() is MergeCells mergeCellsGroup)
+                        {
+                            foreach (MergeCell mergeCell in mergeCellsGroup.Descendants<MergeCell>())
+                            {
+                                if (mergeCell.Reference != null && mergeCell.Reference.HasValue)
+                                {
+                                    GetReferenceRange(mergeCell.Reference.Value, out int mergeCellFromColumn, out int mergeCellFromRow, out int mergeCellToColumn, out int mergeCellToRow);
+                                    mergeCells.Add(new int[6] { mergeCellFromColumn, mergeCellFromRow, mergeCellToColumn, mergeCellToRow, mergeCellToColumn - mergeCellFromColumn + 1, mergeCellToRow - mergeCellFromRow + 1 });
+                                }
+                            }
+                        }
+
+                        IEnumerable<ConditionalFormatting> conditionalFormattings = worksheet.Descendants<ConditionalFormatting>();
+
                         double columnWidthDefault = worksheet.SheetFormatProperties != null && worksheet.SheetFormatProperties.DefaultColumnWidth != null && worksheet.SheetFormatProperties.DefaultColumnWidth.HasValue ? worksheet.SheetFormatProperties.DefaultColumnWidth.Value : (worksheet.SheetFormatProperties != null && worksheet.SheetFormatProperties.BaseColumnWidth != null && worksheet.SheetFormatProperties.BaseColumnWidth.HasValue ? worksheet.SheetFormatProperties.BaseColumnWidth.Value : double.NaN);
                         double rowHeightDefault = worksheet.SheetFormatProperties != null && worksheet.SheetFormatProperties.DefaultRowHeight != null && worksheet.SheetFormatProperties.DefaultRowHeight.HasValue ? worksheet.SheetFormatProperties.DefaultRowHeight.Value / 0.75 : double.NaN;
 
                         double[] columnWidths = new double[sheetDimension[2] - sheetDimension[0] + 1];
-                        double[] rowHeights = new double[sheetDimension[3] - sheetDimension[1] + 1];
                         for (int columnWidthIndex = 0; columnWidthIndex < columnWidths.Length; columnWidthIndex++)
                         {
                             columnWidths[columnWidthIndex] = columnWidthDefault;
@@ -326,10 +315,11 @@ namespace XlsxToHtmlConverter
                         double columnWidthsTotal = columnWidths.Sum();
                         for (int columnWidthIndex = 0; columnWidthIndex < columnWidths.Length; columnWidthIndex++)
                         {
-                            columnWidths[columnWidthIndex] = !double.IsNaN(columnWidthsTotal) ? columnWidths[columnWidthIndex] / columnWidthsTotal * 100 : columnWidths[columnWidthIndex] * 7;
+                            columnWidths[columnWidthIndex] = RoundNumber(!double.IsNaN(columnWidthsTotal) ? columnWidths[columnWidthIndex] / columnWidthsTotal * 100 : columnWidths[columnWidthIndex] * 7, config.RoundingDigits);
                         }
 
                         int rowIndex = sheetDimension[1];
+                        double[] rowHeightsAccumulation = new double[sheetDimension[3] - sheetDimension[1] + 1];
                         foreach (Row row in worksheet.Descendants<Row>())
                         {
                             rowIndex++;
@@ -341,7 +331,7 @@ namespace XlsxToHtmlConverter
                                 }
                                 for (int additionalRowIndex = rowIndex; additionalRowIndex < row.RowIndex.Value; additionalRowIndex++)
                                 {
-                                    rowHeights[additionalRowIndex] = rowHeightDefault;
+                                    rowHeightsAccumulation[additionalRowIndex - sheetDimension[1]] = (additionalRowIndex > sheetDimension[1] ? rowHeightsAccumulation[additionalRowIndex - sheetDimension[1] - 1] : 0) + (!double.IsNaN(rowHeightDefault) ? rowHeightDefault : 0);
                                     writer.Write($"\n{new string(' ', 12)}<tr>");
                                     for (int additionalColumnIndex = 0; additionalColumnIndex < columnWidths.Length; additionalColumnIndex++)
                                     {
@@ -351,8 +341,8 @@ namespace XlsxToHtmlConverter
                                 }
                                 rowIndex = (int)row.RowIndex.Value;
                             }
-                            double cellHeightActual = config.ConvertSizes ? ((row.CustomHeight == null || (row.CustomHeight.HasValue && row.CustomHeight.Value)) && row.Height != null && row.Height.HasValue ? row.Height.Value / 0.75 : rowHeightDefault) : double.NaN;
-                            rowHeights[rowIndex - sheetDimension[1]] = cellHeightActual;
+                            double cellHeightActual = config.ConvertSizes ? RoundNumber((row.CustomHeight == null || (row.CustomHeight.HasValue && row.CustomHeight.Value)) && row.Height != null && row.Height.HasValue ? row.Height.Value / 0.75 : rowHeightDefault, config.RoundingDigits) : double.NaN;
+                            rowHeightsAccumulation[rowIndex - sheetDimension[1]] = (rowIndex > sheetDimension[1] ? rowHeightsAccumulation[rowIndex - sheetDimension[1] - 1] : 0) + (!double.IsNaN(cellHeightActual) ? cellHeightActual : 0);
 
                             writer.Write($"\n{new string(' ', 12)}<tr>");
 
@@ -396,17 +386,24 @@ namespace XlsxToHtmlConverter
 
                                 int columnSpanned = 1;
                                 int rowSpanned = 1;
-                                if (isMergeCellsContained)
+                                bool isCellValid = true;
+                                foreach (int[] mergeCellInfo in mergeCells)
                                 {
-                                    if (mergeCells.Any(x => (x.FromColumn != columnIndex || x.FromRow != rowIndex) && columnIndex >= x.FromColumn && columnIndex <= x.ToColumn && rowIndex >= x.FromRow && rowIndex <= x.ToRow))
+                                    if (mergeCellInfo.Length > 5 && (mergeCellInfo[0] != columnIndex || mergeCellInfo[1] != rowIndex) && columnIndex >= mergeCellInfo[0] && columnIndex <= mergeCellInfo[2] && rowIndex >= mergeCellInfo[1] && rowIndex <= mergeCellInfo[3])
                                     {
-                                        continue;
+                                        isCellValid = false;
+                                        break;
                                     }
-                                    else if (mergeCells.FirstOrDefault(x => x.FromColumn == columnIndex && x.FromRow == rowIndex) is MergeCellInfo mergeCellInfo && mergeCellInfo.ColumnSpanned > 0 && mergeCellInfo.RowSpanned > 0)
+                                    else if (mergeCellInfo.Length > 5 && mergeCellInfo[0] == columnIndex && mergeCellInfo[1] == rowIndex)
                                     {
-                                        columnSpanned = mergeCellInfo.ColumnSpanned;
-                                        rowSpanned = mergeCellInfo.RowSpanned;
+                                        columnSpanned = mergeCellInfo[4];
+                                        rowSpanned = mergeCellInfo[5];
+                                        break;
                                     }
+                                }
+                                if (!isCellValid)
+                                {
+                                    continue;
                                 }
 
                                 int styleIndex = cell.StyleIndex != null && cell.StyleIndex.HasValue ? (int)cell.StyleIndex.Value : (row.StyleIndex != null && row.StyleIndex.HasValue ? (int)row.StyleIndex.Value : -1);
@@ -592,7 +589,7 @@ namespace XlsxToHtmlConverter
                                     }
 
                                     int differentialStyleIndex = -1;
-                                    foreach (ConditionalFormatting conditionalFormatting in worksheet.Descendants<ConditionalFormatting>())
+                                    foreach (ConditionalFormatting conditionalFormatting in conditionalFormattings)
                                     {
                                         if (conditionalFormatting.SequenceOfReferences != null && conditionalFormatting.SequenceOfReferences.HasValue)
                                         {
@@ -639,11 +636,9 @@ namespace XlsxToHtmlConverter
                                                         isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaEqual && cellValueRaw == formulaEqual.Text.Trim('"');
                                                         break;
                                                     case ConditionalFormattingOperatorValues.NotEqual:
-
                                                         isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaNotEqual && cellValueRaw != formulaNotEqual.Text.Trim('"');
                                                         break;
                                                     case ConditionalFormattingOperatorValues.BeginsWith:
-
                                                         isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaBeginsWith && cellValueRaw.StartsWith(formulaBeginsWith.Text.Trim('"'));
                                                         break;
                                                     case ConditionalFormattingOperatorValues.EndsWith:
@@ -656,22 +651,22 @@ namespace XlsxToHtmlConverter
                                                         isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaNotContains && !cellValueRaw.Contains(formulaNotContains.Text.Trim('"'));
                                                         break;
                                                     case ConditionalFormattingOperatorValues.GreaterThan:
-                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] > x[1]);
+                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] > x[1]);
                                                         break;
                                                     case ConditionalFormattingOperatorValues.GreaterThanOrEqual:
-                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] >= x[1]);
+                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] >= x[1]);
                                                         break;
                                                     case ConditionalFormattingOperatorValues.LessThan:
-                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] < x[1]);
+                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] < x[1]);
                                                         break;
                                                     case ConditionalFormattingOperatorValues.LessThanOrEqual:
-                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] <= x[1]);
+                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] <= x[1]);
                                                         break;
                                                     case ConditionalFormattingOperatorValues.Between:
-                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] >= Math.Min(x[1], x[2]) && x[0] <= Math.Max(x[1], x[2]));
+                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] >= Math.Min(x[1], x[2]) && x[0] <= Math.Max(x[1], x[2]));
                                                         break;
                                                     case ConditionalFormattingOperatorValues.NotBetween:
-                                                        isConditionMet = GetNumberFormattingCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] < Math.Min(x[1], x[2]) || x[0] > Math.Max(x[1], x[2]));
+                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] < Math.Min(x[1], x[2]) || x[0] > Math.Max(x[1], x[2]));
                                                         break;
                                                 }
                                             }
@@ -700,10 +695,7 @@ namespace XlsxToHtmlConverter
                                                 isConditionMet = !string.IsNullOrWhiteSpace(cellValueRaw);
                                             }
 
-                                            if (isConditionMet)
-                                            {
-                                                differentialStyleIndex = (int)formattingRule.FormatId.Value;
-                                            }
+                                            differentialStyleIndex = isConditionMet ? (int)formattingRule.FormatId.Value : differentialStyleIndex;
                                         }
                                     }
                                     if (differentialStyleIndex >= 0 && differentialStyleIndex < htmlStyleDifferentialFormats.Length && htmlStyleDifferentialFormats[differentialStyleIndex] != null)
@@ -713,49 +705,50 @@ namespace XlsxToHtmlConverter
                                     }
                                 }
 
-                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned != 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned != 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)} style=\"width: {(!double.IsNaN(cellWidthActual) && columnSpanned == 1 ? $"{cellWidthActual}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")}" : "auto")}; height: {(!double.IsNaN(cellHeightActual) && rowSpanned == 1 ? $"{cellHeightActual}px" : "auto")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
+                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned > 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned > 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)} style=\"width: {(!double.IsNaN(cellWidthActual) && columnSpanned == 1 ? $"{cellWidthActual}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")}" : "auto")}; height: {(!double.IsNaN(cellHeightActual) && rowSpanned == 1 ? $"{cellHeightActual}px" : "auto")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
                             }
 
                             writer.Write($"\n{new string(' ', 12)}</tr>");
 
-                            progressCallback?.Invoke(document, new ConverterProgressCallbackEventArgs(sheetIndex, sheetsCount, rowIndex, rowHeights.Length));
+                            progressCallback?.Invoke(document, new ConverterProgressCallbackEventArgs(sheetIndex, sheetsCount, rowIndex, rowHeightsAccumulation.Length));
                         }
 
                         writer.Write($"\n{new string(' ', 8)}</table>");
 
                         if (worksheetPart.DrawingsPart != null && worksheetPart.DrawingsPart.WorksheetDrawing != null)
                         {
+                            //TODO: simplify, rounding, & better memory usage with row heights
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheetPart.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
                             {
-                                string left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null && absoluteAnchor.Position.X.HasValue ? $"{(double)absoluteAnchor.Position.X.Value / 914400 * 96}px" : "auto";
-                                string top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null && absoluteAnchor.Position.Y.HasValue ? $"{(double)absoluteAnchor.Position.Y.Value / 914400 * 96}px" : "auto";
-                                string width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null && absoluteAnchor.Extent.Cx.HasValue ? $"{(double)absoluteAnchor.Extent.Cx.Value / 914400 * 96}px" : "auto";
-                                string height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null && absoluteAnchor.Extent.Cy.HasValue ? $"{(double)absoluteAnchor.Extent.Cy.Value / 914400 * 96}px" : "auto";
-                                DrawingsToHtml(worksheetPart, absoluteAnchor, writer, left, top, width, height, config.ConvertPictures);
+                                string left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null && absoluteAnchor.Position.X.HasValue ? $"{(double)absoluteAnchor.Position.X.Value / 914400.0 * 96}px" : "auto";
+                                string top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null && absoluteAnchor.Position.Y.HasValue ? $"{(double)absoluteAnchor.Position.Y.Value / 914400.0 * 96}px" : "auto";
+                                string width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null && absoluteAnchor.Extent.Cx.HasValue ? $"{(double)absoluteAnchor.Extent.Cx.Value / 914400.0 * 96}px" : "auto";
+                                string height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null && absoluteAnchor.Extent.Cy.HasValue ? $"{(double)absoluteAnchor.Extent.Cy.Value / 914400.0 * 96}px" : "auto";
+                                DrawingsToHtml(worksheetPart, absoluteAnchor, writer, left, top, width, height, config);
                             }
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheetPart.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
                             {
                                 double left = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && int.TryParse(oneCellAnchor.FromMarker.ColumnId.Text, out int columnId) ? columnWidths.Take(Math.Min(columnWidths.Length, columnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double leftOffset = oneCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(oneCellAnchor.FromMarker.ColumnOffset.Text, out double columnOffset) ? columnOffset / 914400 * 96 : 0;
-                                double top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && int.TryParse(oneCellAnchor.FromMarker.RowId.Text, out int rowId) ? rowHeights.Take(Math.Min(rowHeights.Length, rowId - sheetDimension[1] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double topOffset = oneCellAnchor.FromMarker.RowOffset != null && double.TryParse(oneCellAnchor.FromMarker.RowOffset.Text, out double rowOffset) ? rowOffset / 914400 * 96 : 0;
-                                string width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null && oneCellAnchor.Extent.Cx.HasValue ? $"{(double)oneCellAnchor.Extent.Cx.Value / 914400 * 96}px" : "auto";
-                                string height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null && oneCellAnchor.Extent.Cy.HasValue ? $"{(double)oneCellAnchor.Extent.Cy.Value / 914400 * 96}px" : "auto";
-                                DrawingsToHtml(worksheetPart, oneCellAnchor, writer, $"{(!double.IsNaN(left) ? $"calc({left}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {leftOffset}px)" : $"{leftOffset}px")}", $"{(!double.IsNaN(top) ? top + topOffset : topOffset)}px", width, height, config.ConvertPictures);
+                                double leftOffset = oneCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(oneCellAnchor.FromMarker.ColumnOffset.Text, out double columnOffset) ? columnOffset / 914400.0 * 96 : 0;
+                                double top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && int.TryParse(oneCellAnchor.FromMarker.RowId.Text, out int rowId) ? rowHeightsAccumulation[rowId - sheetDimension[1]] : double.NaN;
+                                double topOffset = oneCellAnchor.FromMarker.RowOffset != null && double.TryParse(oneCellAnchor.FromMarker.RowOffset.Text, out double rowOffset) ? rowOffset / 914400.0 * 96 : 0;
+                                string width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null && oneCellAnchor.Extent.Cx.HasValue ? $"{(double)oneCellAnchor.Extent.Cx.Value / 914400.0 * 96}px" : "auto";
+                                string height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null && oneCellAnchor.Extent.Cy.HasValue ? $"{(double)oneCellAnchor.Extent.Cy.Value / 914400.0 * 96}px" : "auto";
+                                DrawingsToHtml(worksheetPart, oneCellAnchor, writer, $"{(!double.IsNaN(left) ? $"calc({left}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {leftOffset}px)" : $"{leftOffset}px")}", $"{(!double.IsNaN(top) ? top + topOffset : topOffset)}px", width, height, config);
                             }
                             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor in worksheetPart.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor>())
                             {
                                 double fromColumn = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.ColumnId != null && int.TryParse(twoCellAnchor.FromMarker.ColumnId.Text, out int fromColumnId) ? columnWidths.Take(Math.Min(columnWidths.Length, fromColumnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double fromColumnOffset = twoCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.FromMarker.ColumnOffset.Text, out double fromMarkerColumnOffset) ? fromMarkerColumnOffset / 914400 * 96 : 0;
-                                double fromRow = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.RowId != null && int.TryParse(twoCellAnchor.FromMarker.RowId.Text, out int fromRowId) ? rowHeights.Take(Math.Min(rowHeights.Length, fromRowId - sheetDimension[1] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double fromRowOffset = twoCellAnchor.FromMarker.RowOffset != null && double.TryParse(twoCellAnchor.FromMarker.RowOffset.Text, out double fromMarkerRowOffset) ? fromMarkerRowOffset / 914400 * 96 : 0;
+                                double fromColumnOffset = twoCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.FromMarker.ColumnOffset.Text, out double fromMarkerColumnOffset) ? fromMarkerColumnOffset / 914400.0 * 96 : 0;
+                                double fromRow = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.RowId != null && int.TryParse(twoCellAnchor.FromMarker.RowId.Text, out int fromRowId) ? rowHeightsAccumulation[fromRowId - sheetDimension[1]] : double.NaN;
+                                double fromRowOffset = twoCellAnchor.FromMarker.RowOffset != null && double.TryParse(twoCellAnchor.FromMarker.RowOffset.Text, out double fromMarkerRowOffset) ? fromMarkerRowOffset / 914400.0 * 96 : 0;
                                 double toColumn = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.ColumnId != null && int.TryParse(twoCellAnchor.ToMarker.ColumnId.Text, out int toColumnId) ? columnWidths.Take(Math.Min(columnWidths.Length, toColumnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double toColumnOffset = twoCellAnchor.ToMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.ToMarker.ColumnOffset.Text, out double toMarkerColumnOffset) ? toMarkerColumnOffset / 914400 * 96 : 0;
-                                double toRow = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.RowId != null && int.TryParse(twoCellAnchor.ToMarker.RowId.Text, out int toRowId) ? rowHeights.Take(Math.Min(rowHeights.Length, toRowId - sheetDimension[1] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double toRowOffset = twoCellAnchor.ToMarker.RowOffset != null && double.TryParse(twoCellAnchor.ToMarker.RowOffset.Text, out double toMarkerRowOffset) ? toMarkerRowOffset / 914400 * 96 : 0;
+                                double toColumnOffset = twoCellAnchor.ToMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.ToMarker.ColumnOffset.Text, out double toMarkerColumnOffset) ? toMarkerColumnOffset / 914400.0 * 96 : 0;
+                                double toRow = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.RowId != null && int.TryParse(twoCellAnchor.ToMarker.RowId.Text, out int toRowId) ? rowHeightsAccumulation[toRowId - sheetDimension[1]] : double.NaN;
+                                double toRowOffset = twoCellAnchor.ToMarker.RowOffset != null && double.TryParse(twoCellAnchor.ToMarker.RowOffset.Text, out double toMarkerRowOffset) ? toMarkerRowOffset / 914400.0 * 96 : 0;
                                 string leftCalculation = $"{(!double.IsNaN(fromColumn) ? $"calc({fromColumn}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {fromColumnOffset}px)" : $"{fromColumnOffset}px")}";
                                 string topCalculation = $"{(!double.IsNaN(fromRow) ? fromRow + fromRowOffset : fromRowOffset)}px";
-                                DrawingsToHtml(worksheetPart, twoCellAnchor, writer, leftCalculation, topCalculation, $"calc({(!double.IsNaN(toColumn) ? $"calc({toColumn}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {toColumnOffset}px)" : $"{toColumnOffset}px")} - {leftCalculation})", $"calc({$"{(!double.IsNaN(toRow) ? toRow + toRowOffset : toRowOffset)}px"} - {topCalculation})", config.ConvertPictures);
+                                DrawingsToHtml(worksheetPart, twoCellAnchor, writer, leftCalculation, topCalculation, $"calc({(!double.IsNaN(toColumn) ? $"calc({toColumn}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {toColumnOffset}px)" : $"{toColumnOffset}px")} - {leftCalculation})", $"calc({$"{(!double.IsNaN(toRow) ? toRow + toRowOffset : toRowOffset)}px"} - {topCalculation})", config);
                             }
                         }
                         writer.Write($"\n{new string(' ', 4)}</div>");
@@ -782,28 +775,48 @@ namespace XlsxToHtmlConverter
 
         #endregion
 
+        #region Private Fields
+
+        private static readonly Regex regexNumbers = new Regex(@"\d+", RegexOptions.Compiled);
+        private static readonly Regex regexLetters = new Regex("[A-Za-z]+", RegexOptions.Compiled);
+
+        #endregion
+
         #region Private Methods
 
-        private static int GetColumnIndex(string cellName)
+        private static void UpdateArray<T>(T[] array, params T[] values)
         {
-            int columnNumber = -1;
-            Match match = regexLetters.Match(cellName);
+            for (int i = 0; i < values.Length && i < array.Length; i++)
+            {
+                array[i] = values[i];
+            }
+        }
+
+        private static double RoundNumber(double number, int digits)
+        {
+            return digits < 0 ? number : Math.Round(number, digits);
+        }
+
+        private static int GetColumnIndex(string cell)
+        {
+            int index = -1;
+            Match match = regexLetters.Match(cell);
             if (match.Success)
             {
                 int mulitplier = 1;
                 foreach (char c in match.Value.ToUpper().ToCharArray().Reverse())
                 {
-                    columnNumber += mulitplier * (c - 64);
+                    index += mulitplier * (c - 64);
                     mulitplier *= 26;
                 }
             }
-            return Math.Max(0, columnNumber + 1);
+            return Math.Max(0, index + 1);
         }
 
-        private static int GetRowIndex(string cellName)
+        private static int GetRowIndex(string cell)
         {
-            Match match = regexNumbers.Match(cellName);
-            return match.Success && int.TryParse(match.Value, out int rowIndex) ? rowIndex : 0;
+            Match match = regexNumbers.Match(cell);
+            return match.Success && int.TryParse(match.Value, out int index) ? index : 0;
         }
 
         private static void GetReferenceRange(string range, out int fromColumn, out int fromRow, out int toColumn, out int toRow)
@@ -839,17 +852,17 @@ namespace XlsxToHtmlConverter
                     htmlAttributes += $"{pair.Key}: {pair.Value}; ";
                 }
             }
-            return isAdditional ? $" {htmlAttributes.Trim()}" : htmlAttributes.Trim();
+            return isAdditional ? $" {htmlAttributes.TrimEnd()}" : htmlAttributes.TrimEnd();
         }
 
-        private static Dictionary<string, string> JoinHtmlAttributes(Dictionary<string, string> original, Dictionary<string, string> joined)
+        private static Dictionary<string, string> JoinHtmlAttributes(Dictionary<string, string> original, Dictionary<string, string> joining)
         {
-            if (joined == null)
+            if (joining == null)
             {
                 return original;
             }
 
-            foreach (KeyValuePair<string, string> pair in joined)
+            foreach (KeyValuePair<string, string> pair in joining)
             {
                 if (original.ContainsKey(pair.Key))
                 {
@@ -863,7 +876,7 @@ namespace XlsxToHtmlConverter
             return original;
         }
 
-        private static bool GetNumberFormattingCondition(string value, IEnumerable<Formula> formulas, int formulasCount, Func<double[], bool> actionEvaluation)
+        private static bool GetNumberFormulaCondition(string value, IEnumerable<Formula> formulas, int formulasCount, Func<double[], bool> actionEvaluation)
         {
             if (!double.TryParse(value, out double valueDouble))
             {
@@ -883,7 +896,6 @@ namespace XlsxToHtmlConverter
                 }
                 parameters[index] = formulaDouble;
             }
-
             return index >= formulasCount && actionEvaluation.Invoke(parameters);
         }
 
@@ -1174,77 +1186,72 @@ namespace XlsxToHtmlConverter
 
                 indexes[5] += isIncreasing ? 1 : -1;
             }
-
             return result;
         }
 
-        private static Dictionary<string, string> CellFormatToHtml(WorkbookPart workbook, Fill fill, Font font, Border border, Alignment alignment, out string cellValueContainer)
+        private static Dictionary<string, string> CellFormatToHtml(WorkbookPart workbook, Fill fill, Font font, Border border, Alignment alignment, out string cellValueContainer, ConverterConfig config)
         {
             Dictionary<string, string> htmlStyle = new Dictionary<string, string>();
             cellValueContainer = "{0}";
-
             if (fill != null && fill.PatternFill != null && (fill.PatternFill.PatternType == null || (fill.PatternFill.PatternType.HasValue && fill.PatternFill.PatternType.Value != PatternValues.None)))
             {
                 string background = string.Empty;
                 if (fill.PatternFill.ForegroundColor != null)
                 {
-                    background = ColorTypeToHtml(workbook, fill.PatternFill.ForegroundColor);
+                    background = ColorTypeToHtml(workbook, fill.PatternFill.ForegroundColor, config);
                 }
                 if (string.IsNullOrEmpty(background) && fill.PatternFill.BackgroundColor != null)
                 {
-                    background = ColorTypeToHtml(workbook, fill.PatternFill.BackgroundColor);
+                    background = ColorTypeToHtml(workbook, fill.PatternFill.BackgroundColor, config);
                 }
                 if (!string.IsNullOrEmpty(background))
                 {
                     htmlStyle.Add("background-color", background);
                 }
             }
-
             if (font != null)
             {
                 if (font.FontName != null && font.FontName.Val != null && font.FontName.Val.HasValue)
                 {
                     htmlStyle.Add("font-family", font.FontName.Val.Value);
                 }
-                htmlStyle = JoinHtmlAttributes(htmlStyle, FontToHtml(workbook, font.Color, font.FontSize, font.Bold, font.Italic, font.Strike, font.Underline));
+                htmlStyle = JoinHtmlAttributes(htmlStyle, FontToHtml(workbook, font.Color, font.FontSize, font.Bold, font.Italic, font.Strike, font.Underline, out cellValueContainer, config));
             }
-
             if (border != null)
             {
-                string[] borderWidths = new string[4] { "revert", "revert", "revert", "revert" };
-                string[] borderStyles = new string[4] { "revert", "revert", "revert", "revert" };
-                string[] borderColors = new string[4] { "revert", "revert", "revert", "revert" };
                 if (border.LeftBorder != null)
                 {
-                    BorderPropertiesToHtml(workbook, border.LeftBorder, ref borderWidths[0], ref borderStyles[0], ref borderColors[0]);
+                    string borderLeft = BorderPropertiesToHtml(workbook, border.LeftBorder, config);
+                    if (!string.IsNullOrEmpty(borderLeft))
+                    {
+                        htmlStyle.Add("border-left", borderLeft);
+                    }
                 }
                 if (border.RightBorder != null)
                 {
-                    BorderPropertiesToHtml(workbook, border.RightBorder, ref borderWidths[1], ref borderStyles[1], ref borderColors[1]);
+                    string borderRight = BorderPropertiesToHtml(workbook, border.RightBorder, config);
+                    if (!string.IsNullOrEmpty(borderRight))
+                    {
+                        htmlStyle.Add("border-right", borderRight);
+                    }
                 }
                 if (border.TopBorder != null)
                 {
-                    BorderPropertiesToHtml(workbook, border.TopBorder, ref borderWidths[2], ref borderStyles[2], ref borderColors[2]);
+                    string borderTop = BorderPropertiesToHtml(workbook, border.TopBorder, config);
+                    if (!string.IsNullOrEmpty(borderTop))
+                    {
+                        htmlStyle.Add("border-top", borderTop);
+                    }
                 }
                 if (border.BottomBorder != null)
                 {
-                    BorderPropertiesToHtml(workbook, border.BottomBorder, ref borderWidths[3], ref borderStyles[3], ref borderColors[3]);
-                }
-
-                if (borderWidths.Any(x => x != "revert"))
-                {
-                    htmlStyle.Add("border-width", $"{borderWidths[0]} {borderWidths[1]} {borderWidths[2]} {borderWidths[3]}");
-                }
-                if (borderStyles.Any(x => x != "revert"))
-                {
-                    htmlStyle.Add("border-style", $"{borderStyles[0]} {borderStyles[1]} {borderStyles[2]} {borderStyles[3]}");
-                }
-                if (borderColors.Any(x => x != "revert"))
-                {
-                    htmlStyle.Add("border-color", $"{borderColors[0]} {borderColors[1]} {borderColors[2]} {borderColors[3]}");
+                    string borderBottom = BorderPropertiesToHtml(workbook, border.BottomBorder, config);
+                    if (!string.IsNullOrEmpty(borderBottom))
+                    {
+                        htmlStyle.Add("border-bottom", borderBottom);
+                    }
                 }
             }
-
             if (alignment != null)
             {
                 if (alignment.Horizontal != null && alignment.Horizontal.HasValue && alignment.Horizontal.Value != HorizontalAlignmentValues.General)
@@ -1262,236 +1269,349 @@ namespace XlsxToHtmlConverter
                 }
                 if (alignment.TextRotation != null && alignment.TextRotation.HasValue)
                 {
-                    cellValueContainer = cellValueContainer.Replace("{0}", $"<div style=\"width: fit-content; transform: rotate(-{alignment.TextRotation.Value}deg);\">{{0}}</div>");
+                    cellValueContainer = cellValueContainer.Replace("{0}", $"<div style=\"width: fit-content; transform: rotate(-{RoundNumber(alignment.TextRotation.Value, config.RoundingDigits)}deg);\">{{0}}</div>");
                 }
             }
-
             return htmlStyle;
         }
 
-        private static string ColorTypeToHtml(WorkbookPart workbook, ColorType type)
+        private static Dictionary<string, string> FontToHtml(WorkbookPart workbook, ColorType color, FontSize fontSize, Bold bold, Italic italic, Strike strike, Underline underline, out string cellValueContainer, ConverterConfig config)
         {
-            if (type == null || (type.Auto != null && type.Auto.HasValue && type.Auto.Value))
+            Dictionary<string, string> htmlStyle = new Dictionary<string, string>();
+            cellValueContainer = "{0}";
+            if (color != null)
+            {
+                string htmlColor = ColorTypeToHtml(workbook, color, config);
+                if (!string.IsNullOrEmpty(htmlColor))
+                {
+                    htmlStyle.Add("color", htmlColor);
+                }
+            }
+            if (fontSize != null && fontSize.Val != null && fontSize.Val.HasValue)
+            {
+                htmlStyle.Add("font-size", $"{RoundNumber(fontSize.Val.Value / 72 * 96, config.RoundingDigits)}px");
+            }
+            if (bold != null)
+            {
+                htmlStyle.Add("font-weight", bold.Val == null || (bold.Val.HasValue && bold.Val.Value) ? "bold" : "normal");
+            }
+            if (italic != null)
+            {
+                htmlStyle.Add("font-style", italic.Val == null || (italic.Val.HasValue && italic.Val.Value) ? "italic" : "normal");
+            }
+            string htmlStyleTextDecoraion = string.Empty;
+            if (strike != null)
+            {
+                htmlStyleTextDecoraion += strike.Val == null || (strike.Val.HasValue && strike.Val.Value) ? " line-through" : " none";
+            }
+            if (underline != null && underline.Val != null && underline.Val.HasValue)
+            {
+                if (underline.Val.Value == UnderlineValues.Double || underline.Val.Value == UnderlineValues.DoubleAccounting)
+                {
+                    cellValueContainer = cellValueContainer.Replace("{0}", $"<div style=\"width: fit-content; text-decoration: underline double;\">{{0}}</div>");
+                }
+                else if (underline.Val.Value != UnderlineValues.None)
+                {
+                    htmlStyleTextDecoraion += " underline";
+                }
+            }
+            if (!string.IsNullOrEmpty(htmlStyleTextDecoraion))
+            {
+                htmlStyle.Add("text-decoration", htmlStyleTextDecoraion.TrimStart());
+            }
+            return htmlStyle;
+        }
+
+        private static string BorderPropertiesToHtml(WorkbookPart workbook, BorderPropertiesType border, ConverterConfig config)
+        {
+            if (border == null)
             {
                 return string.Empty;
             }
 
-            RgbaColor rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
-
-            if (type.Rgb != null && type.Rgb.HasValue)
+            string htmlBorder = string.Empty;
+            if (border.Style != null && border.Style.HasValue)
             {
-                rgbColor = HexToRgba(type.Rgb.Value);
+                switch (border.Style.Value)
+                {
+                    case BorderStyleValues.Hair:
+                        htmlBorder += " thin solid";
+                        break;
+                    case BorderStyleValues.Thin:
+                        htmlBorder += " thin solid";
+                        break;
+                    case BorderStyleValues.Thick:
+                        htmlBorder += " thick solid";
+                        break;
+                    case BorderStyleValues.Medium:
+                        htmlBorder += " medium solid";
+                        break;
+                    case BorderStyleValues.MediumDashDot:
+                        htmlBorder += " medium dashed";
+                        break;
+                    case BorderStyleValues.MediumDashDotDot:
+                        htmlBorder += " medium dotted";
+                        break;
+                    case BorderStyleValues.MediumDashed:
+                        htmlBorder += " medium dashed";
+                        break;
+                    case BorderStyleValues.Dashed:
+                        htmlBorder += " dashed";
+                        break;
+                    case BorderStyleValues.DashDot:
+                        htmlBorder += " dashed";
+                        break;
+                    case BorderStyleValues.DashDotDot:
+                        htmlBorder += " dotted";
+                        break;
+                    case BorderStyleValues.Dotted:
+                        htmlBorder += " dotted";
+                        break;
+                    case BorderStyleValues.SlantDashDot:
+                        htmlBorder += " dashed";
+                        break;
+                    case BorderStyleValues.Double:
+                        htmlBorder += " double";
+                        break;
+                }
             }
-            else if (type.Indexed != null && type.Indexed.HasValue)
+            if (border.Color != null)
             {
-                switch (type.Indexed.Value)
+                string value = ColorTypeToHtml(workbook, border.Color, config);
+                if (!string.IsNullOrEmpty(value))
+                {
+                    htmlBorder += $" {value}";
+                }
+            }
+            return htmlBorder.TrimStart();
+        }
+
+        private static string ColorTypeToHtml(WorkbookPart workbook, ColorType color, ConverterConfig config)
+        {
+            if (color == null)
+            {
+                return string.Empty;
+            }
+
+            double[] result = new double[4] { 0, 0, 0, 1 };
+            if (color.Auto != null && color.Auto.HasValue && color.Auto.Value)
+            {
+                return "initial";
+            }
+            else if (color.Rgb != null && color.Rgb.HasValue)
+            {
+                HexToRgba(color.Rgb.Value, out result[0], out result[1], out result[2], out result[3]);
+            }
+            else if (color.Indexed != null && color.Indexed.HasValue)
+            {
+                switch (color.Indexed.Value)
                 {
                     case 0:
-                        rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                        UpdateArray(result, 0, 0, 0);
                         break;
                     case 1:
-                        rgbColor = new RgbaColor() { R = 255, G = 255, B = 255, A = 1 };
+                        UpdateArray(result, 255, 255, 255);
                         break;
                     case 2:
-                        rgbColor = new RgbaColor() { R = 255, G = 0, B = 0, A = 1 };
+                        UpdateArray(result, 255, 0, 0);
                         break;
                     case 3:
-                        rgbColor = new RgbaColor() { R = 0, G = 255, B = 0, A = 1 };
+                        UpdateArray(result, 0, 255, 0);
                         break;
                     case 4:
-                        rgbColor = new RgbaColor() { R = 0, G = 0, B = 255, A = 1 };
+                        UpdateArray(result, 0, 0, 255);
                         break;
                     case 5:
-                        rgbColor = new RgbaColor() { R = 255, G = 255, B = 0, A = 1 };
+                        UpdateArray(result, 255, 255, 0);
                         break;
                     case 6:
-                        rgbColor = new RgbaColor() { R = 255, G = 0, B = 255, A = 1 };
+                        UpdateArray(result, 255, 0, 255);
                         break;
                     case 7:
-                        rgbColor = new RgbaColor() { R = 0, G = 255, B = 255, A = 1 };
+                        UpdateArray(result, 0, 255, 255);
                         break;
                     case 8:
-                        rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                        UpdateArray(result, 0, 0, 0);
                         break;
                     case 9:
-                        rgbColor = new RgbaColor() { R = 255, G = 255, B = 255, A = 1 };
+                        UpdateArray(result, 255, 255, 255);
                         break;
                     case 10:
-                        rgbColor = new RgbaColor() { R = 255, G = 0, B = 0, A = 1 };
+                        UpdateArray(result, 255, 0, 0);
                         break;
                     case 11:
-                        rgbColor = new RgbaColor() { R = 0, G = 255, B = 0, A = 1 };
+                        UpdateArray(result, 0, 255, 0);
                         break;
                     case 12:
-                        rgbColor = new RgbaColor() { R = 0, G = 0, B = 255, A = 1 };
+                        UpdateArray(result, 0, 0, 255);
                         break;
                     case 13:
-                        rgbColor = new RgbaColor() { R = 255, G = 255, B = 0, A = 1 };
+                        UpdateArray(result, 255, 255, 0);
                         break;
                     case 14:
-                        rgbColor = new RgbaColor() { R = 255, G = 0, B = 255, A = 1 };
+                        UpdateArray(result, 255, 0, 255);
                         break;
                     case 15:
-                        rgbColor = new RgbaColor() { R = 0, G = 255, B = 255, A = 1 };
+                        UpdateArray(result, 0, 255, 255);
                         break;
                     case 16:
-                        rgbColor = new RgbaColor() { R = 128, G = 0, B = 0, A = 1 };
+                        UpdateArray(result, 128, 0, 0);
                         break;
                     case 17:
-                        rgbColor = new RgbaColor() { R = 0, G = 128, B = 0, A = 1 };
+                        UpdateArray(result, 0, 128, 0);
                         break;
                     case 18:
-                        rgbColor = new RgbaColor() { R = 0, G = 0, B = 128, A = 1 };
+                        UpdateArray(result, 0, 0, 128);
                         break;
                     case 19:
-                        rgbColor = new RgbaColor() { R = 128, G = 128, B = 0, A = 1 };
+                        UpdateArray(result, 128, 128, 0);
                         break;
                     case 20:
-                        rgbColor = new RgbaColor() { R = 128, G = 0, B = 128, A = 1 };
+                        UpdateArray(result, 128, 0, 128);
                         break;
                     case 21:
-                        rgbColor = new RgbaColor() { R = 0, G = 128, B = 128, A = 1 };
+                        UpdateArray(result, 0, 128, 128);
                         break;
                     case 22:
-                        rgbColor = new RgbaColor() { R = 192, G = 192, B = 192, A = 1 };
+                        UpdateArray(result, 192, 192, 192);
                         break;
                     case 23:
-                        rgbColor = new RgbaColor() { R = 128, G = 128, B = 128, A = 1 };
+                        UpdateArray(result, 128, 128, 128);
                         break;
                     case 24:
-                        rgbColor = new RgbaColor() { R = 153, G = 153, B = 255, A = 1 };
+                        UpdateArray(result, 153, 153, 255);
                         break;
                     case 25:
-                        rgbColor = new RgbaColor() { R = 153, G = 51, B = 102, A = 1 };
+                        UpdateArray(result, 153, 51, 102);
                         break;
                     case 26:
-                        rgbColor = new RgbaColor() { R = 255, G = 255, B = 204, A = 1 };
+                        UpdateArray(result, 255, 255, 204);
                         break;
                     case 27:
-                        rgbColor = new RgbaColor() { R = 204, G = 255, B = 255, A = 1 };
+                        UpdateArray(result, 204, 255, 255);
                         break;
                     case 28:
-                        rgbColor = new RgbaColor() { R = 102, G = 0, B = 102, A = 1 };
+                        UpdateArray(result, 102, 0, 102);
                         break;
                     case 29:
-                        rgbColor = new RgbaColor() { R = 255, G = 128, B = 128, A = 1 };
+                        UpdateArray(result, 255, 128, 128);
                         break;
                     case 30:
-                        rgbColor = new RgbaColor() { R = 0, G = 102, B = 204, A = 1 };
+                        UpdateArray(result, 0, 102, 204);
                         break;
                     case 31:
-                        rgbColor = new RgbaColor() { R = 204, G = 204, B = 255, A = 1 };
+                        UpdateArray(result, 204, 204, 255);
                         break;
                     case 32:
-                        rgbColor = new RgbaColor() { R = 0, G = 0, B = 128, A = 1 };
+                        UpdateArray(result, 0, 0, 128);
                         break;
                     case 33:
-                        rgbColor = new RgbaColor() { R = 255, G = 0, B = 255, A = 1 };
+                        UpdateArray(result, 255, 0, 255);
                         break;
                     case 34:
-                        rgbColor = new RgbaColor() { R = 255, G = 255, B = 0, A = 1 };
+                        UpdateArray(result, 255, 255, 0);
                         break;
                     case 35:
-                        rgbColor = new RgbaColor() { R = 0, G = 255, B = 255, A = 1 };
+                        UpdateArray(result, 0, 255, 255);
                         break;
                     case 36:
-                        rgbColor = new RgbaColor() { R = 128, G = 0, B = 128, A = 1 };
+                        UpdateArray(result, 128, 0, 128);
                         break;
                     case 37:
-                        rgbColor = new RgbaColor() { R = 128, G = 0, B = 0, A = 1 };
+                        UpdateArray(result, 128, 0, 0);
                         break;
                     case 38:
-                        rgbColor = new RgbaColor() { R = 0, G = 128, B = 128, A = 1 };
+                        UpdateArray(result, 0, 128, 128);
                         break;
                     case 39:
-                        rgbColor = new RgbaColor() { R = 0, G = 0, B = 255, A = 1 };
+                        UpdateArray(result, 0, 0, 255);
                         break;
                     case 40:
-                        rgbColor = new RgbaColor() { R = 0, G = 204, B = 255, A = 1 };
+                        UpdateArray(result, 0, 204, 255);
                         break;
                     case 41:
-                        rgbColor = new RgbaColor() { R = 204, G = 255, B = 255, A = 1 };
+                        UpdateArray(result, 204, 255, 255);
                         break;
                     case 42:
-                        rgbColor = new RgbaColor() { R = 204, G = 255, B = 204, A = 1 };
+                        UpdateArray(result, 204, 255, 204);
                         break;
                     case 43:
-                        rgbColor = new RgbaColor() { R = 255, G = 255, B = 153, A = 1 };
+                        UpdateArray(result, 255, 255, 153);
                         break;
                     case 44:
-                        rgbColor = new RgbaColor() { R = 153, G = 204, B = 255, A = 1 };
+                        UpdateArray(result, 153, 204, 255);
                         break;
                     case 45:
-                        rgbColor = new RgbaColor() { R = 255, G = 153, B = 204, A = 1 };
+                        UpdateArray(result, 255, 153, 204);
                         break;
                     case 46:
-                        rgbColor = new RgbaColor() { R = 204, G = 153, B = 255, A = 1 };
+                        UpdateArray(result, 204, 153, 255);
                         break;
                     case 47:
-                        rgbColor = new RgbaColor() { R = 255, G = 204, B = 153, A = 1 };
+                        UpdateArray(result, 255, 204, 153);
                         break;
                     case 48:
-                        rgbColor = new RgbaColor() { R = 51, G = 102, B = 255, A = 1 };
+                        UpdateArray(result, 51, 102, 255);
                         break;
                     case 49:
-                        rgbColor = new RgbaColor() { R = 51, G = 204, B = 204, A = 1 };
+                        UpdateArray(result, 51, 204, 204);
                         break;
                     case 50:
-                        rgbColor = new RgbaColor() { R = 153, G = 204, B = 0, A = 1 };
+                        UpdateArray(result, 153, 204, 0);
                         break;
                     case 51:
-                        rgbColor = new RgbaColor() { R = 255, G = 204, B = 0, A = 1 };
+                        UpdateArray(result, 255, 204, 0);
                         break;
                     case 52:
-                        rgbColor = new RgbaColor() { R = 255, G = 153, B = 0, A = 1 };
+                        UpdateArray(result, 255, 153, 0);
                         break;
                     case 53:
-                        rgbColor = new RgbaColor() { R = 255, G = 102, B = 0, A = 1 };
+                        UpdateArray(result, 255, 102, 0);
                         break;
                     case 54:
-                        rgbColor = new RgbaColor() { R = 102, G = 102, B = 153, A = 1 };
+                        UpdateArray(result, 102, 102, 153);
                         break;
                     case 55:
-                        rgbColor = new RgbaColor() { R = 150, G = 150, B = 150, A = 1 };
+                        UpdateArray(result, 150, 150, 150);
                         break;
                     case 56:
-                        rgbColor = new RgbaColor() { R = 0, G = 51, B = 102, A = 1 };
+                        UpdateArray(result, 0, 51, 102);
                         break;
                     case 57:
-                        rgbColor = new RgbaColor() { R = 51, G = 153, B = 102, A = 1 };
+                        UpdateArray(result, 51, 153, 102);
                         break;
                     case 58:
-                        rgbColor = new RgbaColor() { R = 0, G = 51, B = 0, A = 1 };
+                        UpdateArray(result, 0, 51, 0);
                         break;
                     case 59:
-                        rgbColor = new RgbaColor() { R = 51, G = 51, B = 0, A = 1 };
+                        UpdateArray(result, 51, 51, 0);
                         break;
                     case 60:
-                        rgbColor = new RgbaColor() { R = 153, G = 51, B = 0, A = 1 };
+                        UpdateArray(result, 153, 51, 0);
                         break;
                     case 61:
-                        rgbColor = new RgbaColor() { R = 153, G = 51, B = 102, A = 1 };
+                        UpdateArray(result, 153, 51, 102);
                         break;
                     case 62:
-                        rgbColor = new RgbaColor() { R = 51, G = 51, B = 153, A = 1 };
+                        UpdateArray(result, 51, 51, 153);
                         break;
                     case 63:
-                        rgbColor = new RgbaColor() { R = 51, G = 51, B = 51, A = 1 };
+                        UpdateArray(result, 51, 51, 51);
                         break;
                     case 64:
-                        rgbColor = new RgbaColor() { R = 128, G = 128, B = 128, A = 1 };
+                        UpdateArray(result, 128, 128, 128);
                         break;
                     case 65:
-                        rgbColor = new RgbaColor() { R = 255, G = 255, B = 255, A = 1 };
+                        UpdateArray(result, 255, 255, 255);
                         break;
                     default:
                         return string.Empty;
                 }
             }
-            else if (type.Theme != null && type.Theme.HasValue && workbook.ThemePart != null && workbook.ThemePart.Theme != null && workbook.ThemePart.Theme.ThemeElements != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme != null)
+            else if (color.Theme != null && color.Theme.HasValue && workbook.ThemePart != null && workbook.ThemePart.Theme != null && workbook.ThemePart.Theme.ThemeElements != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme != null)
             {
                 DocumentFormat.OpenXml.Drawing.Color2Type themeColor = null;
-                switch (type.Theme.Value)
+                switch (color.Theme.Value)
                 {
                     case 0:
                         themeColor = workbook.ThemePart.Theme.ThemeElements.ColorScheme.Light1Color;
@@ -1533,20 +1653,20 @@ namespace XlsxToHtmlConverter
 
                 if (themeColor != null && themeColor.RgbColorModelHex != null && themeColor.RgbColorModelHex.Val != null && themeColor.RgbColorModelHex.Val.HasValue)
                 {
-                    rgbColor = HexToRgba(themeColor.RgbColorModelHex.Val.Value);
+                    HexToRgba(themeColor.RgbColorModelHex.Val.Value, out result[0], out result[1], out result[2], out result[3]);
                 }
                 else if (themeColor != null && themeColor.RgbColorModelPercentage != null)
                 {
-                    rgbColor.R = themeColor.RgbColorModelPercentage.RedPortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.RedPortion.Value / 100000.0 * 255) : 0;
-                    rgbColor.G = themeColor.RgbColorModelPercentage.GreenPortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.GreenPortion.Value / 100000.0 * 255) : 0;
-                    rgbColor.B = themeColor.RgbColorModelPercentage.BluePortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.BluePortion.Value / 100000.0 * 255) : 0;
+                    result[0] = themeColor.RgbColorModelPercentage.RedPortion != null && themeColor.RgbColorModelPercentage.RedPortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.RedPortion.Value / 100000.0 * 255) : 0;
+                    result[1] = themeColor.RgbColorModelPercentage.GreenPortion != null && themeColor.RgbColorModelPercentage.GreenPortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.GreenPortion.Value / 100000.0 * 255) : 0;
+                    result[2] = themeColor.RgbColorModelPercentage.BluePortion != null && themeColor.RgbColorModelPercentage.BluePortion.HasValue ? (int)(themeColor.RgbColorModelPercentage.BluePortion.Value / 100000.0 * 255) : 0;
                 }
                 else if (themeColor != null && themeColor.HslColor != null)
                 {
-                    HlsToRgb(themeColor.HslColor.HueValue.HasValue ? themeColor.HslColor.HueValue.Value / 6000.0 : 0, themeColor.HslColor.LumValue.HasValue ? themeColor.HslColor.LumValue.Value : 0, themeColor.HslColor.SatValue.HasValue ? themeColor.HslColor.SatValue.Value : 0, out double red, out double green, out double blue);
-                    rgbColor.R = (int)red;
-                    rgbColor.G = (int)green;
-                    rgbColor.B = (int)blue;
+                    double hue = themeColor.HslColor.HueValue != null && themeColor.HslColor.HueValue.HasValue ? themeColor.HslColor.HueValue.Value / 60000.0 : 0;
+                    double luminosity = themeColor.HslColor.LumValue != null && themeColor.HslColor.LumValue.HasValue ? themeColor.HslColor.LumValue.Value / 100000.0 : 0;
+                    double saturation = themeColor.HslColor.SatValue != null && themeColor.HslColor.SatValue.HasValue ? themeColor.HslColor.SatValue.Value / 100000.0 : 0;
+                    HlsToRgb(hue, luminosity, saturation, out result[0], out result[1], out result[2]);
                 }
                 else if (themeColor != null && themeColor.SystemColor != null)
                 {
@@ -1555,94 +1675,94 @@ namespace XlsxToHtmlConverter
                         switch (themeColor.SystemColor.Val.Value)
                         {
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder:
-                                rgbColor = new RgbaColor() { R = 180, G = 180, B = 180, A = 1 };
+                                UpdateArray(result, 180, 180, 180);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption:
-                                rgbColor = new RgbaColor() { R = 153, G = 180, B = 209, A = 1 };
+                                UpdateArray(result, 153, 180, 209);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ApplicationWorkspace:
-                                rgbColor = new RgbaColor() { R = 171, G = 171, B = 171, A = 1 };
+                                UpdateArray(result, 171, 171, 171);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.Background:
-                                rgbColor = new RgbaColor() { R = 255, G = 255, B = 255, A = 1 };
+                                UpdateArray(result, 255, 255, 255);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonFace:
-                                rgbColor = new RgbaColor() { R = 240, G = 240, B = 240, A = 1 };
+                                UpdateArray(result, 240, 240, 240);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonHighlight:
-                                rgbColor = new RgbaColor() { R = 0, G = 120, B = 215, A = 1 };
+                                UpdateArray(result, 0, 120, 215);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonShadow:
-                                rgbColor = new RgbaColor() { R = 160, G = 160, B = 160, A = 1 };
+                                UpdateArray(result, 160, 160, 160);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonText:
-                                rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                                UpdateArray(result, 0, 0, 0);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.CaptionText:
-                                rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                                UpdateArray(result, 0, 0, 0);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientActiveCaption:
-                                rgbColor = new RgbaColor() { R = 185, G = 209, B = 234, A = 1 };
+                                UpdateArray(result, 185, 209, 234);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientInactiveCaption:
-                                rgbColor = new RgbaColor() { R = 215, G = 228, B = 242, A = 1 };
+                                UpdateArray(result, 215, 228, 242);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.GrayText:
-                                rgbColor = new RgbaColor() { R = 109, G = 109, B = 109, A = 1 };
+                                UpdateArray(result, 109, 109, 109);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.Highlight:
-                                rgbColor = new RgbaColor() { R = 0, G = 120, B = 215, A = 1 };
+                                UpdateArray(result, 0, 120, 215);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.HighlightText:
-                                rgbColor = new RgbaColor() { R = 255, G = 255, B = 255, A = 1 };
+                                UpdateArray(result, 255, 255, 255);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.HotLight:
-                                rgbColor = new RgbaColor() { R = 255, G = 165, B = 0, A = 1 };
+                                UpdateArray(result, 255, 165, 0);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveBorder:
-                                rgbColor = new RgbaColor() { R = 244, G = 247, B = 252, A = 1 };
+                                UpdateArray(result, 244, 247, 252);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaption:
-                                rgbColor = new RgbaColor() { R = 191, G = 205, B = 219, A = 1 };
+                                UpdateArray(result, 191, 205, 219);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaptionText:
-                                rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                                UpdateArray(result, 0, 0, 0);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoBack:
-                                rgbColor = new RgbaColor() { R = 255, G = 255, B = 225, A = 1 };
+                                UpdateArray(result, 255, 255, 225);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoText:
-                                rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                                UpdateArray(result, 0, 0, 0);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.Menu:
-                                rgbColor = new RgbaColor() { R = 240, G = 240, B = 240, A = 1 };
+                                UpdateArray(result, 240, 240, 240);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuBar:
-                                rgbColor = new RgbaColor() { R = 240, G = 240, B = 240, A = 1 };
+                                UpdateArray(result, 240, 240, 240);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuHighlight:
-                                rgbColor = new RgbaColor() { R = 0, G = 120, B = 215, A = 1 };
+                                UpdateArray(result, 0, 120, 215);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuText:
-                                rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                                UpdateArray(result, 0, 0, 0);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ScrollBar:
-                                rgbColor = new RgbaColor() { R = 200, G = 200, B = 200, A = 1 };
+                                UpdateArray(result, 200, 200, 200);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDDarkShadow:
-                                rgbColor = new RgbaColor() { R = 160, G = 160, B = 160, A = 1 };
+                                UpdateArray(result, 160, 160, 160);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDLight:
-                                rgbColor = new RgbaColor() { R = 227, G = 227, B = 227, A = 1 };
+                                UpdateArray(result, 227, 227, 227);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.Window:
-                                rgbColor = new RgbaColor() { R = 255, G = 255, B = 255, A = 1 };
+                                UpdateArray(result, 255, 255, 255);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowFrame:
-                                rgbColor = new RgbaColor() { R = 100, G = 100, B = 100, A = 1 };
+                                UpdateArray(result, 100, 100, 100);
                                 break;
                             case DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText:
-                                rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                                UpdateArray(result, 0, 0, 0);
                                 break;
                             default:
                                 return string.Empty;
@@ -1650,7 +1770,7 @@ namespace XlsxToHtmlConverter
                     }
                     else if (themeColor.SystemColor.LastColor != null && themeColor.SystemColor.LastColor.HasValue)
                     {
-                        rgbColor = HexToRgba(themeColor.SystemColor.LastColor.Value);
+                        HexToRgba(themeColor.SystemColor.LastColor.Value, out result[0], out result[1], out result[2], out result[3]);
                     }
                     else
                     {
@@ -1662,574 +1782,574 @@ namespace XlsxToHtmlConverter
                     switch (themeColor.PresetColor.Val.Value)
                     {
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue:
-                            rgbColor = new RgbaColor() { R = 240, G = 248, B = 255, A = 1 };
+                            UpdateArray(result, 240, 248, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite:
-                            rgbColor = new RgbaColor() { R = 250, G = 235, B = 215, A = 1 };
+                            UpdateArray(result, 250, 235, 215);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Aqua:
-                            rgbColor = new RgbaColor() { R = 0, G = 255, B = 255, A = 1 };
+                            UpdateArray(result, 0, 255, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Aquamarine:
-                            rgbColor = new RgbaColor() { R = 127, G = 255, B = 212, A = 1 };
+                            UpdateArray(result, 127, 255, 212);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Azure:
-                            rgbColor = new RgbaColor() { R = 240, G = 255, B = 255, A = 1 };
+                            UpdateArray(result, 240, 255, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Beige:
-                            rgbColor = new RgbaColor() { R = 245, G = 245, B = 220, A = 1 };
+                            UpdateArray(result, 245, 245, 220);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Bisque:
-                            rgbColor = new RgbaColor() { R = 255, G = 228, B = 196, A = 1 };
+                            UpdateArray(result, 255, 228, 196);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Black:
-                            rgbColor = new RgbaColor() { R = 0, G = 0, B = 0, A = 1 };
+                            UpdateArray(result, 0, 0, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.BlanchedAlmond:
-                            rgbColor = new RgbaColor() { R = 255, G = 235, B = 205, A = 1 };
+                            UpdateArray(result, 255, 235, 205);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Blue:
-                            rgbColor = new RgbaColor() { R = 0, G = 0, B = 255, A = 1 };
+                            UpdateArray(result, 0, 0, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.BlueViolet:
-                            rgbColor = new RgbaColor() { R = 138, G = 43, B = 226, A = 1 };
+                            UpdateArray(result, 138, 43, 226);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Brown:
-                            rgbColor = new RgbaColor() { R = 165, G = 42, B = 42, A = 1 };
+                            UpdateArray(result, 165, 42, 42);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.BurlyWood:
-                            rgbColor = new RgbaColor() { R = 222, G = 184, B = 135, A = 1 };
+                            UpdateArray(result, 222, 184, 135);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.CadetBlue:
-                            rgbColor = new RgbaColor() { R = 95, G = 158, B = 160, A = 1 };
+                            UpdateArray(result, 95, 158, 160);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Chartreuse:
-                            rgbColor = new RgbaColor() { R = 127, G = 255, B = 0, A = 1 };
+                            UpdateArray(result, 127, 255, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Chocolate:
-                            rgbColor = new RgbaColor() { R = 210, G = 105, B = 30, A = 1 };
+                            UpdateArray(result, 210, 105, 30);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Coral:
-                            rgbColor = new RgbaColor() { R = 255, G = 127, B = 80, A = 1 };
+                            UpdateArray(result, 255, 127, 80);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.CornflowerBlue:
-                            rgbColor = new RgbaColor() { R = 100, G = 149, B = 237, A = 1 };
+                            UpdateArray(result, 100, 149, 237);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Cornsilk:
-                            rgbColor = new RgbaColor() { R = 255, G = 248, B = 220, A = 1 };
+                            UpdateArray(result, 255, 248, 220);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Crimson:
-                            rgbColor = new RgbaColor() { R = 220, G = 20, B = 60, A = 1 };
+                            UpdateArray(result, 220, 20, 60);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Cyan:
-                            rgbColor = new RgbaColor() { R = 0, G = 255, B = 255, A = 1 };
+                            UpdateArray(result, 0, 255, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue:
-                            rgbColor = new RgbaColor() { R = 0, G = 0, B = 139, A = 1 };
+                            UpdateArray(result, 0, 0, 139);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan:
-                            rgbColor = new RgbaColor() { R = 0, G = 139, B = 139, A = 1 };
+                            UpdateArray(result, 0, 139, 139);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod:
-                            rgbColor = new RgbaColor() { R = 184, G = 134, B = 11, A = 1 };
+                            UpdateArray(result, 184, 134, 11);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray:
-                            rgbColor = new RgbaColor() { R = 169, G = 169, B = 169, A = 1 };
+                            UpdateArray(result, 169, 169, 169);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen:
-                            rgbColor = new RgbaColor() { R = 0, G = 100, B = 0, A = 1 };
+                            UpdateArray(result, 0, 100, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki:
-                            rgbColor = new RgbaColor() { R = 189, G = 183, B = 107, A = 1 };
+                            UpdateArray(result, 189, 183, 107);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta:
-                            rgbColor = new RgbaColor() { R = 139, G = 0, B = 139, A = 1 };
+                            UpdateArray(result, 139, 0, 139);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen:
-                            rgbColor = new RgbaColor() { R = 85, G = 107, B = 47, A = 1 };
+                            UpdateArray(result, 85, 107, 47);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange:
-                            rgbColor = new RgbaColor() { R = 255, G = 140, B = 0, A = 1 };
+                            UpdateArray(result, 255, 140, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid:
-                            rgbColor = new RgbaColor() { R = 153, G = 50, B = 204, A = 1 };
+                            UpdateArray(result, 153, 50, 204);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed:
-                            rgbColor = new RgbaColor() { R = 139, G = 0, B = 0, A = 1 };
+                            UpdateArray(result, 139, 0, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon:
-                            rgbColor = new RgbaColor() { R = 233, G = 150, B = 122, A = 1 };
+                            UpdateArray(result, 233, 150, 122);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen:
-                            rgbColor = new RgbaColor() { R = 143, G = 188, B = 143, A = 1 };
+                            UpdateArray(result, 143, 188, 143);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue:
-                            rgbColor = new RgbaColor() { R = 72, G = 61, B = 139, A = 1 };
+                            UpdateArray(result, 72, 61, 139);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray:
-                            rgbColor = new RgbaColor() { R = 47, G = 79, B = 79, A = 1 };
+                            UpdateArray(result, 47, 79, 79);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise:
-                            rgbColor = new RgbaColor() { R = 0, G = 206, B = 209, A = 1 };
+                            UpdateArray(result, 0, 206, 209);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet:
-                            rgbColor = new RgbaColor() { R = 148, G = 0, B = 211, A = 1 };
+                            UpdateArray(result, 148, 0, 211);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepPink:
-                            rgbColor = new RgbaColor() { R = 255, G = 20, B = 147, A = 1 };
+                            UpdateArray(result, 255, 20, 147);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepSkyBlue:
-                            rgbColor = new RgbaColor() { R = 0, G = 191, B = 255, A = 1 };
+                            UpdateArray(result, 0, 191, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGray:
-                            rgbColor = new RgbaColor() { R = 105, G = 105, B = 105, A = 1 };
+                            UpdateArray(result, 105, 105, 105);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DodgerBlue:
-                            rgbColor = new RgbaColor() { R = 30, G = 144, B = 255, A = 1 };
+                            UpdateArray(result, 30, 144, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Firebrick:
-                            rgbColor = new RgbaColor() { R = 178, G = 34, B = 34, A = 1 };
+                            UpdateArray(result, 178, 34, 34);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.FloralWhite:
-                            rgbColor = new RgbaColor() { R = 255, G = 250, B = 240, A = 1 };
+                            UpdateArray(result, 255, 250, 240);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.ForestGreen:
-                            rgbColor = new RgbaColor() { R = 34, G = 139, B = 34, A = 1 };
+                            UpdateArray(result, 34, 139, 34);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Fuchsia:
-                            rgbColor = new RgbaColor() { R = 255, G = 0, B = 255, A = 1 };
+                            UpdateArray(result, 255, 0, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Gainsboro:
-                            rgbColor = new RgbaColor() { R = 220, G = 220, B = 220, A = 1 };
+                            UpdateArray(result, 220, 220, 220);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.GhostWhite:
-                            rgbColor = new RgbaColor() { R = 248, G = 248, B = 255, A = 1 };
+                            UpdateArray(result, 248, 248, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Gold:
-                            rgbColor = new RgbaColor() { R = 255, G = 215, B = 0, A = 1 };
+                            UpdateArray(result, 255, 215, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Goldenrod:
-                            rgbColor = new RgbaColor() { R = 218, G = 165, B = 32, A = 1 };
+                            UpdateArray(result, 218, 165, 32);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Gray:
-                            rgbColor = new RgbaColor() { R = 128, G = 128, B = 128, A = 1 };
+                            UpdateArray(result, 128, 128, 128);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Green:
-                            rgbColor = new RgbaColor() { R = 0, G = 128, B = 0, A = 1 };
+                            UpdateArray(result, 0, 128, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.GreenYellow:
-                            rgbColor = new RgbaColor() { R = 173, G = 255, B = 47, A = 1 };
+                            UpdateArray(result, 173, 255, 47);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Honeydew:
-                            rgbColor = new RgbaColor() { R = 240, G = 255, B = 240, A = 1 };
+                            UpdateArray(result, 240, 255, 240);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.HotPink:
-                            rgbColor = new RgbaColor() { R = 255, G = 105, B = 180, A = 1 };
+                            UpdateArray(result, 255, 105, 180);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.IndianRed:
-                            rgbColor = new RgbaColor() { R = 205, G = 92, B = 92, A = 1 };
+                            UpdateArray(result, 205, 92, 92);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Indigo:
-                            rgbColor = new RgbaColor() { R = 75, G = 0, B = 130, A = 1 };
+                            UpdateArray(result, 75, 0, 130);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Ivory:
-                            rgbColor = new RgbaColor() { R = 255, G = 255, B = 240, A = 1 };
+                            UpdateArray(result, 255, 255, 240);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Khaki:
-                            rgbColor = new RgbaColor() { R = 240, G = 230, B = 140, A = 1 };
+                            UpdateArray(result, 240, 230, 140);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Lavender:
-                            rgbColor = new RgbaColor() { R = 230, G = 230, B = 250, A = 1 };
+                            UpdateArray(result, 230, 230, 250);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LavenderBlush:
-                            rgbColor = new RgbaColor() { R = 255, G = 240, B = 245, A = 1 };
+                            UpdateArray(result, 255, 240, 245);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LawnGreen:
-                            rgbColor = new RgbaColor() { R = 124, G = 252, B = 0, A = 1 };
+                            UpdateArray(result, 124, 252, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LemonChiffon:
-                            rgbColor = new RgbaColor() { R = 255, G = 250, B = 205, A = 1 };
+                            UpdateArray(result, 255, 250, 205);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue:
-                            rgbColor = new RgbaColor() { R = 173, G = 216, B = 230, A = 1 };
+                            UpdateArray(result, 173, 216, 230);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral:
-                            rgbColor = new RgbaColor() { R = 240, G = 128, B = 128, A = 1 };
+                            UpdateArray(result, 240, 128, 128);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan:
-                            rgbColor = new RgbaColor() { R = 224, G = 255, B = 255, A = 1 };
+                            UpdateArray(result, 224, 255, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow:
-                            rgbColor = new RgbaColor() { R = 250, G = 250, B = 210, A = 1 };
+                            UpdateArray(result, 250, 250, 210);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray:
-                            rgbColor = new RgbaColor() { R = 211, G = 211, B = 211, A = 1 };
+                            UpdateArray(result, 211, 211, 211);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen:
-                            rgbColor = new RgbaColor() { R = 144, G = 238, B = 144, A = 1 };
+                            UpdateArray(result, 144, 238, 144);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink:
-                            rgbColor = new RgbaColor() { R = 255, G = 182, B = 193, A = 1 };
+                            UpdateArray(result, 255, 182, 193);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon:
-                            rgbColor = new RgbaColor() { R = 255, G = 160, B = 122, A = 1 };
+                            UpdateArray(result, 255, 160, 122);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen:
-                            rgbColor = new RgbaColor() { R = 32, G = 178, B = 170, A = 1 };
+                            UpdateArray(result, 32, 178, 170);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue:
-                            rgbColor = new RgbaColor() { R = 135, G = 206, B = 250, A = 1 };
+                            UpdateArray(result, 135, 206, 250);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray:
-                            rgbColor = new RgbaColor() { R = 119, G = 136, B = 153, A = 1 };
+                            UpdateArray(result, 119, 136, 153);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue:
-                            rgbColor = new RgbaColor() { R = 176, G = 196, B = 222, A = 1 };
+                            UpdateArray(result, 176, 196, 222);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow:
-                            rgbColor = new RgbaColor() { R = 255, G = 255, B = 224, A = 1 };
+                            UpdateArray(result, 255, 255, 224);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Lime:
-                            rgbColor = new RgbaColor() { R = 0, G = 255, B = 0, A = 1 };
+                            UpdateArray(result, 0, 255, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LimeGreen:
-                            rgbColor = new RgbaColor() { R = 50, G = 205, B = 50, A = 1 };
+                            UpdateArray(result, 50, 205, 50);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Linen:
-                            rgbColor = new RgbaColor() { R = 250, G = 240, B = 230, A = 1 };
+                            UpdateArray(result, 250, 240, 230);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Magenta:
-                            rgbColor = new RgbaColor() { R = 255, G = 0, B = 255, A = 1 };
+                            UpdateArray(result, 255, 0, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Maroon:
-                            rgbColor = new RgbaColor() { R = 128, G = 0, B = 0, A = 1 };
+                            UpdateArray(result, 128, 0, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MedAquamarine:
-                            rgbColor = new RgbaColor() { R = 102, G = 205, B = 170, A = 1 };
+                            UpdateArray(result, 102, 205, 170);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue:
-                            rgbColor = new RgbaColor() { R = 0, G = 0, B = 205, A = 1 };
+                            UpdateArray(result, 0, 0, 205);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid:
-                            rgbColor = new RgbaColor() { R = 186, G = 85, B = 211, A = 1 };
+                            UpdateArray(result, 186, 85, 211);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple:
-                            rgbColor = new RgbaColor() { R = 147, G = 112, B = 219, A = 1 };
+                            UpdateArray(result, 147, 112, 219);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen:
-                            rgbColor = new RgbaColor() { R = 60, G = 179, B = 113, A = 1 };
+                            UpdateArray(result, 60, 179, 113);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue:
-                            rgbColor = new RgbaColor() { R = 123, G = 104, B = 238, A = 1 };
+                            UpdateArray(result, 123, 104, 238);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen:
-                            rgbColor = new RgbaColor() { R = 0, G = 250, B = 154, A = 1 };
+                            UpdateArray(result, 0, 250, 154);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise:
-                            rgbColor = new RgbaColor() { R = 72, G = 209, B = 204, A = 1 };
+                            UpdateArray(result, 72, 209, 204);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed:
-                            rgbColor = new RgbaColor() { R = 199, G = 21, B = 133, A = 1 };
+                            UpdateArray(result, 199, 21, 133);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MidnightBlue:
-                            rgbColor = new RgbaColor() { R = 25, G = 25, B = 112, A = 1 };
+                            UpdateArray(result, 25, 25, 112);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MintCream:
-                            rgbColor = new RgbaColor() { R = 245, G = 255, B = 250, A = 1 };
+                            UpdateArray(result, 245, 255, 250);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MistyRose:
-                            rgbColor = new RgbaColor() { R = 255, G = 228, B = 225, A = 1 };
+                            UpdateArray(result, 255, 228, 225);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Moccasin:
-                            rgbColor = new RgbaColor() { R = 255, G = 228, B = 181, A = 1 };
+                            UpdateArray(result, 255, 228, 181);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.NavajoWhite:
-                            rgbColor = new RgbaColor() { R = 255, G = 222, B = 173, A = 1 };
+                            UpdateArray(result, 255, 222, 173);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Navy:
-                            rgbColor = new RgbaColor() { R = 0, G = 0, B = 128, A = 1 };
+                            UpdateArray(result, 0, 0, 128);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.OldLace:
-                            rgbColor = new RgbaColor() { R = 253, G = 245, B = 230, A = 1 };
+                            UpdateArray(result, 253, 245, 230);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Olive:
-                            rgbColor = new RgbaColor() { R = 128, G = 128, B = 0, A = 1 };
+                            UpdateArray(result, 128, 128, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.OliveDrab:
-                            rgbColor = new RgbaColor() { R = 107, G = 142, B = 35, A = 1 };
+                            UpdateArray(result, 107, 142, 35);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Orange:
-                            rgbColor = new RgbaColor() { R = 255, G = 165, B = 0, A = 1 };
+                            UpdateArray(result, 255, 165, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.OrangeRed:
-                            rgbColor = new RgbaColor() { R = 255, G = 69, B = 0, A = 1 };
+                            UpdateArray(result, 255, 69, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Orchid:
-                            rgbColor = new RgbaColor() { R = 218, G = 112, B = 214, A = 1 };
+                            UpdateArray(result, 218, 112, 214);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGoldenrod:
-                            rgbColor = new RgbaColor() { R = 238, G = 232, B = 170, A = 1 };
+                            UpdateArray(result, 238, 232, 170);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGreen:
-                            rgbColor = new RgbaColor() { R = 152, G = 251, B = 152, A = 1 };
+                            UpdateArray(result, 152, 251, 152);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleTurquoise:
-                            rgbColor = new RgbaColor() { R = 175, G = 238, B = 238, A = 1 };
+                            UpdateArray(result, 175, 238, 238);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleVioletRed:
-                            rgbColor = new RgbaColor() { R = 219, G = 112, B = 147, A = 1 };
+                            UpdateArray(result, 219, 112, 147);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.PapayaWhip:
-                            rgbColor = new RgbaColor() { R = 255, G = 239, B = 213, A = 1 };
+                            UpdateArray(result, 255, 239, 213);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.PeachPuff:
-                            rgbColor = new RgbaColor() { R = 255, G = 218, B = 185, A = 1 };
+                            UpdateArray(result, 255, 218, 185);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Peru:
-                            rgbColor = new RgbaColor() { R = 205, G = 133, B = 63, A = 1 };
+                            UpdateArray(result, 205, 133, 63);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Pink:
-                            rgbColor = new RgbaColor() { R = 255, G = 192, B = 203, A = 1 };
+                            UpdateArray(result, 255, 192, 203);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Plum:
-                            rgbColor = new RgbaColor() { R = 221, G = 160, B = 221, A = 1 };
+                            UpdateArray(result, 221, 160, 221);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.PowderBlue:
-                            rgbColor = new RgbaColor() { R = 176, G = 224, B = 230, A = 1 };
+                            UpdateArray(result, 176, 224, 230);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Purple:
-                            rgbColor = new RgbaColor() { R = 128, G = 0, B = 128, A = 1 };
+                            UpdateArray(result, 128, 0, 128);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Red:
-                            rgbColor = new RgbaColor() { R = 255, G = 0, B = 0, A = 1 };
+                            UpdateArray(result, 255, 0, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.RosyBrown:
-                            rgbColor = new RgbaColor() { R = 188, G = 143, B = 143, A = 1 };
+                            UpdateArray(result, 188, 143, 143);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.RoyalBlue:
-                            rgbColor = new RgbaColor() { R = 65, G = 105, B = 225, A = 1 };
+                            UpdateArray(result, 65, 105, 225);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SaddleBrown:
-                            rgbColor = new RgbaColor() { R = 139, G = 69, B = 19, A = 1 };
+                            UpdateArray(result, 139, 69, 19);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Salmon:
-                            rgbColor = new RgbaColor() { R = 250, G = 128, B = 114, A = 1 };
+                            UpdateArray(result, 250, 128, 114);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SandyBrown:
-                            rgbColor = new RgbaColor() { R = 244, G = 164, B = 96, A = 1 };
+                            UpdateArray(result, 244, 164, 96);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaGreen:
-                            rgbColor = new RgbaColor() { R = 46, G = 139, B = 87, A = 1 };
+                            UpdateArray(result, 46, 139, 87);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaShell:
-                            rgbColor = new RgbaColor() { R = 255, G = 245, B = 238, A = 1 };
+                            UpdateArray(result, 255, 245, 238);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Sienna:
-                            rgbColor = new RgbaColor() { R = 160, G = 82, B = 45, A = 1 };
+                            UpdateArray(result, 160, 82, 45);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Silver:
-                            rgbColor = new RgbaColor() { R = 192, G = 192, B = 192, A = 1 };
+                            UpdateArray(result, 192, 192, 192);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SkyBlue:
-                            rgbColor = new RgbaColor() { R = 135, G = 206, B = 235, A = 1 };
+                            UpdateArray(result, 135, 206, 235);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateBlue:
-                            rgbColor = new RgbaColor() { R = 106, G = 90, B = 205, A = 1 };
+                            UpdateArray(result, 106, 90, 205);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGray:
-                            rgbColor = new RgbaColor() { R = 112, G = 128, B = 144, A = 1 };
+                            UpdateArray(result, 112, 128, 144);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Snow:
-                            rgbColor = new RgbaColor() { R = 255, G = 250, B = 250, A = 1 };
+                            UpdateArray(result, 255, 250, 250);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SpringGreen:
-                            rgbColor = new RgbaColor() { R = 0, G = 255, B = 127, A = 1 };
+                            UpdateArray(result, 0, 255, 127);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SteelBlue:
-                            rgbColor = new RgbaColor() { R = 70, G = 130, B = 180, A = 1 };
+                            UpdateArray(result, 70, 130, 180);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Tan:
-                            rgbColor = new RgbaColor() { R = 210, G = 180, B = 140, A = 1 };
+                            UpdateArray(result, 210, 180, 140);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Teal:
-                            rgbColor = new RgbaColor() { R = 0, G = 128, B = 128, A = 1 };
+                            UpdateArray(result, 0, 128, 128);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Thistle:
-                            rgbColor = new RgbaColor() { R = 216, G = 191, B = 216, A = 1 };
+                            UpdateArray(result, 216, 191, 216);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Tomato:
-                            rgbColor = new RgbaColor() { R = 255, G = 99, B = 71, A = 1 };
+                            UpdateArray(result, 255, 99, 71);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Turquoise:
-                            rgbColor = new RgbaColor() { R = 64, G = 224, B = 208, A = 1 };
+                            UpdateArray(result, 64, 224, 208);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Violet:
-                            rgbColor = new RgbaColor() { R = 238, G = 130, B = 238, A = 1 };
+                            UpdateArray(result, 238, 130, 238);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Wheat:
-                            rgbColor = new RgbaColor() { R = 245, G = 222, B = 179, A = 1 };
+                            UpdateArray(result, 245, 222, 179);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.White:
-                            rgbColor = new RgbaColor() { R = 255, G = 255, B = 255, A = 1 };
+                            UpdateArray(result, 255, 255, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.WhiteSmoke:
-                            rgbColor = new RgbaColor() { R = 245, G = 245, B = 245, A = 1 };
+                            UpdateArray(result, 245, 245, 245);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Yellow:
-                            rgbColor = new RgbaColor() { R = 255, G = 255, B = 0, A = 1 };
+                            UpdateArray(result, 255, 255, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.YellowGreen:
-                            rgbColor = new RgbaColor() { R = 154, G = 205, B = 50, A = 1 };
+                            UpdateArray(result, 154, 205, 50);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue2010:
-                            rgbColor = new RgbaColor() { R = 0, G = 0, B = 139, A = 1 };
+                            UpdateArray(result, 0, 0, 139);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan2010:
-                            rgbColor = new RgbaColor() { R = 0, G = 139, B = 139, A = 1 };
+                            UpdateArray(result, 0, 139, 139);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod2010:
-                            rgbColor = new RgbaColor() { R = 184, G = 134, B = 11, A = 1 };
+                            UpdateArray(result, 184, 134, 11);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray2010:
-                            rgbColor = new RgbaColor() { R = 169, G = 169, B = 169, A = 1 };
+                            UpdateArray(result, 169, 169, 169);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey2010:
-                            rgbColor = new RgbaColor() { R = 169, G = 169, B = 169, A = 1 };
+                            UpdateArray(result, 169, 169, 169);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen2010:
-                            rgbColor = new RgbaColor() { R = 0, G = 100, B = 0, A = 1 };
+                            UpdateArray(result, 0, 100, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki2010:
-                            rgbColor = new RgbaColor() { R = 189, G = 183, B = 107, A = 1 };
+                            UpdateArray(result, 189, 183, 107);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta2010:
-                            rgbColor = new RgbaColor() { R = 139, G = 0, B = 139, A = 1 };
+                            UpdateArray(result, 139, 0, 139);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen2010:
-                            rgbColor = new RgbaColor() { R = 85, G = 107, B = 47, A = 1 };
+                            UpdateArray(result, 85, 107, 47);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange2010:
-                            rgbColor = new RgbaColor() { R = 255, G = 140, B = 0, A = 1 };
+                            UpdateArray(result, 255, 140, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid2010:
-                            rgbColor = new RgbaColor() { R = 153, G = 50, B = 204, A = 1 };
+                            UpdateArray(result, 153, 50, 204);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed2010:
-                            rgbColor = new RgbaColor() { R = 139, G = 0, B = 0, A = 1 };
+                            UpdateArray(result, 139, 0, 0);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon2010:
-                            rgbColor = new RgbaColor() { R = 233, G = 150, B = 122, A = 1 };
+                            UpdateArray(result, 233, 150, 122);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen2010:
-                            rgbColor = new RgbaColor() { R = 143, G = 188, B = 143, A = 1 };
+                            UpdateArray(result, 143, 188, 143);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue2010:
-                            rgbColor = new RgbaColor() { R = 72, G = 61, B = 139, A = 1 };
+                            UpdateArray(result, 72, 61, 139);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray2010:
-                            rgbColor = new RgbaColor() { R = 47, G = 79, B = 79, A = 1 };
+                            UpdateArray(result, 47, 79, 79);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey2010:
-                            rgbColor = new RgbaColor() { R = 47, G = 79, B = 79, A = 1 };
+                            UpdateArray(result, 47, 79, 79);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise2010:
-                            rgbColor = new RgbaColor() { R = 0, G = 206, B = 209, A = 1 };
+                            UpdateArray(result, 0, 206, 209);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet2010:
-                            rgbColor = new RgbaColor() { R = 148, G = 0, B = 211, A = 1 };
+                            UpdateArray(result, 148, 0, 211);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue2010:
-                            rgbColor = new RgbaColor() { R = 173, G = 216, B = 230, A = 1 };
+                            UpdateArray(result, 173, 216, 230);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral2010:
-                            rgbColor = new RgbaColor() { R = 240, G = 128, B = 128, A = 1 };
+                            UpdateArray(result, 240, 128, 128);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan2010:
-                            rgbColor = new RgbaColor() { R = 224, G = 255, B = 255, A = 1 };
+                            UpdateArray(result, 224, 255, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow2010:
-                            rgbColor = new RgbaColor() { R = 250, G = 250, B = 210, A = 1 };
+                            UpdateArray(result, 250, 250, 210);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray2010:
-                            rgbColor = new RgbaColor() { R = 211, G = 211, B = 211, A = 1 };
+                            UpdateArray(result, 211, 211, 211);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey2010:
-                            rgbColor = new RgbaColor() { R = 211, G = 211, B = 211, A = 1 };
+                            UpdateArray(result, 211, 211, 211);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen2010:
-                            rgbColor = new RgbaColor() { R = 144, G = 238, B = 144, A = 1 };
+                            UpdateArray(result, 144, 238, 144);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink2010:
-                            rgbColor = new RgbaColor() { R = 255, G = 182, B = 193, A = 1 };
+                            UpdateArray(result, 255, 182, 193);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon2010:
-                            rgbColor = new RgbaColor() { R = 255, G = 160, B = 122, A = 1 };
+                            UpdateArray(result, 255, 160, 122);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen2010:
-                            rgbColor = new RgbaColor() { R = 32, G = 178, B = 170, A = 1 };
+                            UpdateArray(result, 32, 178, 170);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue2010:
-                            rgbColor = new RgbaColor() { R = 135, G = 206, B = 250, A = 1 };
+                            UpdateArray(result, 135, 206, 250);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray2010:
-                            rgbColor = new RgbaColor() { R = 119, G = 136, B = 153, A = 1 };
+                            UpdateArray(result, 119, 136, 153);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey2010:
-                            rgbColor = new RgbaColor() { R = 119, G = 136, B = 153, A = 1 };
+                            UpdateArray(result, 119, 136, 153);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue2010:
-                            rgbColor = new RgbaColor() { R = 176, G = 196, B = 222, A = 1 };
+                            UpdateArray(result, 176, 196, 222);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow2010:
-                            rgbColor = new RgbaColor() { R = 255, G = 255, B = 224, A = 1 };
+                            UpdateArray(result, 255, 255, 224);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumAquamarine2010:
-                            rgbColor = new RgbaColor() { R = 102, G = 205, B = 170, A = 1 };
+                            UpdateArray(result, 102, 205, 170);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue2010:
-                            rgbColor = new RgbaColor() { R = 0, G = 0, B = 205, A = 1 };
+                            UpdateArray(result, 0, 0, 205);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid2010:
-                            rgbColor = new RgbaColor() { R = 186, G = 85, B = 211, A = 1 };
+                            UpdateArray(result, 186, 85, 211);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple2010:
-                            rgbColor = new RgbaColor() { R = 147, G = 112, B = 219, A = 1 };
+                            UpdateArray(result, 147, 112, 219);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen2010:
-                            rgbColor = new RgbaColor() { R = 60, G = 179, B = 113, A = 1 };
+                            UpdateArray(result, 60, 179, 113);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue2010:
-                            rgbColor = new RgbaColor() { R = 123, G = 104, B = 238, A = 1 };
+                            UpdateArray(result, 123, 104, 238);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen2010:
-                            rgbColor = new RgbaColor() { R = 0, G = 250, B = 154, A = 1 };
+                            UpdateArray(result, 0, 250, 154);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise2010:
-                            rgbColor = new RgbaColor() { R = 72, G = 209, B = 204, A = 1 };
+                            UpdateArray(result, 72, 209, 204);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed2010:
-                            rgbColor = new RgbaColor() { R = 199, G = 21, B = 133, A = 1 };
+                            UpdateArray(result, 199, 21, 133);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey:
-                            rgbColor = new RgbaColor() { R = 169, G = 169, B = 169, A = 1 };
+                            UpdateArray(result, 169, 169, 169);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGrey:
-                            rgbColor = new RgbaColor() { R = 105, G = 105, B = 105, A = 1 };
+                            UpdateArray(result, 105, 105, 105);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey:
-                            rgbColor = new RgbaColor() { R = 47, G = 79, B = 79, A = 1 };
+                            UpdateArray(result, 47, 79, 79);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.Grey:
-                            rgbColor = new RgbaColor() { R = 128, G = 128, B = 128, A = 1 };
+                            UpdateArray(result, 128, 128, 128);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey:
-                            rgbColor = new RgbaColor() { R = 211, G = 211, B = 211, A = 1 };
+                            UpdateArray(result, 211, 211, 211);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey:
-                            rgbColor = new RgbaColor() { R = 119, G = 136, B = 153, A = 1 };
+                            UpdateArray(result, 119, 136, 153);
                             break;
                         case DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGrey:
-                            rgbColor = new RgbaColor() { R = 112, G = 128, B = 144, A = 1 };
+                            UpdateArray(result, 112, 128, 144);
                             break;
                         default:
                             return string.Empty;
@@ -2245,36 +2365,23 @@ namespace XlsxToHtmlConverter
                 return string.Empty;
             }
 
-            if (type.Tint != null && type.Tint.HasValue && type.Tint.Value != 0)
+            if (color.Tint != null && color.Tint.HasValue && color.Tint.Value != 0)
             {
-                RgbToHls(rgbColor.R, rgbColor.G, rgbColor.B, out double hue, out double luminosity, out double saturation);
-                luminosity = type.Tint.Value < 0 ? luminosity * (1 + type.Tint.Value) : luminosity * (1 - type.Tint.Value) + type.Tint.Value;
-                HlsToRgb(hue, luminosity, saturation, out double red, out double green, out double blue);
-                rgbColor.R = (int)red;
-                rgbColor.G = (int)green;
-                rgbColor.B = (int)blue;
+                RgbToHls(result[0], result[1], result[2], out double hue, out double luminosity, out double saturation);
+                luminosity = color.Tint.Value < 0 ? luminosity * (1 + color.Tint.Value) : luminosity * (1 - color.Tint.Value) + color.Tint.Value;
+                HlsToRgb(hue, luminosity, saturation, out result[0], out result[1], out result[2]);
             }
 
-            if (rgbColor.A >= 1)
-            {
-                return $"rgb({rgbColor.R}, {rgbColor.G}, {rgbColor.B})";
-            }
-            else
-            {
-                return $"rgba({rgbColor.R}, {rgbColor.G}, {rgbColor.B}, {rgbColor.A})";
-            }
+            return result.Length < 4 ? string.Empty : result[3] >= 1 ? $"rgb({RoundNumber(result[0], config.RoundingDigits)}, {RoundNumber(result[1], config.RoundingDigits)}, {RoundNumber(result[2], config.RoundingDigits)})" : $"rgba({RoundNumber(result[0], config.RoundingDigits)}, {RoundNumber(result[1], config.RoundingDigits)}, {RoundNumber(result[2], config.RoundingDigits)}, {RoundNumber(result[3], config.RoundingDigits)})";
         }
 
-        private static RgbaColor HexToRgba(string hex)
+        private static void HexToRgba(string hex, out double red, out double green, out double blue, out double alpha)
         {
-            string hexTrimmed = hex.Replace("#", string.Empty);
-            return new RgbaColor()
-            {
-                R = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 2 : 0, 2), 16) : 0,
-                G = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 4 : 2, 2), 16) : 0,
-                B = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 6 : 4, 2), 16) : 0,
-                A = hexTrimmed.Length > 5 ? (hexTrimmed.Length > 7 ? Convert.ToInt32(hexTrimmed.Substring(0, 2), 16) / 255.0 : 1) : 0
-            };
+            string hexTrimmed = hex.TrimStart('#');
+            red = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 2 : 0, 2), 16) : 0;
+            green = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 4 : 2, 2), 16) : 0;
+            blue = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 6 : 4, 2), 16) : 0;
+            alpha = hexTrimmed.Length > 5 ? (hexTrimmed.Length > 7 ? Convert.ToInt32(hexTrimmed.Substring(0, 2), 16) / 255.0 : 1) : 1;
         }
 
         private static void RgbToHls(double red, double green, double blue, out double hue, out double luminosity, out double saturation)
@@ -2308,140 +2415,15 @@ namespace XlsxToHtmlConverter
             blue = (saturation == 0 ? luminosity : actionCalculateColor.Invoke(hue - 120)) * 255.0;
         }
 
-        private static Dictionary<string, string> FontToHtml(WorkbookPart workbook, ColorType color, FontSize fontSize, Bold bold, Italic italic, Strike strike, Underline underline)
-        {
-            Dictionary<string, string> htmlStyle = new Dictionary<string, string>();
-
-            if (color != null)
-            {
-                string htmlColor = ColorTypeToHtml(workbook, color);
-                if (!string.IsNullOrEmpty(htmlColor))
-                {
-                    htmlStyle.Add("color", htmlColor);
-                }
-            }
-            if (fontSize != null && fontSize.Val != null && fontSize.Val.HasValue)
-            {
-                htmlStyle.Add("font-size", $"{fontSize.Val.Value / 72 * 96}px");
-            }
-            if (bold != null)
-            {
-                htmlStyle.Add("font-weight", bold.Val == null || (bold.Val.HasValue && bold.Val.Value) ? "bold" : "normal");
-            }
-            if (italic != null)
-            {
-                htmlStyle.Add("font-style", italic.Val == null || (italic.Val.HasValue && italic.Val.Value) ? "italic" : "normal");
-            }
-            string htmlStyleTextDecoraion = string.Empty;
-            if (strike != null)
-            {
-                htmlStyleTextDecoraion += strike.Val == null || (strike.Val.HasValue && strike.Val.Value) ? " line-through" : " none";
-            }
-            if (underline != null && underline.Val != null && underline.Val.HasValue)
-            {
-                if (underline.Val.Value == UnderlineValues.Double || underline.Val.Value == UnderlineValues.DoubleAccounting)
-                {
-                    htmlStyleTextDecoraion += " underline double";
-                }
-                else if (underline.Val.Value != UnderlineValues.None)
-                {
-                    htmlStyleTextDecoraion += " underline";
-                }
-            }
-            if (!string.IsNullOrEmpty(htmlStyleTextDecoraion))
-            {
-                htmlStyle.Add("text-decoration", htmlStyleTextDecoraion.Trim());
-            }
-
-            return htmlStyle;
-        }
-
-        private static void BorderPropertiesToHtml(WorkbookPart workbook, BorderPropertiesType border, ref string width, ref string style, ref string color)
-        {
-            if (border == null)
-            {
-                return;
-            }
-
-            if (border.Style != null && border.Style.HasValue)
-            {
-                switch (border.Style.Value)
-                {
-                    case BorderStyleValues.Thin:
-                        width = "thin";
-                        style = "solid";
-                        break;
-                    case BorderStyleValues.Thick:
-                        width = "thick";
-                        style = "solid";
-                        break;
-                    case BorderStyleValues.Medium:
-                        width = "medium";
-                        style = "solid";
-                        break;
-                    case BorderStyleValues.MediumDashDot:
-                        width = "medium";
-                        style = "dashed";
-                        break;
-                    case BorderStyleValues.MediumDashDotDot:
-                        width = "medium";
-                        style = "dotted";
-                        break;
-                    case BorderStyleValues.MediumDashed:
-                        width = "medium";
-                        style = "dashed";
-                        break;
-                    case BorderStyleValues.Dashed:
-                        width = "1px";
-                        style = "dashed";
-                        break;
-                    case BorderStyleValues.DashDot:
-                        width = "1px";
-                        style = "dashed";
-                        break;
-                    case BorderStyleValues.DashDotDot:
-                        width = "1px";
-                        style = "dashed";
-                        break;
-                    case BorderStyleValues.Dotted:
-                        width = "1px";
-                        style = "dotted";
-                        break;
-                    case BorderStyleValues.Double:
-                        width = "1px";
-                        style = "double";
-                        break;
-                    case BorderStyleValues.Hair:
-                        width = "1px";
-                        style = "solid";
-                        break;
-                    case BorderStyleValues.SlantDashDot:
-                        width = "1px";
-                        style = "dashed";
-                        break;
-                }
-            }
-
-            if (border.Color != null)
-            {
-                string value = ColorTypeToHtml(workbook, border.Color);
-                if (!string.IsNullOrEmpty(value))
-                {
-                    color = value;
-                }
-            }
-        }
-
-        private static void DrawingsToHtml(WorksheetPart worksheet, OpenXmlCompositeElement anchor, StreamWriter writer, string left, string top, string width, string height, bool isPictureAllowed)
+        private static void DrawingsToHtml(WorksheetPart worksheet, OpenXmlCompositeElement anchor, StreamWriter writer, string left, string top, string width, string height, ConverterConfig config)
         {
             if (anchor == null)
             {
                 return;
             }
 
-            List<DrawingInfo> drawings = new List<DrawingInfo>();
-
-            if (isPictureAllowed)
+            List<object[]> drawings = new List<object[]>();
+            if (config.ConvertPictures)
             {
                 foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture in anchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>())
                 {
@@ -2450,146 +2432,90 @@ namespace XlsxToHtmlConverter
                         continue;
                     }
 
-                    DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties properties = null;
+                    DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties nonVisualProperties = null;
                     if (picture.NonVisualPictureProperties != null)
                     {
-                        properties = picture.NonVisualPictureProperties.NonVisualDrawingProperties;
+                        nonVisualProperties = picture.NonVisualPictureProperties.NonVisualDrawingProperties;
                     }
 
-                    if (picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue)
+                    if (picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue && worksheet.DrawingsPart != null && worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) is ImagePart imagePart)
                     {
-                        ImagePart imagePart = worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) as ImagePart;
-
                         Stream imageStream = imagePart.GetStream();
-                        if (imageStream.CanSeek)
+                        if (!imageStream.CanRead)
+                        {
+                            continue;
+                        }
+                        else if (imageStream.CanSeek)
                         {
                             imageStream.Seek(0, SeekOrigin.Begin);
                         }
                         byte[] data = new byte[imageStream.Length];
                         imageStream.Read(data, 0, (int)imageStream.Length);
-                        string base64 = Convert.ToBase64String(data, Base64FormattingOptions.None);
 
-                        drawings.Add(new DrawingInfo()
-                        {
-                            Prefix = $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{(properties != null && properties.Description != null && properties.Description.HasValue ? $" alt=\"{properties.Description.Value}\"" : string.Empty)}",
-                            Postfix = "/>",
-                            Left = left,
-                            Top = top,
-                            Width = width,
-                            Height = height,
-                            IsHidden = properties != null && properties.Hidden != null && properties.Hidden.HasValue && properties.Hidden.Value,
-                            ShapeProperties = picture.ShapeProperties
-                        });
+                        string base64 = Convert.ToBase64String(data, Base64FormattingOptions.None);
+                        drawings.Add(new object[3] { $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{(nonVisualProperties != null && nonVisualProperties.Description != null && nonVisualProperties.Description.HasValue ? $" alt=\"{nonVisualProperties.Description.Value}\"" : string.Empty)}{{0}}/>", nonVisualProperties, picture.ShapeProperties });
                     }
                 }
             }
-
             foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape in anchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape>())
             {
-                string text = shape.TextBody != null ? shape.TextBody.InnerText : string.Empty;
-
-                DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties properties = null;
-                if (shape.NonVisualShapeProperties != null)
-                {
-                    properties = shape.NonVisualShapeProperties.NonVisualDrawingProperties;
-                }
-
                 //TODO: shape styles
-                drawings.Add(new DrawingInfo()
-                {
-                    Prefix = "<p",
-                    Postfix = $">{text}</p>",
-                    Left = left,
-                    Top = top,
-                    Width = width,
-                    Height = height,
-                    IsHidden = properties != null && properties.Hidden != null && properties.Hidden.HasValue && properties.Hidden.Value,
-                    ShapeProperties = shape.ShapeProperties
-                });
+                string text = shape.TextBody != null ? shape.TextBody.InnerText : string.Empty;
+                drawings.Add(new object[3] { $"<p{{0}}>{text}</p>", shape.NonVisualShapeProperties, shape.ShapeProperties });
             }
 
-            foreach (DrawingInfo drawingInfo in drawings)
+            foreach (object[] drawingInfo in drawings)
             {
-                string widthActual = drawingInfo.Width;
-                string heightActual = drawingInfo.Height;
-                string htmlStyleTransform = string.Empty;
-                if (drawingInfo.ShapeProperties != null && drawingInfo.ShapeProperties.Transform2D != null)
+                if (drawingInfo.Length < 3)
                 {
-                    if (drawingInfo.ShapeProperties.Transform2D.Extents != null)
+                    continue;
+                }
+
+                string widthActual = width;
+                string heightActual = height;
+                string htmlStyleTransform = string.Empty;
+                if (drawingInfo[2] is DocumentFormat.OpenXml.Drawing.ShapeProperties shapeProperties && shapeProperties.Transform2D != null)
+                {
+                    if (shapeProperties.Transform2D.Offset != null)
                     {
-                        //TODO: drawing sizes
-                        if (false)
+                        if (left == "auto" && shapeProperties.Transform2D.Offset.X != null && shapeProperties.Transform2D.Offset.X.HasValue)
                         {
-                            if (drawingInfo.ShapeProperties.Transform2D.Extents.Cx != null && drawingInfo.ShapeProperties.Transform2D.Extents.Cx.HasValue)
-                            {
-                                widthActual = $"{drawingInfo.ShapeProperties.Transform2D.Extents.Cx.Value / 914400 * 96}px";
-                            }
-                            if (drawingInfo.ShapeProperties.Transform2D.Extents.Cy != null && drawingInfo.ShapeProperties.Transform2D.Extents.Cy.HasValue)
-                            {
-                                heightActual = $"{drawingInfo.ShapeProperties.Transform2D.Extents.Cy.Value / 914400 * 96}px";
-                            }
+                            htmlStyleTransform += $" translateX({RoundNumber(shapeProperties.Transform2D.Offset.X.Value / 914400.0 * 96, config.RoundingDigits)}px)";
+                        }
+                        if (top == "auto" && shapeProperties.Transform2D.Offset.Y != null && shapeProperties.Transform2D.Offset.Y.HasValue)
+                        {
+                            htmlStyleTransform += $" translateY({RoundNumber(shapeProperties.Transform2D.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits)}px)";
                         }
                     }
-                    if (drawingInfo.ShapeProperties.Transform2D.Offset != null)
+                    if (shapeProperties.Transform2D.Extents != null)
                     {
-                        if (drawingInfo.ShapeProperties.Transform2D.Offset.X != null && drawingInfo.ShapeProperties.Transform2D.Offset.X.HasValue)
+                        if (widthActual == "auto" && shapeProperties.Transform2D.Extents.Cx != null && shapeProperties.Transform2D.Extents.Cx.HasValue)
                         {
-                            htmlStyleTransform += $" translateX({drawingInfo.ShapeProperties.Transform2D.Offset.X.Value / 914400 * 96}px)";
+                            widthActual = $"{RoundNumber(shapeProperties.Transform2D.Extents.Cx.Value / 914400.0 * 96, config.RoundingDigits)}px";
                         }
-                        if (drawingInfo.ShapeProperties.Transform2D.Offset.Y != null && drawingInfo.ShapeProperties.Transform2D.Offset.Y.HasValue)
+                        if (heightActual == "auto" && shapeProperties.Transform2D.Extents.Cy != null && shapeProperties.Transform2D.Extents.Cy.HasValue)
                         {
-                            htmlStyleTransform += $" translateY({drawingInfo.ShapeProperties.Transform2D.Offset.Y.Value / 914400 * 96}px)";
+                            heightActual = $"{RoundNumber(shapeProperties.Transform2D.Extents.Cy.Value / 914400.0 * 96, config.RoundingDigits)}px";
                         }
                     }
-                    if (drawingInfo.ShapeProperties.Transform2D.Rotation != null && drawingInfo.ShapeProperties.Transform2D.Rotation.HasValue)
+                    if (shapeProperties.Transform2D.Rotation != null && shapeProperties.Transform2D.Rotation.HasValue)
                     {
-                        htmlStyleTransform += $" rotate(-{drawingInfo.ShapeProperties.Transform2D.Rotation.Value}deg)";
+                        htmlStyleTransform += $" rotate(-{RoundNumber(shapeProperties.Transform2D.Rotation.Value, config.RoundingDigits)}deg)";
+                    }
+                    if (shapeProperties.Transform2D.HorizontalFlip != null && shapeProperties.Transform2D.HorizontalFlip.HasValue && shapeProperties.Transform2D.HorizontalFlip.Value)
+                    {
+                        htmlStyleTransform += $" scaleX(-1)";
+                    }
+                    if (shapeProperties.Transform2D.VerticalFlip != null && shapeProperties.Transform2D.VerticalFlip.HasValue && shapeProperties.Transform2D.VerticalFlip.Value)
+                    {
+                        htmlStyleTransform += $" scaleY(-1)";
                     }
                 }
 
-                writer.Write($"\n{new string(' ', 8)}{drawingInfo.Prefix} style=\"position: absolute; left: {drawingInfo.Left}; top: {drawingInfo.Top}; width: {widthActual}; height: {heightActual};{(!string.IsNullOrEmpty(htmlStyleTransform) ? $" transform:{htmlStyleTransform};" : string.Empty)}{(drawingInfo.IsHidden ? " visibility: hidden;" : string.Empty)}\"{drawingInfo.Postfix}");
+                bool isHidden = drawingInfo[1] is DocumentFormat.OpenXml.Drawing.NonVisualDrawingProperties nonVisualProperties && nonVisualProperties.Hidden != null && nonVisualProperties.Hidden.HasValue && nonVisualProperties.Hidden.Value;
+                writer.Write($"\n{new string(' ', 8)}{drawingInfo[0].ToString().Replace("{0}", $" style=\"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{(!string.IsNullOrEmpty(htmlStyleTransform) ? $" transform:{htmlStyleTransform};" : string.Empty)}{(isHidden ? " visibility: hidden;" : string.Empty)}\"")}");
             }
         }
-
-        #endregion
-
-        #region Private Structures
-
-        private struct RgbaColor
-        {
-            public int R { get; set; }
-            public int G { get; set; }
-            public int B { get; set; }
-            public double A { get; set; }
-        }
-        private struct MergeCellInfo
-        {
-            public int FromColumn { get; set; }
-            public int FromRow { get; set; }
-            public int ToColumn { get; set; }
-            public int ToRow { get; set; }
-            public int ColumnSpanned { get; set; }
-            public int RowSpanned { get; set; }
-        }
-
-        private struct DrawingInfo
-        {
-            public string Prefix { get; set; }
-            public string Postfix { get; set; }
-            public string Left { get; set; }
-            public string Top { get; set; }
-            public string Width { get; set; }
-            public string Height { get; set; }
-            public bool IsHidden { get; set; }
-            public DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeProperties ShapeProperties { get; set; }
-        }
-
-        #endregion
-
-        #region Private Fields
-
-        private static readonly Regex regexNumbers = new Regex(@"\d+", RegexOptions.Compiled);
-        private static readonly Regex regexLetters = new Regex("[A-Za-z]+", RegexOptions.Compiled);
 
         #endregion
     }
@@ -2607,16 +2533,13 @@ namespace XlsxToHtmlConverter
         }
 
         h5 {
+            margin: 10px auto;
+            width: fit-content;
             font-size: 20px;
             font-weight: bold;
             font-family: monospace;
             text-align: center;
-            width: fit-content;
-            margin: 10px auto;
-            border-bottom-width: 4px;
-            border-bottom-style: solid;
-            border-bottom-color: transparent;
-            padding-bottom: 3px;
+            border-bottom: thick solid transparent;
         }
 
         table {
@@ -2626,14 +2549,12 @@ namespace XlsxToHtmlConverter
         }
 
         td {
+            padding: 0;
+            color: black;
             text-align: left;
             vertical-align: bottom;
-            padding: 0px;
-            color: black;
             background-color: transparent;
-            border-width: 1px;
-            border-style: solid;
-            border-color: lightgray;
+            border: thin solid lightgray;
             border-collapse: collapse;
             white-space: nowrap;
             overflow: hidden;
@@ -2648,6 +2569,7 @@ namespace XlsxToHtmlConverter
             this.PresetStyles = DefaultPresetStyles;
             this.ErrorMessage = DefaultErrorMessage;
             this.Encoding = System.Text.Encoding.UTF8;
+            this.BufferSize = 65536;
             this.ConvertStyles = true;
             this.ConvertSizes = true;
             this.ConvertPictures = true;
@@ -2655,6 +2577,7 @@ namespace XlsxToHtmlConverter
             this.ConvertHiddenSheets = false;
             this.ConvertFirstSheetOnly = false;
             this.ConvertHtmlBodyOnly = false;
+            this.RoundingDigits = 2;
         }
 
         #region Public Fields
@@ -2665,12 +2588,12 @@ namespace XlsxToHtmlConverter
         public string PageTitle { get; set; }
 
         /// <summary>
-        /// Gets or sets the preset CSS style in Html.
+        /// Gets or sets the preset CSS styles of the Html.
         /// </summary>
         public string PresetStyles { get; set; }
 
         /// <summary>
-        /// Gets or sets the error message that will show when convert failed. Text "{EXCEPTION}" will be replaced by the exception message.
+        /// Gets or sets the error message that will be written to the Html if the conversion fails. Any instances of the text "{EXCEPTION}" will be replaced by the exception message.
         /// </summary>
         public string ErrorMessage { get; set; }
 
@@ -2680,42 +2603,52 @@ namespace XlsxToHtmlConverter
         public System.Text.Encoding Encoding { get; set; }
 
         /// <summary>
-        /// Gets or sets whether to convert Xlsx styles into Html styles or not.
+        /// Gets or sets the buffer size to use when writing the Html string.
+        /// </summary>
+        public int BufferSize { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to convert Xlsx styles to Html styles.
         /// </summary>
         public bool ConvertStyles { get; set; }
 
         /// <summary>
-        /// Gets or sets whether to convert Xlsx cell sizes into Html table cell sizes or not.
+        /// Gets or sets whether to convert Xlsx cell sizes to Html sizes.
         /// </summary>
         public bool ConvertSizes { get; set; }
 
         /// <summary>
-        /// Gets or sets whether to convert Xlsx pictures into Html pictures or not.
+        /// Gets or sets whether to convert Xlsx pictures to Html images.
         /// </summary>
         public bool ConvertPictures { get; set; }
 
         /// <summary>
-        /// Gets or sets whether to convert Xlsx sheet names to titles or not.
+        /// Gets or sets whether to convert Xlsx sheet names to Html titles.
         /// </summary>
         public bool ConvertSheetTitles { get; set; }
 
         /// <summary>
-        /// Gets or sets whether to convert Xlsx hidden sheets or not.
+        /// Gets or sets whether to convert Xlsx hidden sheets.
         /// </summary>
         public bool ConvertHiddenSheets { get; set; }
 
         /// <summary>
-        /// Gets or sets whether to only convert the first Xlsx sheet or not.
+        /// Gets or sets whether to only convert the first Xlsx sheet.
         /// </summary>
         public bool ConvertFirstSheetOnly { get; set; }
 
         /// <summary>
-        /// Gets or sets whether to only convert into the body tag of Html or not.
+        /// Gets or sets whether to only convert to the Html body element.
         /// </summary>
         public bool ConvertHtmlBodyOnly { get; set; }
 
         /// <summary>
-        /// Gets a new instance of <see cref="ConverterConfig">ConverterConfig</see> with default settings.
+        /// Gets or sets the number of digits to round the numbers to, or to not use rounding if the value is negative.
+        /// </summary>
+        public int RoundingDigits { get; set; }
+
+        /// <summary>
+        /// Gets a new instance of <see cref="ConverterConfig"/> with default settings.
         /// </summary>
         public static ConverterConfig DefaultSettings { get { return new ConverterConfig(); } }
 
@@ -2723,12 +2656,12 @@ namespace XlsxToHtmlConverter
     }
 
     /// <summary>
-    /// The progress callback event arguments class of the Xlsx to Html converter.
+    /// The progress callback event arguments of the Xlsx to Html converter.
     /// </summary>
     public class ConverterProgressCallbackEventArgs : EventArgs
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="ConverterProgressCallbackEventArgs"/> class with specific current sheet and total sheets.
+        /// Initializes a new instance of the <see cref="ConverterProgressCallbackEventArgs"/> class with specific numbers of current progress.
         /// </summary>
         public ConverterProgressCallbackEventArgs(int currentSheet, int totalSheets, int currentRow, int totalRows)
         {
@@ -2741,7 +2674,7 @@ namespace XlsxToHtmlConverter
         #region Public Fields
 
         /// <summary>
-        /// Gets the current progress in percentage.
+        /// Gets the current progress in percentage, ranging from 0 to 100.
         /// </summary>
         public double ProgressPercent
         {
@@ -2752,24 +2685,24 @@ namespace XlsxToHtmlConverter
         }
 
         /// <summary>
-        /// Gets the 1-indexed id of the current sheet.
+        /// Gets the 1-indexed number of the current sheet.
         /// </summary>
-        public int CurrentSheet { get; private set; }
+        public int CurrentSheet { get; }
 
         /// <summary>
-        /// Gets the total number of sheets in the Xlsx file.
+        /// Gets the total amount of the sheets in the Xlsx file.
         /// </summary>
-        public int TotalSheets { get; private set; }
+        public int TotalSheets { get; }
 
         /// <summary>
         /// Gets the 1-indexed number of the current row in the current sheet.
         /// </summary>
-        public int CurrentRow { get; private set; }
+        public int CurrentRow { get; }
 
         /// <summary>
-        /// Gets the total number of sheets in the current sheet.
+        /// Gets the total amount of the rows in the current sheet.
         /// </summary>
-        public int TotalRows { get; private set; }
+        public int TotalRows { get; }
 
         #endregion
     }
