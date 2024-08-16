@@ -15,12 +15,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Properties\**" />
-    <EmbeddedResource Remove="Properties\**" />
-    <None Remove="Properties\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.20.0" />
   </ItemGroup>
 
