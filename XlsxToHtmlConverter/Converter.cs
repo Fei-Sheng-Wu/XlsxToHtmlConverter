@@ -205,7 +205,7 @@ namespace XlsxToHtmlConverter
                             if (sharedString.HasChildren)
                             {
                                 Run runLast = null;
-                                foreach (OpenXmlElement element in sharedString.Elements())
+                                foreach (OpenXmlElement element in sharedString.Descendants())
                                 {
                                     if (element is Text text)
                                     {
@@ -231,7 +231,7 @@ namespace XlsxToHtmlConverter
                                             htmlStyleRun = JoinHtmlAttributes(htmlStyleRun, FontToHtml(workbook, runProperties.GetFirstChild<Color>(), runProperties.GetFirstChild<FontSize>(), runProperties.GetFirstChild<Bold>(), runProperties.GetFirstChild<Italic>(), runProperties.GetFirstChild<Strike>(), runProperties.GetFirstChild<Underline>(), out cellValueContainer, config));
                                         }
 
-                                        string runContent = string.IsNullOrEmpty(run.Text.Text) ? run.Text.InnerText : run.Text.Text;
+                                        string runContent = !string.IsNullOrEmpty(run.Text.Text) ? run.Text.Text : run.Text.InnerText;
                                         cellValue += $"<span style=\"{GetHtmlAttributesString(htmlStyleRun, false)}\">{cellValueContainer.Replace("{0}", GetEscapedString(runContent))}</span>";
                                         cellValueRaw += runContent;
                                     }
@@ -1087,7 +1087,7 @@ namespace XlsxToHtmlConverter
                     {
                         if (indexes[0] > 1)
                         {
-                            infoScientific = new object[] { true, (indexes[0] - 1).ToString() };
+                            infoScientific = new object[2] { true, (indexes[0] - 1).ToString() };
                             valueNumber /= Math.Pow(10, indexes[0] - 1);
                             actionUpdateValue.Invoke();
                         }
@@ -1104,7 +1104,7 @@ namespace XlsxToHtmlConverter
                             }
                             if (digit > indexes[0])
                             {
-                                infoScientific = new object[] { false, (digit - indexes[0]).ToString() };
+                                infoScientific = new object[2] { false, (digit - indexes[0]).ToString() };
                                 valueNumber *= Math.Pow(10, digit - indexes[0]);
                                 actionUpdateValue.Invoke();
                             }
@@ -1812,21 +1812,10 @@ namespace XlsxToHtmlConverter
             }
 
             List<object[]> drawings = new List<object[]>();
-            if (config.ConvertPictures)
+            foreach (OpenXmlElement drawing in anchor.Descendants())
             {
-                foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture in anchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture>())
+                if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture && config.ConvertPictures && picture.BlipFill != null && picture.BlipFill.Blip != null)
                 {
-                    if (picture.BlipFill == null || picture.BlipFill.Blip == null)
-                    {
-                        continue;
-                    }
-
-                    DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties nonVisualProperties = null;
-                    if (picture.NonVisualPictureProperties != null)
-                    {
-                        nonVisualProperties = picture.NonVisualPictureProperties.NonVisualDrawingProperties;
-                    }
-
                     if (picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue && worksheet.DrawingsPart != null && worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) is ImagePart imagePart)
                     {
                         Stream imageStream = imagePart.GetStream();
@@ -1842,17 +1831,16 @@ namespace XlsxToHtmlConverter
                         imageStream.Read(data, 0, (int)imageStream.Length);
 
                         string base64 = Convert.ToBase64String(data, Base64FormattingOptions.None);
-                        drawings.Add(new object[3] { $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{(nonVisualProperties != null && nonVisualProperties.Description != null && nonVisualProperties.Description.HasValue ? $" alt=\"{nonVisualProperties.Description.Value}\"" : string.Empty)}{{0}}/>", nonVisualProperties, picture.ShapeProperties });
+                        drawings.Add(new object[3] { $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{(picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.HasValue ? $" alt=\"{picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value}\"" : string.Empty)}{{0}}/>", picture.NonVisualPictureProperties.NonVisualDrawingProperties, picture.ShapeProperties });
                     }
                 }
+                else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape)
+                {
+                    //TODO: shape styles
+                    string text = shape.TextBody != null ? shape.TextBody.InnerText : string.Empty;
+                    drawings.Add(new object[3] { $"<p{{0}}>{text}</p>", shape.NonVisualShapeProperties.NonVisualDrawingProperties, shape.ShapeProperties });
+                }
             }
-            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape in anchor.Elements<DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape>())
-            {
-                //TODO: shape styles
-                string text = shape.TextBody != null ? shape.TextBody.InnerText : string.Empty;
-                drawings.Add(new object[3] { $"<p{{0}}>{text}</p>", shape.NonVisualShapeProperties, shape.ShapeProperties });
-            }
-
             foreach (object[] drawingInfo in drawings)
             {
                 string widthActual = width;
