@@ -160,25 +160,36 @@ namespace XlsxToHtmlConverter
                     WorkbookPart workbook = document.WorkbookPart;
                     IEnumerable<Sheet> sheets = workbook.Workbook.Descendants<Sheet>();
 
-                    WorkbookStylesPart styles = workbook.WorkbookStylesPart;
-                    Stylesheet stylesheet = styles != null && styles.Stylesheet != null ? styles.Stylesheet : null;
-                    Tuple<Dictionary<string, string>, string>[] htmlStyleCellFormats = new Tuple<Dictionary<string, string>, string>[stylesheet != null && stylesheet.CellFormats != null && stylesheet.CellFormats.HasChildren ? stylesheet.CellFormats.ChildElements.Count : 0];
-                    for (int stylesheetFormatIndex = 0; stylesheetFormatIndex < htmlStyleCellFormats.Length; stylesheetFormatIndex++)
+                    Stylesheet stylesheet = workbook.WorkbookStylesPart != null && workbook.WorkbookStylesPart.Stylesheet != null ? workbook.WorkbookStylesPart.Stylesheet : null;
+                    Tuple<Dictionary<string, string>, string, uint>[] stylesheetCellFormats = new Tuple<Dictionary<string, string>, string, uint>[stylesheet != null && stylesheet.CellFormats != null && stylesheet.CellFormats.HasChildren ? stylesheet.CellFormats.ChildElements.Count : 0];
+                    for (int stylesheetFormatIndex = 0; stylesheetFormatIndex < stylesheetCellFormats.Length; stylesheetFormatIndex++)
                     {
                         if (stylesheet.CellFormats.ChildElements[stylesheetFormatIndex] is CellFormat cellFormat)
                         {
                             Fill fill = (cellFormat.ApplyFill == null || (cellFormat.ApplyFill.HasValue && cellFormat.ApplyFill.Value)) && cellFormat.FillId != null && cellFormat.FillId.HasValue && stylesheet.Fills != null && stylesheet.Fills.HasChildren && cellFormat.FillId.Value < stylesheet.Fills.ChildElements.Count ? (Fill)stylesheet.Fills.ChildElements[(int)cellFormat.FillId.Value] : null;
                             Font font = (cellFormat.ApplyFont == null || (cellFormat.ApplyFont.HasValue && cellFormat.ApplyFont.Value)) && cellFormat.FontId != null && cellFormat.FontId.HasValue && stylesheet.Fonts != null && stylesheet.Fonts.HasChildren && cellFormat.FontId.Value < stylesheet.Fonts.ChildElements.Count ? (Font)stylesheet.Fonts.ChildElements[(int)cellFormat.FontId.Value] : null;
                             Border border = (cellFormat.ApplyBorder == null || (cellFormat.ApplyBorder.HasValue && cellFormat.ApplyBorder.Value)) && cellFormat.BorderId != null && cellFormat.BorderId.HasValue && stylesheet.Borders != null && stylesheet.Borders.HasChildren && cellFormat.BorderId.Value < stylesheet.Borders.ChildElements.Count ? (Border)stylesheet.Borders.ChildElements[(int)cellFormat.BorderId.Value] : null;
-                            htmlStyleCellFormats[stylesheetFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, fill, font, border, cellFormat.ApplyAlignment == null || (cellFormat.ApplyAlignment.HasValue && cellFormat.ApplyAlignment.Value) ? cellFormat.Alignment : null, out string cellValueContainer, config), cellValueContainer);
+                            stylesheetCellFormats[stylesheetFormatIndex] = new Tuple<Dictionary<string, string>, string, uint>(CellFormatToHtml(workbook, fill, font, border, cellFormat.ApplyAlignment == null || (cellFormat.ApplyAlignment.HasValue && cellFormat.ApplyAlignment.Value) ? cellFormat.Alignment : null, out string cellValueContainer, config), cellValueContainer, cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || (cellFormat.ApplyNumberFormat.HasValue && cellFormat.ApplyNumberFormat.Value)) ? cellFormat.NumberFormatId.Value : 0);
                         }
                     }
-                    Tuple<Dictionary<string, string>, string>[] htmlStyleDifferentialFormats = new Tuple<Dictionary<string, string>, string>[stylesheet != null && stylesheet.DifferentialFormats != null && stylesheet.DifferentialFormats.HasChildren ? stylesheet.DifferentialFormats.ChildElements.Count : 0];
-                    for (int stylesheetDifferentialFormatIndex = 0; stylesheetDifferentialFormatIndex < htmlStyleDifferentialFormats.Length; stylesheetDifferentialFormatIndex++)
+                    Tuple<Dictionary<string, string>, string>[] stylesheetDifferentialFormats = new Tuple<Dictionary<string, string>, string>[stylesheet != null && stylesheet.DifferentialFormats != null && stylesheet.DifferentialFormats.HasChildren ? stylesheet.DifferentialFormats.ChildElements.Count : 0];
+                    for (int stylesheetDifferentialFormatIndex = 0; stylesheetDifferentialFormatIndex < stylesheetDifferentialFormats.Length; stylesheetDifferentialFormatIndex++)
                     {
                         if (stylesheet.DifferentialFormats.ChildElements[stylesheetDifferentialFormatIndex] is DifferentialFormat differentialFormat)
                         {
-                            htmlStyleDifferentialFormats[stylesheetDifferentialFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer, config), cellValueContainer);
+                            stylesheetDifferentialFormats[stylesheetDifferentialFormatIndex] = new Tuple<Dictionary<string, string>, string>(CellFormatToHtml(workbook, differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer, config), cellValueContainer);
+                        }
+                    }
+                    Dictionary<uint, string> stylesheetNumberingFormats = new Dictionary<uint, string>();
+                    Dictionary<uint, string> stylesheetNumberingFormatsDateTime = new Dictionary<uint, string>();
+                    if (stylesheet != null && stylesheet.NumberingFormats != null)
+                    {
+                        foreach (NumberingFormat numberingFormat in stylesheet.NumberingFormats.Descendants<NumberingFormat>())
+                        {
+                            if (numberingFormat.NumberFormatId != null && numberingFormat.NumberFormatId.HasValue)
+                            {
+                                stylesheetNumberingFormats.Add(numberingFormat.NumberFormatId.Value, numberingFormat.FormatCode != null && numberingFormat.FormatCode.HasValue ? System.Web.HttpUtility.HtmlDecode(numberingFormat.FormatCode.Value) : string.Empty);
+                            }
                         }
                     }
 
@@ -331,7 +342,7 @@ namespace XlsxToHtmlConverter
                                 }
                                 for (int additionalRowIndex = rowIndex; additionalRowIndex < row.RowIndex.Value; additionalRowIndex++)
                                 {
-                                    rowHeightsAccumulation[additionalRowIndex - sheetDimension[1]] = (additionalRowIndex > sheetDimension[1] ? rowHeightsAccumulation[additionalRowIndex - sheetDimension[1] - 1] : 0) + (!double.IsNaN(rowHeightDefault) ? rowHeightDefault : 0);
+                                    rowHeightsAccumulation[additionalRowIndex - sheetDimension[1]] = (additionalRowIndex > sheetDimension[1] ? rowHeightsAccumulation[additionalRowIndex - sheetDimension[1] - 1] : 0) + (!double.IsNaN(rowHeightDefault) ? rowHeightDefault : 0) + 1;
                                     writer.Write($"\n{new string(' ', 12)}<tr>");
                                     for (int additionalColumnIndex = 0; additionalColumnIndex < columnWidths.Length; additionalColumnIndex++)
                                     {
@@ -342,7 +353,7 @@ namespace XlsxToHtmlConverter
                                 rowIndex = (int)row.RowIndex.Value;
                             }
                             double cellHeightActual = config.ConvertSizes ? RoundNumber((row.CustomHeight == null || (row.CustomHeight.HasValue && row.CustomHeight.Value)) && row.Height != null && row.Height.HasValue ? row.Height.Value / 0.75 : rowHeightDefault, config.RoundingDigits) : double.NaN;
-                            rowHeightsAccumulation[rowIndex - sheetDimension[1]] = (rowIndex > sheetDimension[1] ? rowHeightsAccumulation[rowIndex - sheetDimension[1] - 1] : 0) + (!double.IsNaN(cellHeightActual) ? cellHeightActual : 0);
+                            rowHeightsAccumulation[rowIndex - sheetDimension[1]] = (rowIndex > sheetDimension[1] ? rowHeightsAccumulation[rowIndex - sheetDimension[1] - 1] : 0) + (!double.IsNaN(cellHeightActual) ? cellHeightActual : 0) + 1;
 
                             writer.Write($"\n{new string(' ', 12)}<tr>");
 
@@ -407,111 +418,113 @@ namespace XlsxToHtmlConverter
                                 }
 
                                 int styleIndex = cell.StyleIndex != null && cell.StyleIndex.HasValue ? (int)cell.StyleIndex.Value : (row.StyleIndex != null && row.StyleIndex.HasValue ? (int)row.StyleIndex.Value : -1);
-                                CellFormat cellFormat = styleIndex >= 0 && stylesheet != null && stylesheet.CellFormats != null && stylesheet.CellFormats.HasChildren && styleIndex < stylesheet.CellFormats.ChildElements.Count && stylesheet.CellFormats.ChildElements[styleIndex] is CellFormat stylesheetCellFormat ? stylesheetCellFormat : null;
 
                                 string numberFormatCode = string.Empty;
-                                bool isNumberFormatDate = false;
-                                switch (cellFormat != null && cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || (cellFormat.ApplyNumberFormat.HasValue && cellFormat.ApplyNumberFormat.Value)) ? (int)cellFormat.NumberFormatId.Value : 0)
+                                bool isNumberFormatDefaultDateTime = false;
+                                if (styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length && stylesheetCellFormats[styleIndex] != null)
                                 {
-                                    case 0:
-                                        numberFormatCode = string.Empty;
-                                        break;
-                                    case 1:
-                                        numberFormatCode = "0";
-                                        break;
-                                    case 2:
-                                        numberFormatCode = "0.00";
-                                        break;
-                                    case 3:
-                                        numberFormatCode = "#,##0";
-                                        break;
-                                    case 4:
-                                        numberFormatCode = "#,##0.00";
-                                        break;
-                                    case 9:
-                                        numberFormatCode = "0%";
-                                        break;
-                                    case 10:
-                                        numberFormatCode = "0.00%";
-                                        break;
-                                    case 11:
-                                        numberFormatCode = "0.00E+00";
-                                        break;
-                                    case 12:
-                                        numberFormatCode = "# ?/?";
-                                        break;
-                                    case 13:
-                                        numberFormatCode = "# ??/??";
-                                        break;
-                                    case 14:
-                                        numberFormatCode = "mm-dd-yy";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 15:
-                                        numberFormatCode = "d-mmm-yy";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 16:
-                                        numberFormatCode = "d-mmm";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 17:
-                                        numberFormatCode = "mmm-yy";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 18:
-                                        numberFormatCode = "h:mm AM/PM";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 19:
-                                        numberFormatCode = "h:mm:ss AM/PM";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 20:
-                                        numberFormatCode = "h:mm";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 21:
-                                        numberFormatCode = "h:mm:ss";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 22:
-                                        numberFormatCode = "m/d/yyh:mm";
-                                        isNumberFormatDate = true;
-                                        break;
-                                    case 37:
-                                        numberFormatCode = "#,##0 ;(#,##0)";
-                                        break;
-                                    case 38:
-                                        numberFormatCode = "#,##0 ;[Red](#,##0)";
-                                        break;
-                                    case 39:
-                                        numberFormatCode = "#,##0.00;(#,##0.00)";
-                                        break;
-                                    case 40:
-                                        numberFormatCode = "#,##0.00;[Red](#,##0.00)";
-                                        break;
-                                    case 45:
-                                        numberFormatCode = "mm:ss";
-                                        break;
-                                    case 46:
-                                        numberFormatCode = "[h]:mm:ss";
-                                        break;
-                                    case 47:
-                                        numberFormatCode = "mmss.0";
-                                        break;
-                                    case 48:
-                                        numberFormatCode = "##0.0E+0";
-                                        break;
-                                    case 49:
-                                        numberFormatCode = "@";
-                                        break;
-                                    default:
-                                        if (stylesheet != null && stylesheet.NumberingFormats != null && stylesheet.NumberingFormats.HasChildren && stylesheet.NumberingFormats.ChildElements.FirstOrDefault(x => x is NumberingFormat item && item.NumberFormatId != null && item.NumberFormatId.HasValue && item.NumberFormatId.Value == cellFormat.NumberFormatId.Value) is NumberingFormat numberingFormat && numberingFormat.FormatCode != null && numberingFormat.FormatCode.HasValue)
-                                        {
-                                            numberFormatCode = numberingFormat.FormatCode.Value.Replace("&quot;", "\"");
-                                        }
-                                        break;
+                                    switch (stylesheetCellFormats[styleIndex].Item3)
+                                    {
+                                        case 1:
+                                            numberFormatCode = "0";
+                                            break;
+                                        case 2:
+                                            numberFormatCode = "0.00";
+                                            break;
+                                        case 3:
+                                            numberFormatCode = "#,##0";
+                                            break;
+                                        case 4:
+                                            numberFormatCode = "#,##0.00";
+                                            break;
+                                        case 9:
+                                            numberFormatCode = "0%";
+                                            break;
+                                        case 10:
+                                            numberFormatCode = "0.00%";
+                                            break;
+                                        case 11:
+                                            numberFormatCode = "0.00E+00";
+                                            break;
+                                        case 12:
+                                            numberFormatCode = "# ?/?";
+                                            break;
+                                        case 13:
+                                            numberFormatCode = "# ??/??";
+                                            break;
+                                        case 14:
+                                            numberFormatCode = "MM-dd-yy";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 15:
+                                            numberFormatCode = "d-MMM-yy";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 16:
+                                            numberFormatCode = "d-MMM";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 17:
+                                            numberFormatCode = "MMM-yy";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 18:
+                                            numberFormatCode = "h:mm AM/PM";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 19:
+                                            numberFormatCode = "h:mm:ss AM/PM";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 20:
+                                            numberFormatCode = "h:mm";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 21:
+                                            numberFormatCode = "h:mm:ss";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 22:
+                                            numberFormatCode = "M/d/yy h:mm";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 37:
+                                            numberFormatCode = "#,##0 ;(#,##0)";
+                                            break;
+                                        case 38:
+                                            numberFormatCode = "#,##0 ;[Red](#,##0)";
+                                            break;
+                                        case 39:
+                                            numberFormatCode = "#,##0.00;(#,##0.00)";
+                                            break;
+                                        case 40:
+                                            numberFormatCode = "#,##0.00;[Red](#,##0.00)";
+                                            break;
+                                        case 45:
+                                            numberFormatCode = "mm:ss";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 46:
+                                            numberFormatCode = "[h]:mm:ss";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 47:
+                                            numberFormatCode = "mmss.0";
+                                            isNumberFormatDefaultDateTime = true;
+                                            break;
+                                        case 48:
+                                            numberFormatCode = "##0.0E+0";
+                                            break;
+                                        case 49:
+                                            numberFormatCode = "@";
+                                            break;
+                                        default:
+                                            if (stylesheetNumberingFormats.ContainsKey(stylesheetCellFormats[styleIndex].Item3))
+                                            {
+                                                numberFormatCode = stylesheetNumberingFormats[stylesheetCellFormats[styleIndex].Item3];
+                                            }
+                                            break;
+                                    }
                                 }
 
                                 string cellValue = string.Empty;
@@ -534,10 +547,62 @@ namespace XlsxToHtmlConverter
 
                                     if (!string.IsNullOrEmpty(numberFormatCode))
                                     {
-                                        if ((isNumberFormatDate || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && double.TryParse(cellValueRaw, out double cellValueDate))
+                                        if ((isNumberFormatDefaultDateTime || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && double.TryParse(cellValueRaw, out double cellValueDate))
                                         {
+                                            if (!isNumberFormatDefaultDateTime)
+                                            {
+                                                if (styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length && stylesheetCellFormats[styleIndex] != null && stylesheetNumberingFormatsDateTime.ContainsKey(stylesheetCellFormats[styleIndex].Item3))
+                                                {
+                                                    numberFormatCode = stylesheetNumberingFormatsDateTime[stylesheetCellFormats[styleIndex].Item3];
+                                                }
+                                                else
+                                                {
+                                                    int status = -1;
+                                                    string numberFormatCodeNew = string.Empty;
+                                                    for (int i = 0; i < numberFormatCode.Length; i++)
+                                                    {
+                                                        if (numberFormatCode[i] != 'm')
+                                                        {
+                                                            status = -1;
+                                                            numberFormatCodeNew += numberFormatCode[i];
+                                                            continue;
+                                                        }
+
+                                                        if (status < 0)
+                                                        {
+                                                            for (int j = i - 1; j >= 0; j--)
+                                                            {
+                                                                if (numberFormatCode[j] == 'h' || numberFormatCode[j] == 'd' || numberFormatCode[j] == 'y')
+                                                                {
+                                                                    status = numberFormatCode[j] == 'h' ? 2 : 1;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if (status < 2)
+                                                            {
+                                                                for (int j = i + 1; j < numberFormatCode.Length; j++)
+                                                                {
+                                                                    if (numberFormatCode[j] == 's' || numberFormatCode[j] == 'd' || numberFormatCode[j] == 'y')
+                                                                    {
+                                                                        status = numberFormatCode[j] == 's' ? 2 : 1;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                            }
+                                                            status = status < 0 ? 1 : status;
+                                                        }
+                                                        numberFormatCodeNew += status == 1 ? 'M' : 'm';
+                                                    }
+                                                    if (styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length && stylesheetCellFormats[styleIndex] != null)
+                                                    {
+                                                        stylesheetNumberingFormatsDateTime.Add(stylesheetCellFormats[styleIndex].Item3, numberFormatCodeNew);
+                                                    }
+                                                    numberFormatCode = numberFormatCodeNew;
+                                                }
+                                            }
+
                                             DateTime dateValue = DateTime.FromOADate(cellValueDate).Date;
-                                            cellValue = GetEscapedString(dateValue.ToString(numberFormatCode.Replace("m", "M")));
+                                            cellValue = GetEscapedString(dateValue.ToString(numberFormatCode));
                                         }
                                         else
                                         {
@@ -564,28 +629,25 @@ namespace XlsxToHtmlConverter
                                 string cellValueContainer = "{0}";
                                 if (config.ConvertStyles)
                                 {
-                                    if (!isNumberFormatDate)
+                                    if (cell.DataType != null && cell.DataType.HasValue)
                                     {
-                                        if (cell.DataType != null && cell.DataType.HasValue)
+                                        if (cell.DataType.Value == CellValues.Error || cell.DataType.Value == CellValues.Boolean)
                                         {
-                                            if (cell.DataType.Value == CellValues.Error || cell.DataType.Value == CellValues.Boolean)
-                                            {
-                                                htmlStyleCell.Add("text-align", "center");
-                                            }
-                                            else if (cell.DataType.Value == CellValues.Number)
-                                            {
-                                                htmlStyleCell.Add("text-align", "right");
-                                            }
+                                            htmlStyleCell.Add("text-align", "center");
                                         }
-                                        else if (double.TryParse(cellValueRaw, out double _))
+                                        else if (cell.DataType.Value == CellValues.Date || cell.DataType.Value == CellValues.Number)
                                         {
                                             htmlStyleCell.Add("text-align", "right");
                                         }
                                     }
-                                    if (styleIndex >= 0 && styleIndex < htmlStyleCellFormats.Length && htmlStyleCellFormats[styleIndex] != null)
+                                    else if (isNumberFormatDefaultDateTime || double.TryParse(cellValueRaw, out double _))
                                     {
-                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, htmlStyleCellFormats[styleIndex].Item1);
-                                        cellValueContainer = cellValueContainer.Replace("{0}", htmlStyleCellFormats[styleIndex].Item2);
+                                        htmlStyleCell.Add("text-align", "right");
+                                    }
+                                    if (styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length && stylesheetCellFormats[styleIndex] != null)
+                                    {
+                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, stylesheetCellFormats[styleIndex].Item1);
+                                        cellValueContainer = cellValueContainer.Replace("{0}", stylesheetCellFormats[styleIndex].Item2);
                                     }
 
                                     int differentialStyleIndex = -1;
@@ -698,10 +760,10 @@ namespace XlsxToHtmlConverter
                                             differentialStyleIndex = isConditionMet ? (int)formattingRule.FormatId.Value : differentialStyleIndex;
                                         }
                                     }
-                                    if (differentialStyleIndex >= 0 && differentialStyleIndex < htmlStyleDifferentialFormats.Length && htmlStyleDifferentialFormats[differentialStyleIndex] != null)
+                                    if (differentialStyleIndex >= 0 && differentialStyleIndex < stylesheetDifferentialFormats.Length && stylesheetDifferentialFormats[differentialStyleIndex] != null)
                                     {
-                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, htmlStyleDifferentialFormats[differentialStyleIndex].Item1);
-                                        cellValueContainer = cellValueContainer.Replace("{0}", htmlStyleDifferentialFormats[differentialStyleIndex].Item2);
+                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, stylesheetDifferentialFormats[differentialStyleIndex].Item1);
+                                        cellValueContainer = cellValueContainer.Replace("{0}", stylesheetDifferentialFormats[differentialStyleIndex].Item2);
                                     }
                                 }
 
@@ -718,37 +780,40 @@ namespace XlsxToHtmlConverter
                         if (worksheetPart.DrawingsPart != null && worksheetPart.DrawingsPart.WorksheetDrawing != null)
                         {
                             //TODO: simplify, rounding, & better memory usage with row heights
-                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor in worksheetPart.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor>())
+                            foreach (OpenXmlElement drawing in worksheetPart.DrawingsPart.WorksheetDrawing.Descendants())
                             {
-                                string left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null && absoluteAnchor.Position.X.HasValue ? $"{(double)absoluteAnchor.Position.X.Value / 914400.0 * 96}px" : "auto";
-                                string top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null && absoluteAnchor.Position.Y.HasValue ? $"{(double)absoluteAnchor.Position.Y.Value / 914400.0 * 96}px" : "auto";
-                                string width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null && absoluteAnchor.Extent.Cx.HasValue ? $"{(double)absoluteAnchor.Extent.Cx.Value / 914400.0 * 96}px" : "auto";
-                                string height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null && absoluteAnchor.Extent.Cy.HasValue ? $"{(double)absoluteAnchor.Extent.Cy.Value / 914400.0 * 96}px" : "auto";
-                                DrawingsToHtml(worksheetPart, absoluteAnchor, writer, left, top, width, height, config);
-                            }
-                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor in worksheetPart.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor>())
-                            {
-                                double left = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && int.TryParse(oneCellAnchor.FromMarker.ColumnId.Text, out int columnId) ? columnWidths.Take(Math.Min(columnWidths.Length, columnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double leftOffset = oneCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(oneCellAnchor.FromMarker.ColumnOffset.Text, out double columnOffset) ? columnOffset / 914400.0 * 96 : 0;
-                                double top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && int.TryParse(oneCellAnchor.FromMarker.RowId.Text, out int rowId) ? rowHeightsAccumulation[rowId - sheetDimension[1]] : double.NaN;
-                                double topOffset = oneCellAnchor.FromMarker.RowOffset != null && double.TryParse(oneCellAnchor.FromMarker.RowOffset.Text, out double rowOffset) ? rowOffset / 914400.0 * 96 : 0;
-                                string width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null && oneCellAnchor.Extent.Cx.HasValue ? $"{(double)oneCellAnchor.Extent.Cx.Value / 914400.0 * 96}px" : "auto";
-                                string height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null && oneCellAnchor.Extent.Cy.HasValue ? $"{(double)oneCellAnchor.Extent.Cy.Value / 914400.0 * 96}px" : "auto";
-                                DrawingsToHtml(worksheetPart, oneCellAnchor, writer, $"{(!double.IsNaN(left) ? $"calc({left}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {leftOffset}px)" : $"{leftOffset}px")}", $"{(!double.IsNaN(top) ? top + topOffset : topOffset)}px", width, height, config);
-                            }
-                            foreach (DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor in worksheetPart.DrawingsPart.WorksheetDrawing.Descendants<DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor>())
-                            {
-                                double fromColumn = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.ColumnId != null && int.TryParse(twoCellAnchor.FromMarker.ColumnId.Text, out int fromColumnId) ? columnWidths.Take(Math.Min(columnWidths.Length, fromColumnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double fromColumnOffset = twoCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.FromMarker.ColumnOffset.Text, out double fromMarkerColumnOffset) ? fromMarkerColumnOffset / 914400.0 * 96 : 0;
-                                double fromRow = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.RowId != null && int.TryParse(twoCellAnchor.FromMarker.RowId.Text, out int fromRowId) ? rowHeightsAccumulation[fromRowId - sheetDimension[1]] : double.NaN;
-                                double fromRowOffset = twoCellAnchor.FromMarker.RowOffset != null && double.TryParse(twoCellAnchor.FromMarker.RowOffset.Text, out double fromMarkerRowOffset) ? fromMarkerRowOffset / 914400.0 * 96 : 0;
-                                double toColumn = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.ColumnId != null && int.TryParse(twoCellAnchor.ToMarker.ColumnId.Text, out int toColumnId) ? columnWidths.Take(Math.Min(columnWidths.Length, toColumnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
-                                double toColumnOffset = twoCellAnchor.ToMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.ToMarker.ColumnOffset.Text, out double toMarkerColumnOffset) ? toMarkerColumnOffset / 914400.0 * 96 : 0;
-                                double toRow = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.RowId != null && int.TryParse(twoCellAnchor.ToMarker.RowId.Text, out int toRowId) ? rowHeightsAccumulation[toRowId - sheetDimension[1]] : double.NaN;
-                                double toRowOffset = twoCellAnchor.ToMarker.RowOffset != null && double.TryParse(twoCellAnchor.ToMarker.RowOffset.Text, out double toMarkerRowOffset) ? toMarkerRowOffset / 914400.0 * 96 : 0;
-                                string leftCalculation = $"{(!double.IsNaN(fromColumn) ? $"calc({fromColumn}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {fromColumnOffset}px)" : $"{fromColumnOffset}px")}";
-                                string topCalculation = $"{(!double.IsNaN(fromRow) ? fromRow + fromRowOffset : fromRowOffset)}px";
-                                DrawingsToHtml(worksheetPart, twoCellAnchor, writer, leftCalculation, topCalculation, $"calc({(!double.IsNaN(toColumn) ? $"calc({toColumn}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {toColumnOffset}px)" : $"{toColumnOffset}px")} - {leftCalculation})", $"calc({$"{(!double.IsNaN(toRow) ? toRow + toRowOffset : toRowOffset)}px"} - {topCalculation})", config);
+                                if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor)
+                                {
+                                    string left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null && absoluteAnchor.Position.X.HasValue ? $"{absoluteAnchor.Position.X.Value / 914400.0 * 96}px" : "auto";
+                                    string top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null && absoluteAnchor.Position.Y.HasValue ? $"{absoluteAnchor.Position.Y.Value / 914400.0 * 96}px" : "auto";
+                                    string width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null && absoluteAnchor.Extent.Cx.HasValue ? $"{absoluteAnchor.Extent.Cx.Value / 914400.0 * 96}px" : "auto";
+                                    string height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null && absoluteAnchor.Extent.Cy.HasValue ? $"{absoluteAnchor.Extent.Cy.Value / 914400.0 * 96}px" : "auto";
+                                    DrawingsToHtml(worksheetPart, absoluteAnchor, writer, left, top, width, height, config);
+                                }
+                                else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor)
+                                {
+                                    double left = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && int.TryParse(oneCellAnchor.FromMarker.ColumnId.Text, out int columnId) ? columnWidths.Take(Math.Min(columnWidths.Length, columnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
+                                    double leftOffset = oneCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(oneCellAnchor.FromMarker.ColumnOffset.Text, out double columnOffset) ? columnOffset / 914400.0 * 96 : 0;
+                                    double top = oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.RowId != null && int.TryParse(oneCellAnchor.FromMarker.RowId.Text, out int rowId) ? rowHeightsAccumulation[rowId - sheetDimension[1]] : double.NaN;
+                                    double topOffset = oneCellAnchor.FromMarker.RowOffset != null && double.TryParse(oneCellAnchor.FromMarker.RowOffset.Text, out double rowOffset) ? rowOffset / 914400.0 * 96 : 0;
+                                    string width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null && oneCellAnchor.Extent.Cx.HasValue ? $"{oneCellAnchor.Extent.Cx.Value / 914400.0 * 96}px" : "auto";
+                                    string height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null && oneCellAnchor.Extent.Cy.HasValue ? $"{oneCellAnchor.Extent.Cy.Value / 914400.0 * 96}px" : "auto";
+                                    DrawingsToHtml(worksheetPart, oneCellAnchor, writer, $"{(!double.IsNaN(left) ? $"calc({left}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {leftOffset}px)" : $"{leftOffset}px")}", $"{(!double.IsNaN(top) ? top + topOffset : topOffset)}px", width, height, config);
+                                }
+                                else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor)
+                                {
+                                    double fromColumn = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.ColumnId != null && int.TryParse(twoCellAnchor.FromMarker.ColumnId.Text, out int fromColumnId) ? columnWidths.Take(Math.Min(columnWidths.Length, fromColumnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
+                                    double fromColumnOffset = twoCellAnchor.FromMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.FromMarker.ColumnOffset.Text, out double fromMarkerColumnOffset) ? fromMarkerColumnOffset / 914400.0 * 96 : 0;
+                                    double fromRow = twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.RowId != null && int.TryParse(twoCellAnchor.FromMarker.RowId.Text, out int fromRowId) ? rowHeightsAccumulation[fromRowId - sheetDimension[1]] : double.NaN;
+                                    double fromRowOffset = twoCellAnchor.FromMarker.RowOffset != null && double.TryParse(twoCellAnchor.FromMarker.RowOffset.Text, out double fromMarkerRowOffset) ? fromMarkerRowOffset / 914400.0 * 96 : 0;
+                                    double toColumn = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.ColumnId != null && int.TryParse(twoCellAnchor.ToMarker.ColumnId.Text, out int toColumnId) ? columnWidths.Take(Math.Min(columnWidths.Length, toColumnId - sheetDimension[0] + 1)).SkipWhile(x => double.IsNaN(x)).Sum() : double.NaN;
+                                    double toColumnOffset = twoCellAnchor.ToMarker.ColumnOffset != null && double.TryParse(twoCellAnchor.ToMarker.ColumnOffset.Text, out double toMarkerColumnOffset) ? toMarkerColumnOffset / 914400.0 * 96 : 0;
+                                    double toRow = twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.RowId != null && int.TryParse(twoCellAnchor.ToMarker.RowId.Text, out int toRowId) ? rowHeightsAccumulation[toRowId - sheetDimension[1]] : double.NaN;
+                                    double toRowOffset = twoCellAnchor.ToMarker.RowOffset != null && double.TryParse(twoCellAnchor.ToMarker.RowOffset.Text, out double toMarkerRowOffset) ? toMarkerRowOffset / 914400.0 * 96 : 0;
+                                    string leftCalculation = $"{(!double.IsNaN(fromColumn) ? $"calc({fromColumn}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {fromColumnOffset}px)" : $"{fromColumnOffset}px")}";
+                                    string topCalculation = $"{(!double.IsNaN(fromRow) ? fromRow + fromRowOffset : fromRowOffset)}px";
+                                    DrawingsToHtml(worksheetPart, twoCellAnchor, writer, leftCalculation, topCalculation, $"calc({(!double.IsNaN(toColumn) ? $"calc({toColumn}{(!double.IsNaN(columnWidthsTotal) ? "%" : "px")} + {toColumnOffset}px)" : $"{toColumnOffset}px")} - {leftCalculation})", $"calc({$"{(!double.IsNaN(toRow) ? toRow + toRowOffset : toRowOffset)}px"} - {topCalculation})", config);
+                                }
                             }
                         }
                         writer.Write($"\n{new string(' ', 4)}</div>");
@@ -810,13 +875,13 @@ namespace XlsxToHtmlConverter
                     mulitplier *= 26;
                 }
             }
-            return Math.Max(0, index + 1);
+            return Math.Max(1, index + 1);
         }
 
         private static int GetRowIndex(string cell)
         {
             Match match = regexNumbers.Match(cell);
-            return match.Success && int.TryParse(match.Value, out int index) ? index : 0;
+            return match.Success && int.TryParse(match.Value, out int index) ? index : 1;
         }
 
         private static void GetReferenceRange(string range, out int fromColumn, out int fromRow, out int toColumn, out int toRow)
@@ -1332,48 +1397,37 @@ namespace XlsxToHtmlConverter
             string htmlBorder = string.Empty;
             if (border.Style != null && border.Style.HasValue)
             {
-                //TODO: dashes
-                switch (border.Style.Value)
+                if (border.Style.Value == BorderStyleValues.Thick)
                 {
-                    case BorderStyleValues.Thick:
-                        htmlBorder += " thick solid";
-                        break;
-                    case BorderStyleValues.Medium:
-                        htmlBorder += " medium solid";
-                        break;
-                    case BorderStyleValues.MediumDashDot:
-                        htmlBorder += " medium dashed";
-                        break;
-                    case BorderStyleValues.MediumDashDotDot:
-                        htmlBorder += " medium dotted";
-                        break;
-                    case BorderStyleValues.MediumDashed:
-                        htmlBorder += " medium dashed";
-                        break;
-                    case BorderStyleValues.Thin:
-                        htmlBorder += " thin solid";
-                        break;
-                    case BorderStyleValues.Dashed:
-                        htmlBorder += " thin dashed";
-                        break;
-                    case BorderStyleValues.DashDot:
-                        htmlBorder += " thin dashed";
-                        break;
-                    case BorderStyleValues.DashDotDot:
-                        htmlBorder += " thin dotted";
-                        break;
-                    case BorderStyleValues.Dotted:
-                        htmlBorder += " thin dotted";
-                        break;
-                    case BorderStyleValues.SlantDashDot:
-                        htmlBorder += " thin dashed";
-                        break;
-                    case BorderStyleValues.Hair:
-                        htmlBorder += " thin dotted";
-                        break;
-                    case BorderStyleValues.Double:
-                        htmlBorder += " double";
-                        break;
+                    htmlBorder += " thick solid";
+                }
+                else if (border.Style.Value == BorderStyleValues.Medium)
+                {
+                    htmlBorder += " medium solid";
+                }
+                else if (border.Style.Value == BorderStyleValues.MediumDashed || border.Style.Value == BorderStyleValues.MediumDashDot)
+                {
+                    htmlBorder += " medium dashed";
+                }
+                else if (border.Style.Value == BorderStyleValues.MediumDashDotDot)
+                {
+                    htmlBorder += " medium dotted";
+                }
+                else if (border.Style.Value == BorderStyleValues.Thin)
+                {
+                    htmlBorder += " thin solid";
+                }
+                else if (border.Style.Value == BorderStyleValues.Dashed || border.Style.Value == BorderStyleValues.DashDot || border.Style.Value == BorderStyleValues.SlantDashDot)
+                {
+                    htmlBorder += " thin dashed";
+                }
+                else if (border.Style.Value == BorderStyleValues.DashDotDot || border.Style.Value == BorderStyleValues.Hair)
+                {
+                    htmlBorder += " thin dotted";
+                }
+                else if (border.Style.Value == BorderStyleValues.Double)
+                {
+                    htmlBorder += " double";
                 }
             }
             if (border.Color != null)
