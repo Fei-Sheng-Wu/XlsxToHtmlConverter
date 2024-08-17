@@ -221,7 +221,7 @@ namespace XlsxToHtmlConverter
                                         }
 
                                         string runContent = string.IsNullOrEmpty(run.Text.Text) ? run.Text.InnerText : run.Text.Text;
-                                        cellValue += $"<p style=\"display: inline;{GetHtmlAttributesString(htmlStyleRun, true)}\">{cellValueContainer.Replace("{0}", GetEscapedString(runContent))}</p>";
+                                        cellValue += $"<span style=\"{GetHtmlAttributesString(htmlStyleRun, false)}\">{cellValueContainer.Replace("{0}", GetEscapedString(runContent))}</span>";
                                         cellValueRaw += runContent;
                                     }
                                 }
@@ -389,12 +389,12 @@ namespace XlsxToHtmlConverter
                                 bool isCellValid = true;
                                 foreach (int[] mergeCellInfo in mergeCells)
                                 {
-                                    if (mergeCellInfo.Length > 5 && (mergeCellInfo[0] != columnIndex || mergeCellInfo[1] != rowIndex) && columnIndex >= mergeCellInfo[0] && columnIndex <= mergeCellInfo[2] && rowIndex >= mergeCellInfo[1] && rowIndex <= mergeCellInfo[3])
+                                    if ((mergeCellInfo[0] != columnIndex || mergeCellInfo[1] != rowIndex) && columnIndex >= mergeCellInfo[0] && columnIndex <= mergeCellInfo[2] && rowIndex >= mergeCellInfo[1] && rowIndex <= mergeCellInfo[3])
                                     {
                                         isCellValid = false;
                                         break;
                                     }
-                                    else if (mergeCellInfo.Length > 5 && mergeCellInfo[0] == columnIndex && mergeCellInfo[1] == rowIndex)
+                                    else if (mergeCellInfo[0] == columnIndex && mergeCellInfo[1] == rowIndex)
                                     {
                                         columnSpanned = mergeCellInfo[4];
                                         rowSpanned = mergeCellInfo[5];
@@ -1332,14 +1332,9 @@ namespace XlsxToHtmlConverter
             string htmlBorder = string.Empty;
             if (border.Style != null && border.Style.HasValue)
             {
+                //TODO: dashes
                 switch (border.Style.Value)
                 {
-                    case BorderStyleValues.Hair:
-                        htmlBorder += " thin solid";
-                        break;
-                    case BorderStyleValues.Thin:
-                        htmlBorder += " thin solid";
-                        break;
                     case BorderStyleValues.Thick:
                         htmlBorder += " thick solid";
                         break;
@@ -1355,20 +1350,26 @@ namespace XlsxToHtmlConverter
                     case BorderStyleValues.MediumDashed:
                         htmlBorder += " medium dashed";
                         break;
+                    case BorderStyleValues.Thin:
+                        htmlBorder += " thin solid";
+                        break;
                     case BorderStyleValues.Dashed:
-                        htmlBorder += " dashed";
+                        htmlBorder += " thin dashed";
                         break;
                     case BorderStyleValues.DashDot:
-                        htmlBorder += " dashed";
+                        htmlBorder += " thin dashed";
                         break;
                     case BorderStyleValues.DashDotDot:
-                        htmlBorder += " dotted";
+                        htmlBorder += " thin dotted";
                         break;
                     case BorderStyleValues.Dotted:
-                        htmlBorder += " dotted";
+                        htmlBorder += " thin dotted";
                         break;
                     case BorderStyleValues.SlantDashDot:
-                        htmlBorder += " dashed";
+                        htmlBorder += " thin dashed";
+                        break;
+                    case BorderStyleValues.Hair:
+                        htmlBorder += " thin dotted";
                         break;
                     case BorderStyleValues.Double:
                         htmlBorder += " double";
@@ -2372,7 +2373,7 @@ namespace XlsxToHtmlConverter
                 HlsToRgb(hue, luminosity, saturation, out result[0], out result[1], out result[2]);
             }
 
-            return result.Length < 4 ? string.Empty : result[3] >= 1 ? $"rgb({RoundNumber(result[0], config.RoundingDigits)}, {RoundNumber(result[1], config.RoundingDigits)}, {RoundNumber(result[2], config.RoundingDigits)})" : $"rgba({RoundNumber(result[0], config.RoundingDigits)}, {RoundNumber(result[1], config.RoundingDigits)}, {RoundNumber(result[2], config.RoundingDigits)}, {RoundNumber(result[3], config.RoundingDigits)})";
+            return result[3] >= 1 ? $"rgb({RoundNumber(result[0], config.RoundingDigits)}, {RoundNumber(result[1], config.RoundingDigits)}, {RoundNumber(result[2], config.RoundingDigits)})" : $"rgba({RoundNumber(result[0], config.RoundingDigits)}, {RoundNumber(result[1], config.RoundingDigits)}, {RoundNumber(result[2], config.RoundingDigits)}, {RoundNumber(result[3], config.RoundingDigits)})";
         }
 
         private static void HexToRgba(string hex, out double red, out double green, out double blue, out double alpha)
@@ -2466,11 +2467,6 @@ namespace XlsxToHtmlConverter
 
             foreach (object[] drawingInfo in drawings)
             {
-                if (drawingInfo.Length < 3)
-                {
-                    continue;
-                }
-
                 string widthActual = width;
                 string heightActual = height;
                 string htmlStyleTransform = string.Empty;
