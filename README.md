@@ -11,7 +11,7 @@
 
 ## Dependencies
 
-**DocumentFormat.OpenXml** = 2.20.0
+**DocumentFormat.OpenXml** ≥ 2.7.1
 
 ## Main Features
 
