@@ -692,44 +692,53 @@ namespace XlsxToHtmlConverter
                                             bool isConditionMet = false;
                                             if (formattingRule.Type.Value == ConditionalFormatValues.CellIs && formattingRule.Operator != null && formattingRule.Operator.HasValue)
                                             {
-                                                switch (formattingRule.Operator.Value)
+                                                if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.Equal)
                                                 {
-                                                    case ConditionalFormattingOperatorValues.Equal:
-                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaEqual && cellValueRaw == formulaEqual.Text.Trim('"');
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.NotEqual:
-                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaNotEqual && cellValueRaw != formulaNotEqual.Text.Trim('"');
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.BeginsWith:
-                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaBeginsWith && cellValueRaw.StartsWith(formulaBeginsWith.Text.Trim('"'));
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.EndsWith:
-                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaEndsWith && cellValueRaw.EndsWith(formulaEndsWith.Text.Trim('"'));
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.ContainsText:
-                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaContainsText && cellValueRaw.Contains(formulaContainsText.Text.Trim('"'));
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.NotContains:
-                                                        isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaNotContains && !cellValueRaw.Contains(formulaNotContains.Text.Trim('"'));
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.GreaterThan:
-                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] > x[1]);
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.GreaterThanOrEqual:
-                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] >= x[1]);
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.LessThan:
-                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] < x[1]);
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.LessThanOrEqual:
-                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] <= x[1]);
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.Between:
-                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] >= Math.Min(x[1], x[2]) && x[0] <= Math.Max(x[1], x[2]));
-                                                        break;
-                                                    case ConditionalFormattingOperatorValues.NotBetween:
-                                                        isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] < Math.Min(x[1], x[2]) || x[0] > Math.Max(x[1], x[2]));
-                                                        break;
+                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaEqual && cellValueRaw == formulaEqual.Text.Trim('"');
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.NotEqual)
+                                                {
+                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaNotEqual && cellValueRaw != formulaNotEqual.Text.Trim('"');
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.BeginsWith)
+                                                {
+                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaBeginsWith && cellValueRaw.StartsWith(formulaBeginsWith.Text.Trim('"'));
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.EndsWith)
+                                                {
+                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaEndsWith && cellValueRaw.EndsWith(formulaEndsWith.Text.Trim('"'));
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.ContainsText)
+                                                {
+                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaContainsText && cellValueRaw.Contains(formulaContainsText.Text.Trim('"'));
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.NotContains)
+                                                {
+                                                    isConditionMet = formattingRule.GetFirstChild<Formula>() is Formula formulaNotContains && !cellValueRaw.Contains(formulaNotContains.Text.Trim('"'));
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.GreaterThan)
+                                                {
+                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] > x[1]);
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.GreaterThanOrEqual)
+                                                {
+                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] >= x[1]);
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.LessThan)
+                                                {
+                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] < x[1]);
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.LessThanOrEqual)
+                                                {
+                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 1, x => x[0] <= x[1]);
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.Between)
+                                                {
+                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] >= Math.Min(x[1], x[2]) && x[0] <= Math.Max(x[1], x[2]));
+                                                }
+                                                else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.NotBetween)
+                                                {
+                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Descendants<Formula>(), 2, x => x[0] < Math.Min(x[1], x[2]) || x[0] > Math.Max(x[1], x[2]));
                                                 }
                                             }
                                             else if (formattingRule.Type.Value == ConditionalFormatValues.BeginsWith && formattingRule.Text != null && formattingRule.Text.HasValue)
@@ -837,13 +846,6 @@ namespace XlsxToHtmlConverter
                 writer.Dispose();
             }
         }
-
-        #endregion
-
-        #region Private Fields
-
-        private static readonly Regex regexNumbers = new Regex(@"\d+", RegexOptions.Compiled);
-        private static readonly Regex regexLetters = new Regex("[A-Za-z]+", RegexOptions.Compiled);
 
         #endregion
 
@@ -1725,103 +1727,9 @@ namespace XlsxToHtmlConverter
                 }
                 else if (themeColor != null && themeColor.SystemColor != null)
                 {
-                    if (themeColor.SystemColor.Val != null && themeColor.SystemColor.Val.HasValue)
+                    if (themeColor.SystemColor.Val != null && themeColor.SystemColor.Val.HasValue && ThemeSystemColors.ContainsKey(themeColor.SystemColor.Val.Value))
                     {
-                        switch (themeColor.SystemColor.Val.Value)
-                        {
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder:
-                                UpdateArray(result, 180, 180, 180);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption:
-                                UpdateArray(result, 153, 180, 209);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ApplicationWorkspace:
-                                UpdateArray(result, 171, 171, 171);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.Background:
-                                UpdateArray(result, 255, 255, 255);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonFace:
-                                UpdateArray(result, 240, 240, 240);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonHighlight:
-                                UpdateArray(result, 0, 120, 215);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonShadow:
-                                UpdateArray(result, 160, 160, 160);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonText:
-                                UpdateArray(result, 0, 0, 0);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.CaptionText:
-                                UpdateArray(result, 0, 0, 0);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientActiveCaption:
-                                UpdateArray(result, 185, 209, 234);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientInactiveCaption:
-                                UpdateArray(result, 215, 228, 242);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.GrayText:
-                                UpdateArray(result, 109, 109, 109);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.Highlight:
-                                UpdateArray(result, 0, 120, 215);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.HighlightText:
-                                UpdateArray(result, 255, 255, 255);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.HotLight:
-                                UpdateArray(result, 255, 165, 0);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveBorder:
-                                UpdateArray(result, 244, 247, 252);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaption:
-                                UpdateArray(result, 191, 205, 219);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaptionText:
-                                UpdateArray(result, 0, 0, 0);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoBack:
-                                UpdateArray(result, 255, 255, 225);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoText:
-                                UpdateArray(result, 0, 0, 0);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.Menu:
-                                UpdateArray(result, 240, 240, 240);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuBar:
-                                UpdateArray(result, 240, 240, 240);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuHighlight:
-                                UpdateArray(result, 0, 120, 215);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuText:
-                                UpdateArray(result, 0, 0, 0);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ScrollBar:
-                                UpdateArray(result, 200, 200, 200);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDDarkShadow:
-                                UpdateArray(result, 160, 160, 160);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDLight:
-                                UpdateArray(result, 227, 227, 227);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.Window:
-                                UpdateArray(result, 255, 255, 255);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowFrame:
-                                UpdateArray(result, 100, 100, 100);
-                                break;
-                            case DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText:
-                                UpdateArray(result, 0, 0, 0);
-                                break;
-                            default:
-                                return string.Empty;
-                        };
+                        UpdateArray(result, ThemeSystemColors[themeColor.SystemColor.Val.Value]);
                     }
                     else if (themeColor.SystemColor.LastColor != null && themeColor.SystemColor.LastColor.HasValue)
                     {
@@ -1832,583 +1740,9 @@ namespace XlsxToHtmlConverter
                         return string.Empty;
                     }
                 }
-                else if (themeColor != null && themeColor.PresetColor != null && themeColor.PresetColor.Val != null && themeColor.PresetColor.Val.HasValue)
+                else if (themeColor != null && themeColor.PresetColor != null && themeColor.PresetColor.Val != null && themeColor.PresetColor.Val.HasValue && ThemePresetColors.ContainsKey(themeColor.PresetColor.Val.Value))
                 {
-                    switch (themeColor.PresetColor.Val.Value)
-                    {
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue:
-                            UpdateArray(result, 240, 248, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite:
-                            UpdateArray(result, 250, 235, 215);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Aqua:
-                            UpdateArray(result, 0, 255, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Aquamarine:
-                            UpdateArray(result, 127, 255, 212);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Azure:
-                            UpdateArray(result, 240, 255, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Beige:
-                            UpdateArray(result, 245, 245, 220);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Bisque:
-                            UpdateArray(result, 255, 228, 196);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Black:
-                            UpdateArray(result, 0, 0, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.BlanchedAlmond:
-                            UpdateArray(result, 255, 235, 205);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Blue:
-                            UpdateArray(result, 0, 0, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.BlueViolet:
-                            UpdateArray(result, 138, 43, 226);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Brown:
-                            UpdateArray(result, 165, 42, 42);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.BurlyWood:
-                            UpdateArray(result, 222, 184, 135);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.CadetBlue:
-                            UpdateArray(result, 95, 158, 160);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Chartreuse:
-                            UpdateArray(result, 127, 255, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Chocolate:
-                            UpdateArray(result, 210, 105, 30);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Coral:
-                            UpdateArray(result, 255, 127, 80);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.CornflowerBlue:
-                            UpdateArray(result, 100, 149, 237);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Cornsilk:
-                            UpdateArray(result, 255, 248, 220);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Crimson:
-                            UpdateArray(result, 220, 20, 60);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Cyan:
-                            UpdateArray(result, 0, 255, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue:
-                            UpdateArray(result, 0, 0, 139);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan:
-                            UpdateArray(result, 0, 139, 139);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod:
-                            UpdateArray(result, 184, 134, 11);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray:
-                            UpdateArray(result, 169, 169, 169);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen:
-                            UpdateArray(result, 0, 100, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki:
-                            UpdateArray(result, 189, 183, 107);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta:
-                            UpdateArray(result, 139, 0, 139);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen:
-                            UpdateArray(result, 85, 107, 47);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange:
-                            UpdateArray(result, 255, 140, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid:
-                            UpdateArray(result, 153, 50, 204);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed:
-                            UpdateArray(result, 139, 0, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon:
-                            UpdateArray(result, 233, 150, 122);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen:
-                            UpdateArray(result, 143, 188, 143);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue:
-                            UpdateArray(result, 72, 61, 139);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray:
-                            UpdateArray(result, 47, 79, 79);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise:
-                            UpdateArray(result, 0, 206, 209);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet:
-                            UpdateArray(result, 148, 0, 211);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepPink:
-                            UpdateArray(result, 255, 20, 147);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepSkyBlue:
-                            UpdateArray(result, 0, 191, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGray:
-                            UpdateArray(result, 105, 105, 105);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DodgerBlue:
-                            UpdateArray(result, 30, 144, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Firebrick:
-                            UpdateArray(result, 178, 34, 34);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.FloralWhite:
-                            UpdateArray(result, 255, 250, 240);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.ForestGreen:
-                            UpdateArray(result, 34, 139, 34);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Fuchsia:
-                            UpdateArray(result, 255, 0, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Gainsboro:
-                            UpdateArray(result, 220, 220, 220);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.GhostWhite:
-                            UpdateArray(result, 248, 248, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Gold:
-                            UpdateArray(result, 255, 215, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Goldenrod:
-                            UpdateArray(result, 218, 165, 32);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Gray:
-                            UpdateArray(result, 128, 128, 128);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Green:
-                            UpdateArray(result, 0, 128, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.GreenYellow:
-                            UpdateArray(result, 173, 255, 47);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Honeydew:
-                            UpdateArray(result, 240, 255, 240);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.HotPink:
-                            UpdateArray(result, 255, 105, 180);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.IndianRed:
-                            UpdateArray(result, 205, 92, 92);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Indigo:
-                            UpdateArray(result, 75, 0, 130);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Ivory:
-                            UpdateArray(result, 255, 255, 240);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Khaki:
-                            UpdateArray(result, 240, 230, 140);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Lavender:
-                            UpdateArray(result, 230, 230, 250);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LavenderBlush:
-                            UpdateArray(result, 255, 240, 245);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LawnGreen:
-                            UpdateArray(result, 124, 252, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LemonChiffon:
-                            UpdateArray(result, 255, 250, 205);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue:
-                            UpdateArray(result, 173, 216, 230);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral:
-                            UpdateArray(result, 240, 128, 128);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan:
-                            UpdateArray(result, 224, 255, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow:
-                            UpdateArray(result, 250, 250, 210);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray:
-                            UpdateArray(result, 211, 211, 211);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen:
-                            UpdateArray(result, 144, 238, 144);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink:
-                            UpdateArray(result, 255, 182, 193);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon:
-                            UpdateArray(result, 255, 160, 122);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen:
-                            UpdateArray(result, 32, 178, 170);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue:
-                            UpdateArray(result, 135, 206, 250);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray:
-                            UpdateArray(result, 119, 136, 153);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue:
-                            UpdateArray(result, 176, 196, 222);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow:
-                            UpdateArray(result, 255, 255, 224);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Lime:
-                            UpdateArray(result, 0, 255, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LimeGreen:
-                            UpdateArray(result, 50, 205, 50);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Linen:
-                            UpdateArray(result, 250, 240, 230);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Magenta:
-                            UpdateArray(result, 255, 0, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Maroon:
-                            UpdateArray(result, 128, 0, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MedAquamarine:
-                            UpdateArray(result, 102, 205, 170);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue:
-                            UpdateArray(result, 0, 0, 205);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid:
-                            UpdateArray(result, 186, 85, 211);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple:
-                            UpdateArray(result, 147, 112, 219);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen:
-                            UpdateArray(result, 60, 179, 113);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue:
-                            UpdateArray(result, 123, 104, 238);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen:
-                            UpdateArray(result, 0, 250, 154);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise:
-                            UpdateArray(result, 72, 209, 204);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed:
-                            UpdateArray(result, 199, 21, 133);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MidnightBlue:
-                            UpdateArray(result, 25, 25, 112);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MintCream:
-                            UpdateArray(result, 245, 255, 250);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MistyRose:
-                            UpdateArray(result, 255, 228, 225);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Moccasin:
-                            UpdateArray(result, 255, 228, 181);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.NavajoWhite:
-                            UpdateArray(result, 255, 222, 173);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Navy:
-                            UpdateArray(result, 0, 0, 128);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.OldLace:
-                            UpdateArray(result, 253, 245, 230);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Olive:
-                            UpdateArray(result, 128, 128, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.OliveDrab:
-                            UpdateArray(result, 107, 142, 35);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Orange:
-                            UpdateArray(result, 255, 165, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.OrangeRed:
-                            UpdateArray(result, 255, 69, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Orchid:
-                            UpdateArray(result, 218, 112, 214);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGoldenrod:
-                            UpdateArray(result, 238, 232, 170);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGreen:
-                            UpdateArray(result, 152, 251, 152);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleTurquoise:
-                            UpdateArray(result, 175, 238, 238);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleVioletRed:
-                            UpdateArray(result, 219, 112, 147);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.PapayaWhip:
-                            UpdateArray(result, 255, 239, 213);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.PeachPuff:
-                            UpdateArray(result, 255, 218, 185);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Peru:
-                            UpdateArray(result, 205, 133, 63);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Pink:
-                            UpdateArray(result, 255, 192, 203);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Plum:
-                            UpdateArray(result, 221, 160, 221);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.PowderBlue:
-                            UpdateArray(result, 176, 224, 230);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Purple:
-                            UpdateArray(result, 128, 0, 128);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Red:
-                            UpdateArray(result, 255, 0, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.RosyBrown:
-                            UpdateArray(result, 188, 143, 143);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.RoyalBlue:
-                            UpdateArray(result, 65, 105, 225);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SaddleBrown:
-                            UpdateArray(result, 139, 69, 19);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Salmon:
-                            UpdateArray(result, 250, 128, 114);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SandyBrown:
-                            UpdateArray(result, 244, 164, 96);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaGreen:
-                            UpdateArray(result, 46, 139, 87);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaShell:
-                            UpdateArray(result, 255, 245, 238);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Sienna:
-                            UpdateArray(result, 160, 82, 45);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Silver:
-                            UpdateArray(result, 192, 192, 192);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SkyBlue:
-                            UpdateArray(result, 135, 206, 235);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateBlue:
-                            UpdateArray(result, 106, 90, 205);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGray:
-                            UpdateArray(result, 112, 128, 144);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Snow:
-                            UpdateArray(result, 255, 250, 250);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SpringGreen:
-                            UpdateArray(result, 0, 255, 127);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SteelBlue:
-                            UpdateArray(result, 70, 130, 180);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Tan:
-                            UpdateArray(result, 210, 180, 140);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Teal:
-                            UpdateArray(result, 0, 128, 128);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Thistle:
-                            UpdateArray(result, 216, 191, 216);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Tomato:
-                            UpdateArray(result, 255, 99, 71);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Turquoise:
-                            UpdateArray(result, 64, 224, 208);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Violet:
-                            UpdateArray(result, 238, 130, 238);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Wheat:
-                            UpdateArray(result, 245, 222, 179);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.White:
-                            UpdateArray(result, 255, 255, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.WhiteSmoke:
-                            UpdateArray(result, 245, 245, 245);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Yellow:
-                            UpdateArray(result, 255, 255, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.YellowGreen:
-                            UpdateArray(result, 154, 205, 50);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue2010:
-                            UpdateArray(result, 0, 0, 139);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan2010:
-                            UpdateArray(result, 0, 139, 139);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod2010:
-                            UpdateArray(result, 184, 134, 11);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray2010:
-                            UpdateArray(result, 169, 169, 169);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey2010:
-                            UpdateArray(result, 169, 169, 169);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen2010:
-                            UpdateArray(result, 0, 100, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki2010:
-                            UpdateArray(result, 189, 183, 107);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta2010:
-                            UpdateArray(result, 139, 0, 139);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen2010:
-                            UpdateArray(result, 85, 107, 47);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange2010:
-                            UpdateArray(result, 255, 140, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid2010:
-                            UpdateArray(result, 153, 50, 204);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed2010:
-                            UpdateArray(result, 139, 0, 0);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon2010:
-                            UpdateArray(result, 233, 150, 122);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen2010:
-                            UpdateArray(result, 143, 188, 143);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue2010:
-                            UpdateArray(result, 72, 61, 139);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray2010:
-                            UpdateArray(result, 47, 79, 79);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey2010:
-                            UpdateArray(result, 47, 79, 79);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise2010:
-                            UpdateArray(result, 0, 206, 209);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet2010:
-                            UpdateArray(result, 148, 0, 211);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue2010:
-                            UpdateArray(result, 173, 216, 230);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral2010:
-                            UpdateArray(result, 240, 128, 128);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan2010:
-                            UpdateArray(result, 224, 255, 255);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow2010:
-                            UpdateArray(result, 250, 250, 210);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray2010:
-                            UpdateArray(result, 211, 211, 211);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey2010:
-                            UpdateArray(result, 211, 211, 211);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen2010:
-                            UpdateArray(result, 144, 238, 144);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink2010:
-                            UpdateArray(result, 255, 182, 193);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon2010:
-                            UpdateArray(result, 255, 160, 122);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen2010:
-                            UpdateArray(result, 32, 178, 170);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue2010:
-                            UpdateArray(result, 135, 206, 250);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray2010:
-                            UpdateArray(result, 119, 136, 153);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey2010:
-                            UpdateArray(result, 119, 136, 153);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue2010:
-                            UpdateArray(result, 176, 196, 222);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow2010:
-                            UpdateArray(result, 255, 255, 224);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumAquamarine2010:
-                            UpdateArray(result, 102, 205, 170);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue2010:
-                            UpdateArray(result, 0, 0, 205);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid2010:
-                            UpdateArray(result, 186, 85, 211);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple2010:
-                            UpdateArray(result, 147, 112, 219);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen2010:
-                            UpdateArray(result, 60, 179, 113);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue2010:
-                            UpdateArray(result, 123, 104, 238);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen2010:
-                            UpdateArray(result, 0, 250, 154);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise2010:
-                            UpdateArray(result, 72, 209, 204);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed2010:
-                            UpdateArray(result, 199, 21, 133);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey:
-                            UpdateArray(result, 169, 169, 169);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGrey:
-                            UpdateArray(result, 105, 105, 105);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey:
-                            UpdateArray(result, 47, 79, 79);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.Grey:
-                            UpdateArray(result, 128, 128, 128);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey:
-                            UpdateArray(result, 211, 211, 211);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey:
-                            UpdateArray(result, 119, 136, 153);
-                            break;
-                        case DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGrey:
-                            UpdateArray(result, 112, 128, 144);
-                            break;
-                        default:
-                            return string.Empty;
-                    };
+                    UpdateArray(result, ThemePresetColors[themeColor.PresetColor.Val.Value]);
                 }
                 else
                 {
@@ -2566,6 +1900,241 @@ namespace XlsxToHtmlConverter
                 writer.Write($"\n{new string(' ', 8)}{drawingInfo[0].ToString().Replace("{0}", $" style=\"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{(!string.IsNullOrEmpty(htmlStyleTransform) ? $" transform:{htmlStyleTransform};" : string.Empty)}{(isHidden ? " visibility: hidden;" : string.Empty)}\"")}");
             }
         }
+
+        #endregion
+
+        #region Private Fields
+
+        private static readonly Regex regexNumbers = new Regex(@"\d+", RegexOptions.Compiled);
+        private static readonly Regex regexLetters = new Regex("[A-Za-z]+", RegexOptions.Compiled);
+
+        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, double[]> ThemeSystemColors = new Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, double[]>()
+        {
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder, new double [3] { 180, 180, 180 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption, new double [3] { 153, 180, 209 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ApplicationWorkspace, new double [3] { 171, 171, 171 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Background, new double [3] { 255, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonFace, new double [3] { 240, 240, 240 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonHighlight, new double [3] { 0, 120, 215 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonShadow, new double [3] { 160, 160, 160 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonText, new double [3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.CaptionText, new double [3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientActiveCaption, new double [3] { 185, 209, 234 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientInactiveCaption, new double [3] { 215, 228, 242 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GrayText, new double [3] { 109, 109, 109 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Highlight, new double [3] { 0, 120, 215 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.HighlightText, new double [3] { 255, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.HotLight, new double [3] { 255, 165, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveBorder, new double [3] { 244, 247, 252 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaption, new double [3] { 191, 205, 219 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaptionText, new double [3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoBack, new double [3] { 255, 255, 225 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoText, new double [3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Menu, new double [3] { 240, 240, 240 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuBar, new double [3] { 240, 240, 240 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuHighlight, new double [3] { 0, 120, 215 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuText, new double [3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ScrollBar, new double [3] { 200, 200, 200 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDDarkShadow, new double [3] { 160, 160, 160 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDLight, new double [3] { 227, 227, 227 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Window, new double [3] { 255, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowFrame, new double [3] { 100, 100, 100 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText, new double [3] { 0, 0, 0 } }
+        };
+
+        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, double[]> ThemePresetColors = new Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, double[]>()
+        {
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue, new double[3] { 240, 248, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite, new double[3] { 250, 235, 215 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Aqua, new double[3] { 0, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Aquamarine, new double[3] { 127, 255, 212 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Azure, new double[3] { 240, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Beige, new double[3] { 245, 245, 220 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Bisque, new double[3] { 255, 228, 196 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Black, new double[3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BlanchedAlmond, new double[3] { 255, 235, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Blue, new double[3] { 0, 0, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BlueViolet, new double[3] { 138, 43, 226 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Brown, new double[3] { 165, 42, 42 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BurlyWood, new double[3] { 222, 184, 135 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.CadetBlue, new double[3] { 95, 158, 160 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Chartreuse, new double[3] { 127, 255, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Chocolate, new double[3] { 210, 105, 30 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Coral, new double[3] { 255, 127, 80 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.CornflowerBlue, new double[3] { 100, 149, 237 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Cornsilk, new double[3] { 255, 248, 220 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Crimson, new double[3] { 220, 20, 60 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Cyan, new double[3] { 0, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue, new double[3] { 0, 0, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan, new double[3] { 0, 139, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod, new double[3] { 184, 134, 11 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray, new double[3] { 169, 169, 169 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen, new double[3] { 0, 100, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki, new double[3] { 189, 183, 107 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta, new double[3] { 139, 0, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen, new double[3] { 85, 107, 47 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange, new double[3] { 255, 140, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid, new double[3] { 153, 50, 204 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed, new double[3] { 139, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon, new double[3] { 233, 150, 122 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen, new double[3] { 143, 188, 143 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue, new double[3] { 72, 61, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray, new double[3] { 47, 79, 79 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise, new double[3] { 0, 206, 209 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet, new double[3] { 148, 0, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepPink, new double[3] { 255, 20, 147 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepSkyBlue, new double[3] { 0, 191, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGray, new double[3] { 105, 105, 105 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DodgerBlue, new double[3] { 30, 144, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Firebrick, new double[3] { 178, 34, 34 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.FloralWhite, new double[3] { 255, 250, 240 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.ForestGreen, new double[3] { 34, 139, 34 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Fuchsia, new double[3] { 255, 0, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gainsboro, new double[3] { 220, 220, 220 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.GhostWhite, new double[3] { 248, 248, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gold, new double[3] { 255, 215, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Goldenrod, new double[3] { 218, 165, 32 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gray, new double[3] { 128, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Green, new double[3] { 0, 128, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.GreenYellow, new double[3] { 173, 255, 47 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Honeydew, new double[3] { 240, 255, 240 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.HotPink, new double[3] { 255, 105, 180 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.IndianRed, new double[3] { 205, 92, 92 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Indigo, new double[3] { 75, 0, 130 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Ivory, new double[3] { 255, 255, 240 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Khaki, new double[3] { 240, 230, 140 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Lavender, new double[3] { 230, 230, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LavenderBlush, new double[3] { 255, 240, 245 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LawnGreen, new double[3] { 124, 252, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LemonChiffon, new double[3] { 255, 250, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue, new double[3] { 173, 216, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral, new double[3] { 240, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan, new double[3] { 224, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow, new double[3] { 250, 250, 210 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray, new double[3] { 211, 211, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen, new double[3] { 144, 238, 144 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink, new double[3] { 255, 182, 193 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon, new double[3] { 255, 160, 122 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen, new double[3] { 32, 178, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue, new double[3] { 135, 206, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray, new double[3] { 119, 136, 153 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue, new double[3] { 176, 196, 222 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow, new double[3] { 255, 255, 224 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Lime, new double[3] { 0, 255, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LimeGreen, new double[3] { 50, 205, 50 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Linen, new double[3] { 250, 240, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Magenta, new double[3] { 255, 0, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Maroon, new double[3] { 128, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MedAquamarine, new double[3] { 102, 205, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue, new double[3] { 0, 0, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid, new double[3] { 186, 85, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple, new double[3] { 147, 112, 219 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen, new double[3] { 60, 179, 113 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue, new double[3] { 123, 104, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen, new double[3] { 0, 250, 154 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise, new double[3] { 72, 209, 204 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed, new double[3] { 199, 21, 133 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MidnightBlue, new double[3] { 25, 25, 112 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MintCream, new double[3] { 245, 255, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MistyRose, new double[3] { 255, 228, 225 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Moccasin, new double[3] { 255, 228, 181 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.NavajoWhite, new double[3] { 255, 222, 173 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Navy, new double[3] { 0, 0, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OldLace, new double[3] { 253, 245, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Olive, new double[3] { 128, 128, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OliveDrab, new double[3] { 107, 142, 35 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Orange, new double[3] { 255, 165, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OrangeRed, new double[3] { 255, 69, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Orchid, new double[3] { 218, 112, 214 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGoldenrod, new double[3] { 238, 232, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGreen, new double[3] { 152, 251, 152 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleTurquoise, new double[3] { 175, 238, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleVioletRed, new double[3] { 219, 112, 147 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PapayaWhip, new double[3] { 255, 239, 213 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PeachPuff, new double[3] { 255, 218, 185 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Peru, new double[3] { 205, 133, 63 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Pink, new double[3] { 255, 192, 203 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Plum, new double[3] { 221, 160, 221 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PowderBlue, new double[3] { 176, 224, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Purple, new double[3] { 128, 0, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Red, new double[3] { 255, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.RosyBrown, new double[3] { 188, 143, 143 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.RoyalBlue, new double[3] { 65, 105, 225 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SaddleBrown, new double[3] { 139, 69, 19 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Salmon, new double[3] { 250, 128, 114 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SandyBrown, new double[3] { 244, 164, 96 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaGreen, new double[3] { 46, 139, 87 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaShell, new double[3] { 255, 245, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Sienna, new double[3] { 160, 82, 45 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Silver, new double[3] { 192, 192, 192 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SkyBlue, new double[3] { 135, 206, 235 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateBlue, new double[3] { 106, 90, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGray, new double[3] { 112, 128, 144 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Snow, new double[3] { 255, 250, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SpringGreen, new double[3] { 0, 255, 127 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SteelBlue, new double[3] { 70, 130, 180 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Tan, new double[3] { 210, 180, 140 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Teal, new double[3] { 0, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Thistle, new double[3] { 216, 191, 216 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Tomato, new double[3] { 255, 99, 71 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Turquoise, new double[3] { 64, 224, 208 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Violet, new double[3] { 238, 130, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Wheat, new double[3] { 245, 222, 179 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.White, new double[3] { 255, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.WhiteSmoke, new double[3] { 245, 245, 245 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Yellow, new double[3] { 255, 255, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.YellowGreen, new double[3] { 154, 205, 50 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue2010, new double[3] { 0, 0, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan2010, new double[3] { 0, 139, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod2010, new double[3] { 184, 134, 11 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray2010, new double[3] { 169, 169, 169 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey2010, new double[3] { 169, 169, 169 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen2010, new double[3] { 0, 100, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki2010, new double[3] { 189, 183, 107 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta2010, new double[3] { 139, 0, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen2010, new double[3] { 85, 107, 47 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange2010, new double[3] { 255, 140, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid2010, new double[3] { 153, 50, 204 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed2010, new double[3] { 139, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon2010, new double[3] { 233, 150, 122 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen2010, new double[3] { 143, 188, 143 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue2010, new double[3] { 72, 61, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray2010, new double[3] { 47, 79, 79 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey2010, new double[3] { 47, 79, 79 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise2010, new double[3] { 0, 206, 209 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet2010, new double[3] { 148, 0, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue2010, new double[3] { 173, 216, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral2010, new double[3] { 240, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan2010, new double[3] { 224, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow2010, new double[3] { 250, 250, 210 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray2010, new double[3] { 211, 211, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey2010, new double[3] { 211, 211, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen2010, new double[3] { 144, 238, 144 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink2010, new double[3] { 255, 182, 193 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon2010, new double[3] { 255, 160, 122 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen2010, new double[3] { 32, 178, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue2010, new double[3] { 135, 206, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray2010, new double[3] { 119, 136, 153 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey2010, new double[3] { 119, 136, 153 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue2010, new double[3] { 176, 196, 222 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow2010, new double[3] { 255, 255, 224 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumAquamarine2010, new double[3] { 102, 205, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue2010, new double[3] { 0, 0, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid2010, new double[3] { 186, 85, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple2010, new double[3] { 147, 112, 219 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen2010, new double[3] { 60, 179, 113 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue2010, new double[3] { 123, 104, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen2010, new double[3] { 0, 250, 154 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise2010, new double[3] { 72, 209, 204 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed2010, new double[3] { 199, 21, 133 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey, new double[3] { 169, 169, 169 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGrey, new double[3] { 105, 105, 105 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey, new double[3] { 47, 79, 79 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Grey, new double[3] { 128, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey, new double[3] { 211, 211, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey, new double[3] { 119, 136, 153 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGrey, new double[3] { 112, 128, 144 } }
+        };
 
         #endregion
     }
