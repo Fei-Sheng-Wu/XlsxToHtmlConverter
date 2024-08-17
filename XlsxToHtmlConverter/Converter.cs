@@ -1814,25 +1814,23 @@ namespace XlsxToHtmlConverter
             List<object[]> drawings = new List<object[]>();
             foreach (OpenXmlElement drawing in anchor.Descendants())
             {
-                if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture && config.ConvertPictures && picture.BlipFill != null && picture.BlipFill.Blip != null)
+                if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture && config.ConvertPictures && picture.BlipFill != null && picture.BlipFill.Blip != null && picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue && worksheet.DrawingsPart != null && worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) is ImagePart imagePart)
                 {
-                    if (picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue && worksheet.DrawingsPart != null && worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) is ImagePart imagePart)
+                    Stream imageStream = imagePart.GetStream();
+                    if (!imageStream.CanRead)
                     {
-                        Stream imageStream = imagePart.GetStream();
-                        if (!imageStream.CanRead)
-                        {
-                            continue;
-                        }
-                        else if (imageStream.CanSeek)
-                        {
-                            imageStream.Seek(0, SeekOrigin.Begin);
-                        }
-                        byte[] data = new byte[imageStream.Length];
-                        imageStream.Read(data, 0, (int)imageStream.Length);
-
-                        string base64 = Convert.ToBase64String(data, Base64FormattingOptions.None);
-                        drawings.Add(new object[3] { $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{(picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.HasValue ? $" alt=\"{picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value}\"" : string.Empty)}{{0}}/>", picture.NonVisualPictureProperties.NonVisualDrawingProperties, picture.ShapeProperties });
+                        continue;
                     }
+                    else if (imageStream.CanSeek)
+                    {
+                        imageStream.Seek(0, SeekOrigin.Begin);
+                    }
+                    byte[] data = new byte[imageStream.Length];
+                    imageStream.Read(data, 0, (int)imageStream.Length);
+
+                    string base64 = Convert.ToBase64String(data, Base64FormattingOptions.None);
+                    string description = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.HasValue ? $" alt=\"{picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value}\"" : string.Empty;
+                    drawings.Add(new object[3] { $"<img src=\"data:{imagePart.ContentType};base64,{base64}\"{description}{{0}}/>", picture.NonVisualPictureProperties.NonVisualDrawingProperties, picture.ShapeProperties });
                 }
                 else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape)
                 {
