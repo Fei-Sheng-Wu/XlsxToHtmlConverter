@@ -65,14 +65,10 @@ namespace XlsxToHtmlConverter.Test
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(htmlFileName) { UseShellExecute = true, CreateNoWindow = true });
                 }
-                catch
-                {
-                    Console.WriteLine("\nPress Enter key to exit.");
-                    Console.ReadLine();
-                }
                 finally
                 {
-                    Environment.Exit(1);
+                    Console.WriteLine("\nPress the Enter key to exit.");
+                    Console.ReadLine();
                 }
             }
             catch (Exception ex)
@@ -80,10 +76,8 @@ namespace XlsxToHtmlConverter.Test
                 //Output the error
                 Console.SetCursorPosition(0, Console.CursorTop - 1);
                 Console.WriteLine("Error: " + ex.Message);
-                Console.WriteLine("\nPress Enter key to exit.");
+                Console.WriteLine("\nPress the Enter key to exit.");
                 Console.ReadLine();
-
-                Environment.Exit(0);
             }
         }
 
