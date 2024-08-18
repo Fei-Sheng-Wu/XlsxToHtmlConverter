@@ -1817,7 +1817,7 @@ namespace XlsxToHtmlConverter
                 HlsToRgb(hue, luminosity, saturation, out result[0], out result[1], out result[2]);
             }
 
-            return result[3] >= 1 ? $"rgb({RoundNumber(result[0], config.RoundingDigits)}, {RoundNumber(result[1], config.RoundingDigits)}, {RoundNumber(result[2], config.RoundingDigits)})" : $"rgba({RoundNumber(result[0], config.RoundingDigits)}, {RoundNumber(result[1], config.RoundingDigits)}, {RoundNumber(result[2], config.RoundingDigits)}, {RoundNumber(result[3], config.RoundingDigits)})";
+            return $"{(result[3] >= 1 ? "rgb" : "rgba")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Round(result[3])}" : string.Empty)})";
         }
 
         private static void HexToRgba(string hex, out double red, out double green, out double blue, out double alpha)
@@ -2374,7 +2374,7 @@ namespace XlsxToHtmlConverter
         #region Public Fields
 
         /// <summary>
-        /// Gets the current progress in percentage, ranging from 0 to 100.
+        /// Gets the current progress in percentage that ranges from 0 to 100.
         /// </summary>
         public double ProgressPercent
         {
