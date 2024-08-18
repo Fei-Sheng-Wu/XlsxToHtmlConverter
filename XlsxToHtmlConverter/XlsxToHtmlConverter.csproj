@@ -5,7 +5,7 @@
     <Version>1.2.19</Version>
     <Authors>FeiShengWu</Authors>
     <Company></Company>
-    <Description>A Xlsx to Html file converter and parser. Support cell fills, fonts, borders, alignments, and other styles. Support custom column widths, row heights, and merged cells. Support numbering and basic conditional formats. Support multiple sheets and hidden sheets. Support pictures. Support progress callback. Only depends on the Microsoft Open Xml SDK.</Description>
+    <Description>A Xlsx to Html file converter and parser. Support cell fills, fonts, borders, alignments, and other styles. Support cell sizes and merged cells. Support custom number formats and basic conditional formats. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.</Description>
     <Copyright>Copyright © 2024 FeiShengWu</Copyright>
     <PackageProjectUrl>https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter</PackageProjectUrl>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
@@ -15,7 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DocumentFormat.OpenXml" Version="2.7.1" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="[2.7.1,)" />
   </ItemGroup>
 
   <ItemGroup>
