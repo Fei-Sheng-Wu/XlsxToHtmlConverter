@@ -7,7 +7,7 @@
 [![Nuget](https://img.shields.io/badge/Nuget-v1.2.18%20%28%E2%89%A519.2K%20Total%20Downloads%29-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.18)
 [![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 
-> A Xlsx to Html file converter and parser. Support cell fills, fonts, borders, alignments, and other styles. Support custom column widths, row heights, and merged cells. Support numbering and basic conditional formats. Support multiple sheets and hidden sheets. Support pictures. Support progress callback. Only depend on the Microsoft Open Xml SDK.
+> A Xlsx to Html file converter and parser. Support cell fills, fonts, borders, alignments, and other styles. Support cell sizes and merged cells. Support custom number formats and basic conditional formats. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.
 
 ## Dependencies
 
@@ -18,7 +18,7 @@
 - [x] Cell fills, fonts, borders, alignments, and other styles
 - [x] Custom column widths and row heights
 - [x] Vertical and horizontal merged cells
-- [x] Numbering formats and basic conditional formats
+- [x] Number formats and basic conditional formats
 - [x] Sheet tab titles, colors, and hidden sheets
 - [x] Picture embeddings as Base64 images
 - [x] Conversion progress callback
@@ -76,6 +76,7 @@ XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterCo
     BufferSize = 65536,
     ConvertStyles = true,
     ConvertSizes = true,
+    ConvertNumberFormats = true,
     ConvertPictures = true,
     ConvertSheetTitles = true,
     ConvertHiddenSheets = false,
