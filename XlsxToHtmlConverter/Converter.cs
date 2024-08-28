@@ -193,7 +193,7 @@ namespace XlsxToHtmlConverter
                     }
                     Dictionary<uint, string> stylesheetNumberingFormats = new Dictionary<uint, string>();
                     Dictionary<uint, string> stylesheetNumberingFormatsDateTime = new Dictionary<uint, string>();
-                    Dictionary<string, (int[], bool, int, int[], bool, bool)> stylesheetNumberingFormatsNumber = new Dictionary<string, (int[], bool, int, int[], bool, bool)>();
+                    Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool)> stylesheetNumberingFormatsNumber = new Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool)>();
                     if (configClone.ConvertNumberFormats && stylesheet != null && stylesheet.NumberingFormats != null)
                     {
                         foreach (NumberingFormat numberingFormat in stylesheet.NumberingFormats.Descendants<NumberingFormat>())
@@ -1055,7 +1055,7 @@ namespace XlsxToHtmlConverter
             return index >= formulasCount && actionEvaluation.Invoke(parameters);
         }
 
-        private static string GetFormattedNumber(string value, string format, ref Dictionary<string, (int[], bool, int, int[], bool, bool)> formatsCalculated)
+        private static string GetFormattedNumber(string value, string format, ref Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool)> formatsCalculated)
         {
             if (string.IsNullOrEmpty(format))
             {
@@ -1070,11 +1070,11 @@ namespace XlsxToHtmlConverter
 
             int infoValue = value.Length;
             bool isFormatCalculated = formatsCalculated.ContainsKey(format);
-            (int[], bool, int, int[], bool, bool) infoFormat = isFormatCalculated ? formatsCalculated[format] : (new int[3] { format.Length, format.Length, format.Length }, false, -1, new int[3] { -1, -1, -1 }, false, false);
+            (int, int, int, bool, int, int, int, int, bool, bool) infoFormat = isFormatCalculated ? formatsCalculated[format] : (format.Length, format.Length, format.Length, false, -1, -1, -1, -1, false, false);
 
             Action actionUpdateValue = () =>
             {
-                value = isValueNumber ? valueNumber.ToString() : value;
+                value = isValueNumber ? valueNumber.ToString(stringFormatNumber) : value;
                 infoValue = value.IndexOf('.');
                 infoValue = infoValue < 0 ? value.Length : infoValue;
             };
@@ -1091,12 +1091,12 @@ namespace XlsxToHtmlConverter
             bool isIncreasing = true;
             Action actionUpdateInfo = () =>
             {
-                if (isValueNumber && infoFormat.Item2)
+                if (isValueNumber && infoFormat.Item4)
                 {
                     valueNumber *= 100;
                     actionUpdateValue.Invoke();
                 }
-                if (isValueNumber && infoFormat.Item3 >= 0)
+                if (isValueNumber && infoFormat.Item5 >= 0)
                 {
                     if (infoValue > 1)
                     {
@@ -1123,11 +1123,11 @@ namespace XlsxToHtmlConverter
                         }
                     }
                 }
-                if (isValueNumber && infoFormat.Item4[1] >= 0)
+                if (isValueNumber && infoFormat.Item7 >= 0)
                 {
                     double valueAbsolute = Math.Abs(valueNumber);
                     int valueFloor = (int)Math.Floor(valueAbsolute);
-                    if (infoFormat.Item6)
+                    if (infoFormat.Item10)
                     {
                         double valueInteger = valueNumber >= 0 ? valueFloor : -valueFloor;
                         valueNumber -= valueNumber >= 0 ? valueFloor : -valueFloor;
@@ -1216,7 +1216,7 @@ namespace XlsxToHtmlConverter
                 }
 
                 indexValue = infoValue;
-                indexFormat = infoFormat.Item1[1] - 1;
+                indexFormat = infoFormat.Item2 - 1;
                 isIncreasing = false;
             };
             if (isFormatCalculated)
@@ -1228,29 +1228,29 @@ namespace XlsxToHtmlConverter
             string resultFormatted = string.Empty;
             while (indexFormat < format.Length || !isFormatCalculated)
             {
-                if (isFormatCalculated && !isIncreasing && isFormattingScientific && infoFormat.Item3 >= 0 && indexFormat > 0 && format[indexFormat - 1] == 'E' && (format[indexFormat] == '+' || format[indexFormat] == '-'))
+                if (isFormatCalculated && !isIncreasing && isFormattingScientific && infoFormat.Item5 >= 0 && indexFormat > 0 && format[indexFormat - 1] == 'E' && (format[indexFormat] == '+' || format[indexFormat] == '-'))
                 {
                     result = resultFormatted + new string(result.Reverse().ToArray());
                     resultFormatted = string.Empty;
-                    indexFormat = infoFormat.Item3 + 1;
+                    indexFormat = infoFormat.Item5 + 1;
                     isIncreasing = true;
                     isFormattingScientific = false;
                     continue;
                 }
-                else if (isFormatCalculated && !isIncreasing && isFormattingFraction && infoFormat.Item4[1] >= 0 && indexFormat < infoFormat.Item4[0])
+                else if (isFormatCalculated && !isIncreasing && isFormattingFraction && infoFormat.Item7 >= 0 && indexFormat < infoFormat.Item6)
                 {
                     result = resultFormatted + new string(result.Reverse().ToArray());
                     resultFormatted = string.Empty;
                     indexValue = -1;
-                    indexFormat = infoFormat.Item4[1] + 1;
+                    indexFormat = infoFormat.Item7 + 1;
                     isIncreasing = true;
                     continue;
                 }
                 else if (indexFormat >= format.Length && !isFormatCalculated)
                 {
-                    infoFormat.Item1[1] = Math.Min(infoFormat.Item1[1], infoFormat.Item1[2] + 1);
-                    infoFormat.Item3 = Math.Min(infoFormat.Item3, infoFormat.Item1[2]);
-                    infoFormat.Item4[2] = Math.Min(infoFormat.Item4[2], infoFormat.Item1[2]);
+                    infoFormat.Item2 = Math.Min(infoFormat.Item2, infoFormat.Item3 + 1);
+                    infoFormat.Item5 = Math.Min(infoFormat.Item5, infoFormat.Item3);
+                    infoFormat.Item8 = Math.Min(infoFormat.Item8, infoFormat.Item3);
                     formatsCalculated.Add(format, infoFormat);
                     isFormatCalculated = true;
                     actionUpdateInfo.Invoke();
@@ -1260,7 +1260,7 @@ namespace XlsxToHtmlConverter
                 {
                     result = new string(result.Reverse().ToArray());
                     indexValue = infoValue;
-                    indexFormat = infoFormat.Item1[1];
+                    indexFormat = infoFormat.Item2;
                     isIncreasing = true;
                     continue;
                 }
@@ -1310,40 +1310,40 @@ namespace XlsxToHtmlConverter
                 {
                     if (formatChar == '.')
                     {
-                        infoFormat.Item1[1] = Math.Min(infoFormat.Item1[1], indexFormat);
+                        infoFormat.Item2 = Math.Min(infoFormat.Item2, indexFormat);
                     }
                     else if (formatChar == '0' || formatChar == '#' || formatChar == '?')
                     {
-                        infoFormat.Item1[0] = Math.Min(infoFormat.Item1[0], indexFormat);
-                        infoFormat.Item1[2] = indexFormat;
-                        infoFormat.Item4[0] = infoFormat.Item4[0] < 0 ? indexFormat : infoFormat.Item4[0];
-                        infoFormat.Item5 = (indexFormat > infoFormat.Item1[1] && (formatChar == '0' || formatChar == '?') && infoFormat.Item3 < 0) || infoFormat.Item5;
+                        infoFormat.Item1 = Math.Min(infoFormat.Item1, indexFormat);
+                        infoFormat.Item3 = indexFormat;
+                        infoFormat.Item6 = infoFormat.Item6 < 0 ? indexFormat : infoFormat.Item6;
+                        infoFormat.Item9 = (indexFormat > infoFormat.Item2 && (formatChar == '0' || formatChar == '?') && infoFormat.Item5 < 0) || infoFormat.Item9;
                     }
                     else if (formatChar == ' ')
                     {
-                        infoFormat.Item6 = indexFormat > infoFormat.Item1[0] || infoFormat.Item6;
-                        if (infoFormat.Item6)
+                        infoFormat.Item10 = indexFormat > infoFormat.Item1 || infoFormat.Item10;
+                        if (infoFormat.Item10)
                         {
-                            infoFormat.Item3 = infoFormat.Item3 < format.Length ? infoFormat.Item3 : infoFormat.Item1[2];
-                            infoFormat.Item4[0] = infoFormat.Item4[1] < 0 ? Math.Max(infoFormat.Item4[0], indexFormat + 1) : infoFormat.Item4[0];
-                            infoFormat.Item4[2] = infoFormat.Item4[2] < format.Length ? infoFormat.Item4[2] : infoFormat.Item1[2];
+                            infoFormat.Item5 = infoFormat.Item5 < format.Length ? infoFormat.Item5 : infoFormat.Item3;
+                            infoFormat.Item6 = infoFormat.Item7 < 0 ? Math.Max(infoFormat.Item6, indexFormat + 1) : infoFormat.Item6;
+                            infoFormat.Item8 = infoFormat.Item8 < format.Length ? infoFormat.Item8 : infoFormat.Item3;
                         }
                     }
                     else if (formatChar == '%')
                     {
-                        infoFormat.Item2 = true;
+                        infoFormat.Item4 = true;
                     }
                     else if (formatChar == 'E' && isIncreasing && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
                     {
-                        infoFormat.Item3 = format.Length;
-                        infoFormat.Item1[1] = Math.Min(infoFormat.Item1[1], indexFormat);
+                        infoFormat.Item5 = format.Length;
+                        infoFormat.Item2 = Math.Min(infoFormat.Item2, indexFormat);
                         indexFormat++;
                     }
                     else if (formatChar == '/' && isIncreasing)
                     {
-                        infoFormat.Item1[1] = Math.Min(infoFormat.Item1[1], infoFormat.Item4[0]);
-                        infoFormat.Item4[1] = indexFormat - 1;
-                        infoFormat.Item4[2] = format.Length;
+                        infoFormat.Item2 = Math.Min(infoFormat.Item2, infoFormat.Item6);
+                        infoFormat.Item7 = indexFormat - 1;
+                        infoFormat.Item8 = format.Length;
                     }
                 }
                 else
@@ -1354,7 +1354,7 @@ namespace XlsxToHtmlConverter
                     }
                     else if (isValueNumber && formatChar == '.')
                     {
-                        if (infoFormat.Item5 || (isIncreasing && indexValue + 1 < value.Length))
+                        if (infoFormat.Item9 || (isIncreasing && indexValue + 1 < value.Length))
                         {
                             result += ".";
                         }
@@ -1366,22 +1366,22 @@ namespace XlsxToHtmlConverter
                             result += ",";
                         }
                     }
-                    else if (isValueNumber && formatChar == 'E' && isIncreasing && !isFormattingScientific && infoFormat.Item3 >= 0 && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
+                    else if (isValueNumber && formatChar == 'E' && isIncreasing && !isFormattingScientific && infoFormat.Item5 >= 0 && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
                     {
                         resultFormatted = result + (valueScientific.Item1 ? (format[indexFormat + 1] == '-' ? "E" : "E+") : "E-");
                         result = string.Empty;
                         indexValue = valueScientific.Item2.Length;
-                        indexFormat = infoFormat.Item3;
+                        indexFormat = infoFormat.Item5;
                         isIncreasing = false;
                         isFormattingScientific = true;
                         continue;
                     }
-                    else if (isValueNumber && isIncreasing && !isFormattingFraction && infoFormat.Item4[1] >= 0 && indexFormat >= infoFormat.Item4[0] && indexFormat <= infoFormat.Item4[1])
+                    else if (isValueNumber && isIncreasing && !isFormattingFraction && infoFormat.Item7 >= 0 && indexFormat >= infoFormat.Item6 && indexFormat <= infoFormat.Item7)
                     {
                         resultFormatted = result;
                         result = string.Empty;
                         indexValue = valueFraction.Item1.Length;
-                        indexFormat = infoFormat.Item4[1];
+                        indexFormat = infoFormat.Item7;
                         isIncreasing = false;
                         isFormattingFraction = true;
                         continue;
@@ -1389,19 +1389,19 @@ namespace XlsxToHtmlConverter
                     else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
                     {
                         indexValue += isIncreasing ? 1 : -1;
-                        if (indexValue >= 0 && indexValue < (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > infoFormat.Item4[1] ? valueFraction.Item2 : valueFraction.Item1)) : valueScientific.Item2).Length && (isFormattingScientific || isFormattingFraction || formatChar == '0' || indexValue > 0 || value[indexValue] != '0' || infoFormat.Item5))
+                        if (indexValue >= 0 && indexValue < (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > infoFormat.Item7 ? valueFraction.Item2 : valueFraction.Item1)) : valueScientific.Item2).Length && (isFormattingScientific || isFormattingFraction || formatChar == '0' || indexValue > 0 || value[indexValue] != '0' || infoFormat.Item9))
                         {
-                            if (isIncreasing && !isFormattingFraction && (indexFormat >= infoFormat.Item1[2] || (isFormattingScientific && indexFormat + 2 < format.Length && format[indexFormat + 1] == 'E' && (format[indexFormat + 2] == '+' || format[indexFormat + 2] == '-'))) && indexValue + 1 < value.Length && int.TryParse(value[indexValue + 1].ToString(), out int next) && next > 4)
+                            if (isIncreasing && !isFormattingFraction && (indexFormat >= infoFormat.Item3 || (isFormattingScientific && indexFormat + 2 < format.Length && format[indexFormat + 1] == 'E' && (format[indexFormat + 2] == '+' || format[indexFormat + 2] == '-'))) && indexValue + 1 < value.Length && int.TryParse(value[indexValue + 1].ToString(), out int next) && next > 4)
                             {
-                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexValue + 1 - infoValue)).ToString(), format, ref formatsCalculated);
+                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexValue + 1 - infoValue)).ToString(stringFormatNumber), format, ref formatsCalculated);
                             }
 
-                            result += (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > infoFormat.Item4[1] ? valueFraction.Item2 : valueFraction.Item1)) : valueScientific.Item2)[indexValue].ToString();
-                            if (!isIncreasing && (!isFormattingScientific ? (!isFormattingFraction ? indexFormat <= infoFormat.Item1[0] : indexFormat <= infoFormat.Item4[0]) : indexFormat - 2 >= 0 && format[indexFormat - 2] == 'E' && (format[indexFormat - 1] == '+' || format[indexFormat - 1] == '-')))
+                            result += (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > infoFormat.Item7 ? valueFraction.Item2 : valueFraction.Item1)) : valueScientific.Item2)[indexValue].ToString();
+                            if (!isIncreasing && (!isFormattingScientific ? (!isFormattingFraction ? indexFormat <= infoFormat.Item1 : indexFormat <= infoFormat.Item6) : indexFormat - 2 >= 0 && format[indexFormat - 2] == 'E' && (format[indexFormat - 1] == '+' || format[indexFormat - 1] == '-')))
                             {
                                 result += new string((!isFormattingScientific ? (!isFormattingFraction ? value : valueFraction.Item1) : valueScientific.Item2).Substring(0, indexValue).Reverse().ToArray());
                             }
-                            else if (isIncreasing && isFormattingFraction && indexFormat >= infoFormat.Item4[2] && indexValue + 1 < valueFraction.Item2.Length)
+                            else if (isIncreasing && isFormattingFraction && indexFormat >= infoFormat.Item8 && indexValue + 1 < valueFraction.Item2.Length)
                             {
                                 result += valueFraction.Item2.Substring(indexValue + 1, valueFraction.Item2.Length - indexValue - 1);
                             }
@@ -2026,6 +2026,8 @@ namespace XlsxToHtmlConverter
         #endregion
 
         #region Private Fields
+
+        private const string stringFormatNumber = "0.##############################";
 
         private static readonly Regex regexNumbers = new Regex(@"\d+", RegexOptions.Compiled);
         private static readonly Regex regexLetters = new Regex("[A-Za-z]+", RegexOptions.Compiled);
