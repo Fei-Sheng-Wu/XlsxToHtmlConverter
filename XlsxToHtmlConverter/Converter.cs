@@ -193,6 +193,7 @@ namespace XlsxToHtmlConverter
                     }
                     Dictionary<uint, string> stylesheetNumberingFormats = new Dictionary<uint, string>();
                     Dictionary<uint, string> stylesheetNumberingFormatsDateTime = new Dictionary<uint, string>();
+                    Dictionary<string, (int[], bool, int, int[], bool, bool)> stylesheetNumberingFormatsNumber = new Dictionary<string, (int[], bool, int, int[], bool, bool)>();
                     if (configClone.ConvertNumberFormats && stylesheet != null && stylesheet.NumberingFormats != null)
                     {
                         foreach (NumberingFormat numberingFormat in stylesheet.NumberingFormats.Descendants<NumberingFormat>())
@@ -252,7 +253,6 @@ namespace XlsxToHtmlConverter
                                 cellValue = GetEscapedString(text);
                                 cellValueRaw = text;
                             }
-
                             cellValueSharedStrings[sharedStringIndex] = (cellValue, cellValueRaw);
                         }
                     }
@@ -719,7 +719,7 @@ namespace XlsxToHtmlConverter
                                             {
                                                 numberFormatCode = numberFormatCodeComponents.Length > 3 ? numberFormatCodeComponents[3] : numberFormatCode;
                                             }
-                                            cellValue = GetEscapedString(GetFormattedNumber(cellValueRaw, numberFormatCode.Trim()));
+                                            cellValue = GetEscapedString(GetFormattedNumber(cellValueRaw, numberFormatCode.Trim(), ref stylesheetNumberingFormatsNumber));
                                         }
                                     }
                                     else if (!isSharedString)
@@ -956,6 +956,11 @@ namespace XlsxToHtmlConverter
             return digits < 0 ? number : Math.Round(number, digits);
         }
 
+        private static string GetEscapedString(string value)
+        {
+            return System.Web.HttpUtility.HtmlEncode(value).Replace(" ", "&nbsp;");
+        }
+
         private static int GetColumnIndex(string cell)
         {
             int index = -1;
@@ -989,11 +994,6 @@ namespace XlsxToHtmlConverter
             fromRow = Math.Min(firstRow, secondRow);
             toColumn = Math.Max(firstColumn, secondColumn);
             toRow = Math.Max(firstRow, secondRow);
-        }
-
-        private static string GetEscapedString(string value)
-        {
-            return System.Web.HttpUtility.HtmlEncode(value).Replace(" ", "&nbsp;");
         }
 
         private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional, int indent)
@@ -1055,7 +1055,7 @@ namespace XlsxToHtmlConverter
             return index >= formulasCount && actionEvaluation.Invoke(parameters);
         }
 
-        private static string GetFormattedNumber(string value, string format)
+        private static string GetFormattedNumber(string value, string format, ref Dictionary<string, (int[], bool, int, int[], bool, bool)> formatsCalculated)
         {
             if (string.IsNullOrEmpty(format))
             {
@@ -1068,74 +1068,207 @@ namespace XlsxToHtmlConverter
                 return value;
             }
 
-            //TODO: optimize indexes searching
-            int[] indexes = new int[8] { value.Length, format.Length, format.Length, format.Length, -1, -1, -1, -1 };
-            bool isPeriodRequired = false;
-            bool isDigitWhitespaceDetected = false;
+            int infoValue = value.Length;
+            bool isFormatCalculated = formatsCalculated.ContainsKey(format);
+            (int[], bool, int, int[], bool, bool) infoFormat = isFormatCalculated ? formatsCalculated[format] : (new int[3] { format.Length, format.Length, format.Length }, false, -1, new int[3] { -1, -1, -1 }, false, false);
+
             Action actionUpdateValue = () =>
             {
                 value = isValueNumber ? valueNumber.ToString() : value;
-                indexes[0] = value.IndexOf('.');
-                indexes[0] = indexes[0] < 0 ? value.Length : indexes[0];
+                infoValue = value.IndexOf('.');
+                infoValue = infoValue < 0 ? value.Length : infoValue;
             };
             actionUpdateValue.Invoke();
 
-            (bool, string) infoScientific = (true, string.Empty);
+            (bool, string) valueScientific = (true, "0");
             bool isFormattingScientific = false;
 
-            (string, string) infoFraction = (string.Empty, string.Empty);
+            (string, string) valueFraction = (string.Empty, string.Empty);
             bool isFormattingFraction = false;
 
             int indexValue = 0;
             int indexFormat = 0;
             bool isIncreasing = true;
-            bool isFormatting = false;
+            Action actionUpdateInfo = () =>
+            {
+                if (isValueNumber && infoFormat.Item2)
+                {
+                    valueNumber *= 100;
+                    actionUpdateValue.Invoke();
+                }
+                if (isValueNumber && infoFormat.Item3 >= 0)
+                {
+                    if (infoValue > 1)
+                    {
+                        valueScientific = (true, (infoValue - 1).ToString());
+                        valueNumber /= Math.Pow(10, infoValue - 1);
+                        actionUpdateValue.Invoke();
+                    }
+                    else if (infoValue > 0 && value.Length > infoValue && value[0] == '0')
+                    {
+                        int digit = 0;
+                        for (int i = infoValue + 1; i < value.Length; i++)
+                        {
+                            if (value[i] != '0')
+                            {
+                                digit = i;
+                                break;
+                            }
+                        }
+                        if (digit > infoValue)
+                        {
+                            valueScientific = (false, (digit - infoValue).ToString());
+                            valueNumber *= Math.Pow(10, digit - infoValue);
+                            actionUpdateValue.Invoke();
+                        }
+                    }
+                }
+                if (isValueNumber && infoFormat.Item4[1] >= 0)
+                {
+                    double valueAbsolute = Math.Abs(valueNumber);
+                    int valueFloor = (int)Math.Floor(valueAbsolute);
+                    if (infoFormat.Item6)
+                    {
+                        double valueInteger = valueNumber >= 0 ? valueFloor : -valueFloor;
+                        valueNumber -= valueNumber >= 0 ? valueFloor : -valueFloor;
+                        valueAbsolute = Math.Abs(valueNumber);
+                        valueFloor = (int)Math.Floor(valueAbsolute);
+                        valueNumber = valueInteger;
+                    }
+                    else
+                    {
+                        valueNumber = 0;
+                    }
+                    valueAbsolute -= valueFloor;
+
+                    int fractionNumerator = 1;
+                    int fractionDenominator = 1;
+                    double maxError = valueAbsolute * 0.001;
+                    if (valueAbsolute == 0)
+                    {
+                        fractionNumerator = 0;
+                        fractionDenominator = 1;
+                    }
+                    else if (valueAbsolute < maxError)
+                    {
+                        fractionNumerator = valueNumber >= 0 ? valueFloor : -valueFloor;
+                        fractionDenominator = 1;
+                    }
+                    else if (1 - maxError < valueAbsolute)
+                    {
+                        fractionNumerator = valueNumber >= 0 ? (valueFloor + 1) : -(valueFloor + 1);
+                        fractionDenominator = 1;
+                    }
+                    else
+                    {
+                        int[] fractionParts = new int[4] { 0, 1, 1, 1 };
+                        Action<int, int, int, int, Func<int, int, bool>> actionFindNewValue = (indexNumerator, indexDenominator, incrementNumerator, incrementDenominator, actionEvaluation) =>
+                        {
+                            fractionParts[indexNumerator] += incrementNumerator;
+                            fractionParts[indexDenominator] += incrementDenominator;
+                            if (actionEvaluation.Invoke(fractionParts[indexNumerator], fractionParts[indexDenominator]))
+                            {
+                                int weight = 1;
+                                do
+                                {
+                                    weight *= 2;
+                                    fractionParts[indexNumerator] += incrementNumerator * weight;
+                                    fractionParts[indexDenominator] += incrementDenominator * weight;
+                                }
+                                while (actionEvaluation.Invoke(fractionParts[indexNumerator], fractionParts[indexDenominator]));
+                                do
+                                {
+                                    weight /= 2;
+                                    int decrementNumerator = incrementNumerator * weight;
+                                    int decrementDenominator = incrementDenominator * weight;
+                                    if (!actionEvaluation.Invoke(fractionParts[indexNumerator] - decrementNumerator, fractionParts[indexDenominator] - decrementDenominator))
+                                    {
+                                        fractionParts[indexNumerator] -= decrementNumerator;
+                                        fractionParts[indexDenominator] -= decrementDenominator;
+                                    }
+                                }
+                                while (weight > 1);
+                            }
+                        };
+
+                        while (true)
+                        {
+                            int middleNumerator = fractionParts[0] + fractionParts[2];
+                            int middleDenominator = fractionParts[1] + fractionParts[3];
+                            if (middleDenominator * (valueAbsolute + maxError) < middleNumerator)
+                            {
+                                actionFindNewValue.Invoke(2, 3, fractionParts[0], fractionParts[1], (numerator, denominator) => (fractionParts[1] + denominator) * (valueAbsolute + maxError) < (fractionParts[0] + numerator));
+                            }
+                            else if (middleNumerator < (valueAbsolute - maxError) * middleDenominator)
+                            {
+                                actionFindNewValue.Invoke(0, 1, fractionParts[2], fractionParts[3], (numerator, denominator) => (numerator + fractionParts[2]) < (valueAbsolute - maxError) * (denominator + fractionParts[3]));
+                            }
+                            else
+                            {
+                                fractionNumerator = valueNumber >= 0 ? valueFloor * middleDenominator + middleNumerator : -(valueFloor * middleDenominator + middleNumerator);
+                                fractionDenominator = middleDenominator;
+                                break;
+                            }
+                        }
+                    }
+                    valueFraction = (fractionNumerator.ToString(), fractionDenominator.ToString());
+                    actionUpdateValue.Invoke();
+                }
+
+                indexValue = infoValue;
+                indexFormat = infoFormat.Item1[1] - 1;
+                isIncreasing = false;
+            };
+            if (isFormatCalculated)
+            {
+                actionUpdateInfo.Invoke();
+            }
+
             string result = string.Empty;
             string resultFormatted = string.Empty;
-            while (indexFormat < format.Length || !isFormatting)
+            while (indexFormat < format.Length || !isFormatCalculated)
             {
-                if (isFormatting && !isIncreasing && isFormattingScientific && indexes[4] >= 0 && indexFormat > 0 && format[indexFormat - 1] == 'E' && (format[indexFormat] == '+' || format[indexFormat] == '-'))
+                if (isFormatCalculated && !isIncreasing && isFormattingScientific && infoFormat.Item3 >= 0 && indexFormat > 0 && format[indexFormat - 1] == 'E' && (format[indexFormat] == '+' || format[indexFormat] == '-'))
                 {
                     result = resultFormatted + new string(result.Reverse().ToArray());
                     resultFormatted = string.Empty;
+                    indexFormat = infoFormat.Item3 + 1;
                     isIncreasing = true;
-                    indexFormat = indexes[4] + 1;
                     isFormattingScientific = false;
                     continue;
                 }
-                else if (isFormatting && !isIncreasing && isFormattingFraction && indexes[6] >= 0 && indexFormat < indexes[5])
+                else if (isFormatCalculated && !isIncreasing && isFormattingFraction && infoFormat.Item4[1] >= 0 && indexFormat < infoFormat.Item4[0])
                 {
                     result = resultFormatted + new string(result.Reverse().ToArray());
                     resultFormatted = string.Empty;
-                    isIncreasing = true;
                     indexValue = -1;
-                    indexFormat = indexes[6] + 1;
+                    indexFormat = infoFormat.Item4[1] + 1;
+                    isIncreasing = true;
                     continue;
                 }
-                else if (indexFormat >= format.Length)
+                else if (indexFormat >= format.Length && !isFormatCalculated)
                 {
-                    isIncreasing = false;
-                    indexValue = indexes[0];
-                    indexFormat = indexes[2] - 1;
-                    indexes[2] = Math.Min(indexes[2], indexes[3] + 1);
-                    indexes[4] = Math.Min(indexes[4], indexes[3]);
-                    indexes[7] = Math.Min(indexes[7], indexes[3]);
-                    isFormatting = true;
+                    infoFormat.Item1[1] = Math.Min(infoFormat.Item1[1], infoFormat.Item1[2] + 1);
+                    infoFormat.Item3 = Math.Min(infoFormat.Item3, infoFormat.Item1[2]);
+                    infoFormat.Item4[2] = Math.Min(infoFormat.Item4[2], infoFormat.Item1[2]);
+                    formatsCalculated.Add(format, infoFormat);
+                    isFormatCalculated = true;
+                    actionUpdateInfo.Invoke();
                     continue;
                 }
                 else if (indexFormat < 0)
                 {
                     result = new string(result.Reverse().ToArray());
+                    indexValue = infoValue;
+                    indexFormat = infoFormat.Item1[1];
                     isIncreasing = true;
-                    indexValue = indexes[0];
-                    indexFormat = indexes[2];
                     continue;
                 }
 
                 char formatChar = format[indexFormat];
                 if ((isIncreasing && indexFormat + 1 < format.Length && formatChar == '\\') || (!isIncreasing && indexFormat > 0 && format[indexFormat - 1] == '\\'))
                 {
-                    result += isFormatting ? format[isIncreasing ? indexFormat + 1 : indexFormat].ToString() : string.Empty;
+                    result += isFormatCalculated ? format[isIncreasing ? indexFormat + 1 : indexFormat].ToString() : string.Empty;
                     indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
@@ -1154,7 +1287,7 @@ namespace XlsxToHtmlConverter
                     do
                     {
                         indexFormat += isIncreasing ? 1 : -1;
-                        result += isFormatting ? format[indexFormat].ToString() : string.Empty;
+                        result += isFormatCalculated ? format[indexFormat].ToString() : string.Empty;
                     }
                     while (isIncreasing ? indexFormat + 1 < format.Length && format[indexFormat + 1] != '\"' : indexFormat > 0 && format[indexFormat - 1] != '\"');
                     indexFormat += isIncreasing ? 2 : -2;
@@ -1162,172 +1295,58 @@ namespace XlsxToHtmlConverter
                 }
                 else if ((isIncreasing && indexFormat + 1 < format.Length && formatChar == '*') || (!isIncreasing && indexFormat > 0 && format[indexFormat - 1] == '*'))
                 {
-                    result += isFormatting ? format[isIncreasing ? indexFormat + 1 : indexFormat].ToString() : string.Empty;
+                    result += isFormatCalculated ? format[isIncreasing ? indexFormat + 1 : indexFormat].ToString() : string.Empty;
                     indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
                 else if ((isIncreasing && indexFormat + 1 < format.Length && formatChar == '_') || (!isIncreasing && indexFormat > 0 && format[indexFormat - 1] == '_'))
                 {
-                    result += isFormatting ? " " : string.Empty;
+                    result += isFormatCalculated ? " " : string.Empty;
                     indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
 
-                if (isValueNumber && !isFormatting)
+                if (!isFormatCalculated)
                 {
                     if (formatChar == '.')
                     {
-                        indexes[2] = Math.Min(indexes[2], indexFormat);
+                        infoFormat.Item1[1] = Math.Min(infoFormat.Item1[1], indexFormat);
                     }
                     else if (formatChar == '0' || formatChar == '#' || formatChar == '?')
                     {
-                        indexes[1] = Math.Min(indexes[1], indexFormat);
-                        indexes[3] = indexFormat;
-                        indexes[5] = indexes[5] < 0 ? indexFormat : indexes[5];
-                        isPeriodRequired = (indexFormat > indexes[2] && (formatChar == '0' || formatChar == '?') && indexes[4] < 0) || isPeriodRequired;
+                        infoFormat.Item1[0] = Math.Min(infoFormat.Item1[0], indexFormat);
+                        infoFormat.Item1[2] = indexFormat;
+                        infoFormat.Item4[0] = infoFormat.Item4[0] < 0 ? indexFormat : infoFormat.Item4[0];
+                        infoFormat.Item5 = (indexFormat > infoFormat.Item1[1] && (formatChar == '0' || formatChar == '?') && infoFormat.Item3 < 0) || infoFormat.Item5;
                     }
                     else if (formatChar == ' ')
                     {
-                        isDigitWhitespaceDetected = indexFormat > indexes[1] || isDigitWhitespaceDetected;
-                        if (isDigitWhitespaceDetected)
+                        infoFormat.Item6 = indexFormat > infoFormat.Item1[0] || infoFormat.Item6;
+                        if (infoFormat.Item6)
                         {
-                            indexes[4] = indexes[4] < format.Length ? indexes[4] : indexes[3];
-                            indexes[7] = indexes[7] < format.Length ? indexes[7] : indexes[3];
-                            indexes[5] = indexes[6] < 0 ? Math.Max(indexes[5], indexFormat + 1) : indexes[5];
+                            infoFormat.Item3 = infoFormat.Item3 < format.Length ? infoFormat.Item3 : infoFormat.Item1[2];
+                            infoFormat.Item4[0] = infoFormat.Item4[1] < 0 ? Math.Max(infoFormat.Item4[0], indexFormat + 1) : infoFormat.Item4[0];
+                            infoFormat.Item4[2] = infoFormat.Item4[2] < format.Length ? infoFormat.Item4[2] : infoFormat.Item1[2];
                         }
                     }
                     else if (formatChar == '%')
                     {
-                        valueNumber *= 100;
-                        actionUpdateValue.Invoke();
+                        infoFormat.Item2 = true;
                     }
                     else if (formatChar == 'E' && isIncreasing && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
                     {
-                        if (indexes[0] > 1)
-                        {
-                            indexes[4] = format.Length;
-                            infoScientific = (true, (indexes[0] - 1).ToString());
-                            valueNumber /= Math.Pow(10, indexes[0] - 1);
-                            actionUpdateValue.Invoke();
-                        }
-                        else if (indexes[0] > 0 && value.Length > indexes[0] && value[0] == '0')
-                        {
-                            int digit = 0;
-                            for (int i = indexes[0] + 1; i < value.Length; i++)
-                            {
-                                if (value[i] != '0')
-                                {
-                                    digit = i;
-                                    break;
-                                }
-                            }
-                            if (digit > indexes[0])
-                            {
-                                indexes[4] = format.Length;
-                                infoScientific = (false, (digit - indexes[0]).ToString());
-                                valueNumber *= Math.Pow(10, digit - indexes[0]);
-                                actionUpdateValue.Invoke();
-                            }
-                        }
-                        indexes[2] = Math.Min(indexes[2], indexFormat);
+                        infoFormat.Item3 = format.Length;
+                        infoFormat.Item1[1] = Math.Min(infoFormat.Item1[1], indexFormat);
                         indexFormat++;
                     }
                     else if (formatChar == '/' && isIncreasing)
                     {
-                        double valueAbsolute = Math.Abs(valueNumber);
-                        int valueFloor = (int)Math.Floor(valueAbsolute);
-                        if (isDigitWhitespaceDetected)
-                        {
-                            double valueInteger = valueNumber >= 0 ? valueFloor : -valueFloor;
-                            valueNumber -= valueNumber >= 0 ? valueFloor : -valueFloor;
-                            valueAbsolute = Math.Abs(valueNumber);
-                            valueFloor = (int)Math.Floor(valueAbsolute);
-                            valueNumber = valueInteger;
-                        }
-                        else
-                        {
-                            valueNumber = 0;
-                        }
-                        valueAbsolute -= valueFloor;
-                        actionUpdateValue.Invoke();
-
-                        int fractionNumerator = 1;
-                        int fractionDenominator = 1;
-                        double maxError = valueAbsolute * 0.001;
-                        if (valueAbsolute == 0)
-                        {
-                            fractionNumerator = 0;
-                            fractionDenominator = 1;
-                        }
-                        else if (valueAbsolute < maxError)
-                        {
-                            fractionNumerator = valueNumber >= 0 ? valueFloor : -valueFloor;
-                            fractionDenominator = 1;
-                        }
-                        else if (1 - maxError < valueAbsolute)
-                        {
-                            fractionNumerator = valueNumber >= 0 ? (valueFloor + 1) : -(valueFloor + 1);
-                            fractionDenominator = 1;
-                        }
-                        else
-                        {
-                            int[] fractionParts = new int[4] { 0, 1, 1, 1 };
-                            Action<int, int, int, int, Func<int, int, bool>> actionFindNewValue = (indexNumerator, indexDenominator, incrementNumerator, incrementDenominator, actionEvaluation) =>
-                            {
-                                fractionParts[indexNumerator] += incrementNumerator;
-                                fractionParts[indexDenominator] += incrementDenominator;
-                                if (actionEvaluation.Invoke(fractionParts[indexNumerator], fractionParts[indexDenominator]))
-                                {
-                                    int weight = 1;
-                                    do
-                                    {
-                                        weight *= 2;
-                                        fractionParts[indexNumerator] += incrementNumerator * weight;
-                                        fractionParts[indexDenominator] += incrementDenominator * weight;
-                                    }
-                                    while (actionEvaluation.Invoke(fractionParts[indexNumerator], fractionParts[indexDenominator]));
-                                    do
-                                    {
-                                        weight /= 2;
-                                        int decrementNumerator = incrementNumerator * weight;
-                                        int decrementDenominator = incrementDenominator * weight;
-                                        if (!actionEvaluation.Invoke(fractionParts[indexNumerator] - decrementNumerator, fractionParts[indexDenominator] - decrementDenominator))
-                                        {
-                                            fractionParts[indexNumerator] -= decrementNumerator;
-                                            fractionParts[indexDenominator] -= decrementDenominator;
-                                        }
-                                    }
-                                    while (weight > 1);
-                                }
-                            };
-
-                            while (true)
-                            {
-                                int middleNumerator = fractionParts[0] + fractionParts[2];
-                                int middleDenominator = fractionParts[1] + fractionParts[3];
-                                if (middleDenominator * (valueAbsolute + maxError) < middleNumerator)
-                                {
-                                    actionFindNewValue.Invoke(2, 3, fractionParts[0], fractionParts[1], (numerator, denominator) => (fractionParts[1] + denominator) * (valueAbsolute + maxError) < (fractionParts[0] + numerator));
-                                }
-                                else if (middleNumerator < (valueAbsolute - maxError) * middleDenominator)
-                                {
-                                    actionFindNewValue.Invoke(0, 1, fractionParts[2], fractionParts[3], (numerator, denominator) => (numerator + fractionParts[2]) < (valueAbsolute - maxError) * (denominator + fractionParts[3]));
-                                }
-                                else
-                                {
-                                    fractionNumerator = valueNumber >= 0 ? valueFloor * middleDenominator + middleNumerator : -(valueFloor * middleDenominator + middleNumerator);
-                                    fractionDenominator = middleDenominator;
-                                    break;
-                                }
-                            }
-                        }
-                        indexes[2] = Math.Min(indexes[2], indexes[5]);
-                        indexes[6] = indexFormat - 1;
-                        indexes[7] = format.Length;
-                        infoFraction = (fractionNumerator.ToString(), fractionDenominator.ToString());
+                        infoFormat.Item1[1] = Math.Min(infoFormat.Item1[1], infoFormat.Item4[0]);
+                        infoFormat.Item4[1] = indexFormat - 1;
+                        infoFormat.Item4[2] = format.Length;
                     }
                 }
-                else if (isFormatting)
+                else
                 {
                     if (formatChar == '@')
                     {
@@ -1335,7 +1354,7 @@ namespace XlsxToHtmlConverter
                     }
                     else if (isValueNumber && formatChar == '.')
                     {
-                        if (isPeriodRequired || (isIncreasing && indexValue + 1 < value.Length))
+                        if (infoFormat.Item5 || (isIncreasing && indexValue + 1 < value.Length))
                         {
                             result += ".";
                         }
@@ -1347,44 +1366,44 @@ namespace XlsxToHtmlConverter
                             result += ",";
                         }
                     }
-                    else if (isValueNumber && formatChar == 'E' && isIncreasing && !isFormattingScientific && indexes[4] >= 0 && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
+                    else if (isValueNumber && formatChar == 'E' && isIncreasing && !isFormattingScientific && infoFormat.Item3 >= 0 && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
                     {
-                        resultFormatted = result + (infoScientific.Item1 ? (format[indexFormat + 1] == '-' ? "E" : "E+") : "E-");
+                        resultFormatted = result + (valueScientific.Item1 ? (format[indexFormat + 1] == '-' ? "E" : "E+") : "E-");
                         result = string.Empty;
+                        indexValue = valueScientific.Item2.Length;
+                        indexFormat = infoFormat.Item3;
                         isIncreasing = false;
-                        indexValue = infoScientific.Item2.Length;
-                        indexFormat = indexes[4];
                         isFormattingScientific = true;
                         continue;
                     }
-                    else if (isValueNumber && isIncreasing && !isFormattingFraction && indexes[6] >= 0 && indexFormat >= indexes[5] && indexFormat <= indexes[6])
+                    else if (isValueNumber && isIncreasing && !isFormattingFraction && infoFormat.Item4[1] >= 0 && indexFormat >= infoFormat.Item4[0] && indexFormat <= infoFormat.Item4[1])
                     {
                         resultFormatted = result;
                         result = string.Empty;
+                        indexValue = valueFraction.Item1.Length;
+                        indexFormat = infoFormat.Item4[1];
                         isIncreasing = false;
-                        indexValue = infoFraction.Item1.Length;
-                        indexFormat = indexes[6];
                         isFormattingFraction = true;
                         continue;
                     }
                     else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
                     {
                         indexValue += isIncreasing ? 1 : -1;
-                        if (indexValue >= 0 && indexValue < (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > indexes[6] ? infoFraction.Item2 : infoFraction.Item1)) : infoScientific.Item2).Length && (formatChar == '0' || indexValue > 0 || value[indexValue] != '0' || isPeriodRequired || isFormattingScientific || isFormattingFraction))
+                        if (indexValue >= 0 && indexValue < (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > infoFormat.Item4[1] ? valueFraction.Item2 : valueFraction.Item1)) : valueScientific.Item2).Length && (isFormattingScientific || isFormattingFraction || formatChar == '0' || indexValue > 0 || value[indexValue] != '0' || infoFormat.Item5))
                         {
-                            if (isIncreasing && !isFormattingFraction && (indexFormat >= indexes[3] || (isFormattingScientific && indexFormat + 2 < format.Length && format[indexFormat + 1] == 'E' && (format[indexFormat + 2] == '+' || format[indexFormat + 2] == '-'))) && indexValue + 1 < value.Length && int.TryParse(value[indexValue + 1].ToString(), out int next) && next > 4)
+                            if (isIncreasing && !isFormattingFraction && (indexFormat >= infoFormat.Item1[2] || (isFormattingScientific && indexFormat + 2 < format.Length && format[indexFormat + 1] == 'E' && (format[indexFormat + 2] == '+' || format[indexFormat + 2] == '-'))) && indexValue + 1 < value.Length && int.TryParse(value[indexValue + 1].ToString(), out int next) && next > 4)
                             {
-                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexValue + 1 - indexes[0])).ToString(), format);
+                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexValue + 1 - infoValue)).ToString(), format, ref formatsCalculated);
                             }
 
-                            result += (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > indexes[6] ? infoFraction.Item2 : infoFraction.Item1)) : infoScientific.Item2)[indexValue].ToString();
-                            if (!isIncreasing && (!isFormattingScientific ? (!isFormattingFraction ? indexFormat <= indexes[1] : indexFormat <= indexes[5]) : indexFormat - 2 >= 0 && format[indexFormat - 2] == 'E' && (format[indexFormat - 1] == '+' || format[indexFormat - 1] == '-')))
+                            result += (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > infoFormat.Item4[1] ? valueFraction.Item2 : valueFraction.Item1)) : valueScientific.Item2)[indexValue].ToString();
+                            if (!isIncreasing && (!isFormattingScientific ? (!isFormattingFraction ? indexFormat <= infoFormat.Item1[0] : indexFormat <= infoFormat.Item4[0]) : indexFormat - 2 >= 0 && format[indexFormat - 2] == 'E' && (format[indexFormat - 1] == '+' || format[indexFormat - 1] == '-')))
                             {
-                                result += new string((!isFormattingScientific ? (!isFormattingFraction ? value : infoFraction.Item1) : infoScientific.Item2).Substring(0, indexValue).Reverse().ToArray());
+                                result += new string((!isFormattingScientific ? (!isFormattingFraction ? value : valueFraction.Item1) : valueScientific.Item2).Substring(0, indexValue).Reverse().ToArray());
                             }
-                            else if (isIncreasing && isFormattingFraction && indexFormat >= indexes[7] && indexValue + 1 < infoFraction.Item2.Length)
+                            else if (isIncreasing && isFormattingFraction && indexFormat >= infoFormat.Item4[2] && indexValue + 1 < valueFraction.Item2.Length)
                             {
-                                result += infoFraction.Item2.Substring(indexValue + 1, infoFraction.Item2.Length - indexValue - 1);
+                                result += valueFraction.Item2.Substring(indexValue + 1, valueFraction.Item2.Length - indexValue - 1);
                             }
                         }
                         else
