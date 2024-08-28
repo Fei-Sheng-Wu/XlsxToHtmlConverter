@@ -82,6 +82,7 @@ XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterCo
     ConvertHiddenSheets = false,
     ConvertFirstSheetOnly = false,
     ConvertHtmlBodyOnly = false,
+    UseHtmlStyleClasses = true,
     RoundingDigits = 2
 };
 ```
