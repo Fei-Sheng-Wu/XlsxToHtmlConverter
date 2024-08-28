@@ -134,10 +134,7 @@ namespace XlsxToHtmlConverter
             try
             {
                 writer.AutoFlush = true;
-
-                if (!configClone.ConvertHtmlBodyOnly)
-                {
-                    writer.Write($@"<!DOCTYPE html>
+                writer.Write(!configClone.ConvertHtmlBodyOnly ? $@"<!DOCTYPE html>
 <html>
 
 <head>
@@ -148,12 +145,7 @@ namespace XlsxToHtmlConverter
         {configClone.PresetStyles}
     </style>
 </head>
-<body>");
-                }
-                else
-                {
-                    writer.Write($"<style>\n{configClone.PresetStyles}\n</style>");
-                }
+<body>" : $"<style>\n{configClone.PresetStyles}\n</style>");
 
                 using (SpreadsheetDocument document = SpreadsheetDocument.Open(inputXlsx, false))
                 {
@@ -236,19 +228,19 @@ namespace XlsxToHtmlConverter
                                     }
                                     else if (element is Run run && run.Text != null)
                                     {
-                                        Dictionary<string, string> htmlStyleRun = new Dictionary<string, string>();
+                                        Dictionary<string, string> htmlStylesRun = new Dictionary<string, string>();
                                         string cellValueContainer = "{0}";
                                         if (configClone.ConvertStyles && run.RunProperties is RunProperties runProperties)
                                         {
                                             if (runProperties.GetFirstChild<RunFont>() is RunFont runFont && runFont.Val != null && runFont.Val.HasValue)
                                             {
-                                                htmlStyleRun.Add("font-family", runFont.Val.Value);
+                                                htmlStylesRun.Add("font-family", runFont.Val.Value);
                                             }
-                                            htmlStyleRun = JoinHtmlAttributes(htmlStyleRun, FontToHtml(runProperties.GetFirstChild<Color>(), runProperties.GetFirstChild<FontSize>(), runProperties.GetFirstChild<Bold>(), runProperties.GetFirstChild<Italic>(), runProperties.GetFirstChild<Strike>(), runProperties.GetFirstChild<Underline>(), out cellValueContainer, themeColors, configClone));
+                                            htmlStylesRun = JoinHtmlAttributes(htmlStylesRun, FontToHtml(runProperties.GetFirstChild<Color>(), runProperties.GetFirstChild<FontSize>(), runProperties.GetFirstChild<Bold>(), runProperties.GetFirstChild<Italic>(), runProperties.GetFirstChild<Strike>(), runProperties.GetFirstChild<Underline>(), out cellValueContainer, themeColors, configClone));
                                         }
 
-                                        string htmlStyleRunString = GetHtmlAttributesString(htmlStyleRun, false);
-                                        cellValue += $"<span{(!string.IsNullOrEmpty(htmlStyleRunString) ? $" style=\"{htmlStyleRunString}\"" : string.Empty)}>{cellValueContainer.Replace("{0}", GetEscapedString(run.Text.Text))}</span>";
+                                        string htmlStylesRunString = GetHtmlAttributesString(htmlStylesRun, false, -1);
+                                        cellValue += $"<span{(!string.IsNullOrEmpty(htmlStylesRunString) ? $" style=\"{htmlStylesRunString}\"" : string.Empty)}>{cellValueContainer.Replace("{0}", GetEscapedString(run.Text.Text))}</span>";
                                         cellValueRaw += run.Text.Text;
                                         runLast = run;
                                     }
@@ -266,7 +258,7 @@ namespace XlsxToHtmlConverter
                     }
 
                     int sheetIndex = 0;
-                    int sheetsCount = configClone.ConvertFirstSheetOnly ? Math.Min(sheets.Count(), 1) : sheets.Count();
+                    int sheetsCount = configClone.ConvertFirstSheetOnly ? Math.Min(1, sheets.Count()) : sheets.Count();
                     foreach (Sheet sheet in sheets)
                     {
                         sheetIndex++;
@@ -408,7 +400,8 @@ namespace XlsxToHtmlConverter
                             {
                                 if (cell.CellReference != null && cell.CellReference.HasValue)
                                 {
-                                    UpdateArray(sheetDimension, sheetDimension[0], sheetDimension[1], Math.Max(sheetDimension[2], GetColumnIndex(cell.CellReference.Value)), Math.Max(sheetDimension[3], GetRowIndex(cell.CellReference.Value)));
+                                    sheetDimension[2] = Math.Max(sheetDimension[2], GetColumnIndex(cell.CellReference.Value));
+                                    sheetDimension[3] = Math.Max(sheetDimension[3], GetRowIndex(cell.CellReference.Value));
                                 }
                             }
                         }
@@ -456,7 +449,7 @@ namespace XlsxToHtmlConverter
                                 {
                                     if (configClone.ConvertSizes)
                                     {
-                                        rowHeightsAccumulation += rowHeightDefault + 1;
+                                        rowHeightsAccumulation += rowHeightDefault + 0.8;
                                         if (drawingRowMarkers.ContainsKey(additionalRowIndex))
                                         {
                                             drawingRowMarkers[additionalRowIndex] = RoundNumber(rowHeightsAccumulation, configClone.RoundingDigits);
@@ -475,7 +468,7 @@ namespace XlsxToHtmlConverter
                             double cellHeightActual = configClone.ConvertSizes ? RoundNumber((row.CustomHeight == null || (row.CustomHeight.HasValue && row.CustomHeight.Value)) && row.Height != null && row.Height.HasValue ? row.Height.Value / 72 * 96 : rowHeightDefault, configClone.RoundingDigits) : double.NaN;
                             if (configClone.ConvertSizes)
                             {
-                                rowHeightsAccumulation += cellHeightActual + 1;
+                                rowHeightsAccumulation += cellHeightActual + 0.8;
                                 if (drawingRowMarkers.ContainsKey(rowIndex))
                                 {
                                     drawingRowMarkers[rowIndex] = RoundNumber(rowHeightsAccumulation, configClone.RoundingDigits);
@@ -539,6 +532,9 @@ namespace XlsxToHtmlConverter
                                 {
                                     switch (stylesheetCellFormats[styleIndex].Item3)
                                     {
+                                        case 0:
+                                            numberFormatCode = string.Empty;
+                                            break;
                                         case 1:
                                             numberFormatCode = "0";
                                             break;
@@ -723,7 +719,7 @@ namespace XlsxToHtmlConverter
                                             {
                                                 numberFormatCode = numberFormatCodeComponents.Length > 3 ? numberFormatCodeComponents[3] : numberFormatCode;
                                             }
-                                            cellValue = GetEscapedString(GetFormattedNumber(cellValueRaw, numberFormatCode));
+                                            cellValue = GetEscapedString(GetFormattedNumber(cellValueRaw, numberFormatCode.Trim()));
                                         }
                                     }
                                     else if (!isSharedString)
@@ -732,7 +728,7 @@ namespace XlsxToHtmlConverter
                                     }
                                 }
 
-                                Dictionary<string, string> htmlStyleCell = new Dictionary<string, string>();
+                                Dictionary<string, string> htmlStylesCell = new Dictionary<string, string>();
                                 string cellValueContainer = "{0}";
                                 if (configClone.ConvertStyles)
                                 {
@@ -740,22 +736,22 @@ namespace XlsxToHtmlConverter
                                     {
                                         if (cell.DataType.Value == CellValues.Error || cell.DataType.Value == CellValues.Boolean)
                                         {
-                                            htmlStyleCell.Add("text-align", "center");
+                                            htmlStylesCell.Add("text-align", "center");
                                         }
                                         else if (cell.DataType.Value == CellValues.Date || cell.DataType.Value == CellValues.Number)
                                         {
-                                            htmlStyleCell.Add("text-align", "right");
+                                            htmlStylesCell.Add("text-align", "right");
                                         }
                                     }
                                     else if (isNumberFormatDefaultDateTime || double.TryParse(cellValueRaw, out double _))
                                     {
-                                        htmlStyleCell.Add("text-align", "right");
+                                        htmlStylesCell.Add("text-align", "right");
                                     }
 
                                     if (styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length)
                                     {
-                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, stylesheetCellFormats[styleIndex].Item1);
-                                        cellValueContainer = cellValueContainer.Replace("{0}", stylesheetCellFormats[styleIndex].Item2);
+                                        htmlStylesCell = !configClone.UseHtmlStyleClasses && stylesheetCellFormats[styleIndex].Item1 != null ? JoinHtmlAttributes(htmlStylesCell, stylesheetCellFormats[styleIndex].Item1) : htmlStylesCell;
+                                        cellValueContainer = !string.IsNullOrEmpty(stylesheetCellFormats[styleIndex].Item2) ? cellValueContainer.Replace("{0}", stylesheetCellFormats[styleIndex].Item2) : cellValueContainer;
                                     }
 
                                     int differentialStyleIndex = -1;
@@ -864,12 +860,12 @@ namespace XlsxToHtmlConverter
                                     }
                                     if (differentialStyleIndex >= 0 && differentialStyleIndex < stylesheetDifferentialFormats.Length)
                                     {
-                                        htmlStyleCell = JoinHtmlAttributes(htmlStyleCell, stylesheetDifferentialFormats[differentialStyleIndex].Item1);
+                                        htmlStylesCell = JoinHtmlAttributes(htmlStylesCell, stylesheetDifferentialFormats[differentialStyleIndex].Item1);
                                         cellValueContainer = cellValueContainer.Replace("{0}", stylesheetDifferentialFormats[differentialStyleIndex].Item2);
                                     }
                                 }
 
-                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned > 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned > 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)} style=\"width: {(!double.IsNaN(cellWidthActual) && columnSpanned <= 1 ? $"{cellWidthActual}%" : "auto")}; height: {(!double.IsNaN(cellHeightActual) && rowSpanned <= 1 ? $"{cellHeightActual}px" : "auto")};{GetHtmlAttributesString(htmlStyleCell, true)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
+                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned > 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned > 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)}{(configClone.UseHtmlStyleClasses && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length ? $" class=\"format-{styleIndex}\"" : string.Empty)} style=\"width: {(!double.IsNaN(cellWidthActual) && columnSpanned <= 1 ? $"{cellWidthActual}%" : "auto")}; height: {(!double.IsNaN(cellHeightActual) && rowSpanned <= 1 ? $"{cellHeightActual}px" : "auto")};{GetHtmlAttributesString(htmlStylesCell, true, -1)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
                             }
 
                             writer.Write($"\n{new string(' ', 12)}</tr>");
@@ -918,11 +914,24 @@ namespace XlsxToHtmlConverter
 
                         writer.Write($"\n{new string(' ', 4)}</div>");
                     }
+
+                    if (configClone.UseHtmlStyleClasses)
+                    {
+                        writer.Write($"\n{new string(' ', 4)}<style>");
+                        for (int stylesheetFormatIndex = 0; stylesheetFormatIndex < stylesheetCellFormats.Length; stylesheetFormatIndex++)
+                        {
+                            if (stylesheetCellFormats[stylesheetFormatIndex].Item1 != null)
+                            {
+                                writer.Write($"\n{new string(' ', 8)}.format-{stylesheetFormatIndex} {{");
+                                writer.Write($"\n{new string(' ', 12)}{GetHtmlAttributesString(stylesheetCellFormats[stylesheetFormatIndex].Item1, false, 12)}");
+                                writer.Write($"\n{new string(' ', 8)}}}{(stylesheetFormatIndex < stylesheetCellFormats.Length - 1 ? $"\n{new string(' ', 8)}" : string.Empty)}");
+                            }
+                        }
+                        writer.Write($"\n{new string(' ', 4)}</style>");
+                    }
                 }
-                if (!configClone.ConvertHtmlBodyOnly)
-                {
-                    writer.Write("\n</body>\n</html>");
-                }
+
+                writer.Write(!configClone.ConvertHtmlBodyOnly ? "\n</body>\n</html>" : string.Empty);
             }
             catch (Exception ex)
             {
@@ -941,14 +950,6 @@ namespace XlsxToHtmlConverter
         #endregion
 
         #region Private Methods
-
-        private static void UpdateArray<T>(T[] array, params T[] values)
-        {
-            for (int i = 0; i < values.Length && i < array.Length; i++)
-            {
-                array[i] = values[i];
-            }
-        }
 
         private static double RoundNumber(double number, int digits)
         {
@@ -995,7 +996,7 @@ namespace XlsxToHtmlConverter
             return System.Web.HttpUtility.HtmlEncode(value).Replace(" ", "&nbsp;");
         }
 
-        private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional)
+        private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional, int indent)
         {
             if (attributes == null)
             {
@@ -1005,7 +1006,7 @@ namespace XlsxToHtmlConverter
             string htmlAttributes = string.Empty;
             foreach (KeyValuePair<string, string> pair in attributes)
             {
-                htmlAttributes += $"{pair.Key}: {pair.Value}; ";
+                htmlAttributes += $"{pair.Key}: {pair.Value};{(indent >= 0 ? $"\n{new string(' ', indent)}" : " ")}";
             }
             return isAdditional ? $" {htmlAttributes.TrimEnd()}" : htmlAttributes.TrimEnd();
         }
@@ -1067,8 +1068,10 @@ namespace XlsxToHtmlConverter
                 return value;
             }
 
-            int[] indexes = new int[6] { value.Length, format.Length, format.Length, format.Length, 0, 0 };
+            //TODO: optimize indexes searching
+            int[] indexes = new int[8] { value.Length, format.Length, format.Length, format.Length, -1, -1, -1, -1 };
             bool isPeriodRequired = false;
+            bool isDigitWhitespaceDetected = false;
             Action actionUpdateValue = () =>
             {
                 value = isValueNumber ? valueNumber.ToString() : value;
@@ -1080,101 +1083,129 @@ namespace XlsxToHtmlConverter
             (bool, string) infoScientific = (true, string.Empty);
             bool isFormattingScientific = false;
 
+            (string, string) infoFraction = (string.Empty, string.Empty);
+            bool isFormattingFraction = false;
+
+            int indexValue = 0;
+            int indexFormat = 0;
             bool isIncreasing = true;
             bool isFormatting = false;
             string result = string.Empty;
             string resultFormatted = string.Empty;
-            while (indexes[5] < format.Length || !isFormatting)
+            while (indexFormat < format.Length || !isFormatting)
             {
-                if (indexes[5] >= format.Length)
+                if (isFormatting && !isIncreasing && isFormattingScientific && indexes[4] >= 0 && indexFormat > 0 && format[indexFormat - 1] == 'E' && (format[indexFormat] == '+' || format[indexFormat] == '-'))
                 {
-                    indexes[2] = Math.Min(indexes[3] + 1, indexes[2]);
-
+                    result = resultFormatted + new string(result.Reverse().ToArray());
+                    resultFormatted = string.Empty;
+                    isIncreasing = true;
+                    indexFormat = indexes[4] + 1;
+                    isFormattingScientific = false;
+                    continue;
+                }
+                else if (isFormatting && !isIncreasing && isFormattingFraction && indexes[6] >= 0 && indexFormat < indexes[5])
+                {
+                    result = resultFormatted + new string(result.Reverse().ToArray());
+                    resultFormatted = string.Empty;
+                    isIncreasing = true;
+                    indexValue = -1;
+                    indexFormat = indexes[6] + 1;
+                    continue;
+                }
+                else if (indexFormat >= format.Length)
+                {
                     isIncreasing = false;
-                    indexes[4] = indexes[0];
-                    indexes[5] = indexes[2] - 1;
+                    indexValue = indexes[0];
+                    indexFormat = indexes[2] - 1;
+                    indexes[2] = Math.Min(indexes[2], indexes[3] + 1);
+                    indexes[4] = Math.Min(indexes[4], indexes[3]);
+                    indexes[7] = Math.Min(indexes[7], indexes[3]);
                     isFormatting = true;
                     continue;
                 }
-                else if (indexes[5] < 0)
+                else if (indexFormat < 0)
                 {
                     result = new string(result.Reverse().ToArray());
                     isIncreasing = true;
-                    indexes[4] = indexes[0];
-                    indexes[5] = indexes[2];
+                    indexValue = indexes[0];
+                    indexFormat = indexes[2];
                     continue;
                 }
 
-                char formatChar = format[indexes[5]];
-                if ((isIncreasing && indexes[5] + 1 < format.Length && formatChar == '\\') || (!isIncreasing && indexes[5] > 0 && format[indexes[5] - 1] == '\\'))
+                char formatChar = format[indexFormat];
+                if ((isIncreasing && indexFormat + 1 < format.Length && formatChar == '\\') || (!isIncreasing && indexFormat > 0 && format[indexFormat - 1] == '\\'))
                 {
-                    result += isFormatting ? format[isIncreasing ? indexes[5] + 1 : indexes[5]].ToString() : string.Empty;
-                    indexes[5] += isIncreasing ? 2 : -2;
+                    result += isFormatting ? format[isIncreasing ? indexFormat + 1 : indexFormat].ToString() : string.Empty;
+                    indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if (isIncreasing ? formatChar == '[' && indexes[5] + 1 < format.Length : formatChar == ']' && indexes[5] > 0)
+                else if (isIncreasing ? formatChar == '[' && indexFormat + 1 < format.Length : formatChar == ']' && indexFormat > 0)
                 {
                     do
                     {
                         //TODO: conditions
-                        indexes[5] += isIncreasing ? 1 : -1;
-                    } while (isIncreasing ? indexes[5] + 1 < format.Length && format[indexes[5] + 1] != ']' : indexes[5] > 0 && format[indexes[5] - 1] != '[');
-                    indexes[5] += isIncreasing ? 2 : -2;
+                        indexFormat += isIncreasing ? 1 : -1;
+                    } while (isIncreasing ? indexFormat + 1 < format.Length && format[indexFormat + 1] != ']' : indexFormat > 0 && format[indexFormat - 1] != '[');
+                    indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if (formatChar == '\"' && (isIncreasing ? indexes[5] + 1 < format.Length : indexes[5] > 0))
+                else if (formatChar == '\"' && (isIncreasing ? indexFormat + 1 < format.Length : indexFormat > 0))
                 {
                     do
                     {
-                        indexes[5] += isIncreasing ? 1 : -1;
-                        result += isFormatting ? format[indexes[5]].ToString() : string.Empty;
+                        indexFormat += isIncreasing ? 1 : -1;
+                        result += isFormatting ? format[indexFormat].ToString() : string.Empty;
                     }
-                    while (isIncreasing ? indexes[5] + 1 < format.Length && format[indexes[5] + 1] != '\"' : indexes[5] > 0 && format[indexes[5] - 1] != '\"');
-                    indexes[5] += isIncreasing ? 2 : -2;
+                    while (isIncreasing ? indexFormat + 1 < format.Length && format[indexFormat + 1] != '\"' : indexFormat > 0 && format[indexFormat - 1] != '\"');
+                    indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if ((isIncreasing && indexes[5] + 1 < format.Length && formatChar == '*') || (!isIncreasing && indexes[5] > 0 && format[indexes[5] - 1] == '*'))
+                else if ((isIncreasing && indexFormat + 1 < format.Length && formatChar == '*') || (!isIncreasing && indexFormat > 0 && format[indexFormat - 1] == '*'))
                 {
-                    result += isFormatting ? format[isIncreasing ? indexes[5] + 1 : indexes[5]].ToString() : string.Empty;
-                    indexes[5] += isIncreasing ? 2 : -2;
+                    result += isFormatting ? format[isIncreasing ? indexFormat + 1 : indexFormat].ToString() : string.Empty;
+                    indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
-                else if ((isIncreasing && indexes[5] + 1 < format.Length && formatChar == '_') || (!isIncreasing && indexes[5] > 0 && format[indexes[5] - 1] == '_'))
+                else if ((isIncreasing && indexFormat + 1 < format.Length && formatChar == '_') || (!isIncreasing && indexFormat > 0 && format[indexFormat - 1] == '_'))
                 {
                     result += isFormatting ? " " : string.Empty;
-                    indexes[5] += isIncreasing ? 2 : -2;
-                    continue;
-                }
-                else if (isFormatting && !isIncreasing && indexes[5] > 0 && format[indexes[5] - 1] == 'E' && (formatChar == '+' || formatChar == '-'))
-                {
-                    result = resultFormatted + new string(result.Reverse().ToArray());
-                    isIncreasing = true;
-                    indexes[5] = indexes[3] + 1;
-                    isFormattingScientific = false;
+                    indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
 
-                if (!isFormatting && isValueNumber)
+                if (isValueNumber && !isFormatting)
                 {
                     if (formatChar == '.')
                     {
-                        indexes[2] = Math.Min(indexes[5], indexes[2]);
+                        indexes[2] = Math.Min(indexes[2], indexFormat);
                     }
                     else if (formatChar == '0' || formatChar == '#' || formatChar == '?')
                     {
-                        indexes[1] = Math.Min(indexes[5], indexes[1]);
-                        indexes[3] = indexes[5];
-                        isPeriodRequired = (indexes[5] > indexes[2] && (formatChar == '0' || formatChar == '?') && string.IsNullOrEmpty(infoScientific.Item2)) || isPeriodRequired;
+                        indexes[1] = Math.Min(indexes[1], indexFormat);
+                        indexes[3] = indexFormat;
+                        indexes[5] = indexes[5] < 0 ? indexFormat : indexes[5];
+                        isPeriodRequired = (indexFormat > indexes[2] && (formatChar == '0' || formatChar == '?') && indexes[4] < 0) || isPeriodRequired;
+                    }
+                    else if (formatChar == ' ')
+                    {
+                        isDigitWhitespaceDetected = indexFormat > indexes[1] || isDigitWhitespaceDetected;
+                        if (isDigitWhitespaceDetected)
+                        {
+                            indexes[4] = indexes[4] < format.Length ? indexes[4] : indexes[3];
+                            indexes[7] = indexes[7] < format.Length ? indexes[7] : indexes[3];
+                            indexes[5] = indexes[6] < 0 ? Math.Max(indexes[5], indexFormat + 1) : indexes[5];
+                        }
                     }
                     else if (formatChar == '%')
                     {
                         valueNumber *= 100;
                         actionUpdateValue.Invoke();
                     }
-                    else if (formatChar == 'E' && isIncreasing && indexes[5] + 1 < format.Length && (format[indexes[5] + 1] == '+' || format[indexes[5] + 1] == '-'))
+                    else if (formatChar == 'E' && isIncreasing && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
                     {
                         if (indexes[0] > 1)
                         {
+                            indexes[4] = format.Length;
                             infoScientific = (true, (indexes[0] - 1).ToString());
                             valueNumber /= Math.Pow(10, indexes[0] - 1);
                             actionUpdateValue.Invoke();
@@ -1192,20 +1223,33 @@ namespace XlsxToHtmlConverter
                             }
                             if (digit > indexes[0])
                             {
+                                indexes[4] = format.Length;
                                 infoScientific = (false, (digit - indexes[0]).ToString());
                                 valueNumber *= Math.Pow(10, digit - indexes[0]);
                                 actionUpdateValue.Invoke();
                             }
                         }
-                        indexes[2] = Math.Min(indexes[5], indexes[2]);
-                        indexes[5]++;
+                        indexes[2] = Math.Min(indexes[2], indexFormat);
+                        indexFormat++;
                     }
-                    else if (formatChar == '/')
+                    else if (formatChar == '/' && isIncreasing)
                     {
-                        //TODO: fractions
                         double valueAbsolute = Math.Abs(valueNumber);
                         int valueFloor = (int)Math.Floor(valueAbsolute);
+                        if (isDigitWhitespaceDetected)
+                        {
+                            double valueInteger = valueNumber >= 0 ? valueFloor : -valueFloor;
+                            valueNumber -= valueNumber >= 0 ? valueFloor : -valueFloor;
+                            valueAbsolute = Math.Abs(valueNumber);
+                            valueFloor = (int)Math.Floor(valueAbsolute);
+                            valueNumber = valueInteger;
+                        }
+                        else
+                        {
+                            valueNumber = 0;
+                        }
                         valueAbsolute -= valueFloor;
+                        actionUpdateValue.Invoke();
 
                         int fractionNumerator = 1;
                         int fractionDenominator = 1;
@@ -1217,18 +1261,18 @@ namespace XlsxToHtmlConverter
                         }
                         else if (valueAbsolute < maxError)
                         {
-                            fractionNumerator = valueNumber > 0 ? valueFloor : -valueFloor;
+                            fractionNumerator = valueNumber >= 0 ? valueFloor : -valueFloor;
                             fractionDenominator = 1;
                         }
                         else if (1 - maxError < valueAbsolute)
                         {
-                            fractionNumerator = valueNumber > 0 ? (valueFloor + 1) : -(valueFloor + 1);
+                            fractionNumerator = valueNumber >= 0 ? (valueFloor + 1) : -(valueFloor + 1);
                             fractionDenominator = 1;
                         }
                         else
                         {
                             int[] fractionParts = new int[4] { 0, 1, 1, 1 };
-                            Func<int, int, int, int, Func<int, int, bool>, bool> actionFindNewValue = (indexNumerator, indexDenominator, incrementNumerator, incrementDenominator, actionEvaluation) =>
+                            Action<int, int, int, int, Func<int, int, bool>> actionFindNewValue = (indexNumerator, indexDenominator, incrementNumerator, incrementDenominator, actionEvaluation) =>
                             {
                                 fractionParts[indexNumerator] += incrementNumerator;
                                 fractionParts[indexDenominator] += incrementDenominator;
@@ -1255,7 +1299,6 @@ namespace XlsxToHtmlConverter
                                     }
                                     while (weight > 1);
                                 }
-                                return true;
                             };
 
                             while (true)
@@ -1272,14 +1315,16 @@ namespace XlsxToHtmlConverter
                                 }
                                 else
                                 {
-                                    fractionNumerator = valueNumber > 0 ? valueFloor * middleDenominator + middleNumerator : -(valueFloor * middleDenominator + middleNumerator);
+                                    fractionNumerator = valueNumber >= 0 ? valueFloor * middleDenominator + middleNumerator : -(valueFloor * middleDenominator + middleNumerator);
                                     fractionDenominator = middleDenominator;
                                     break;
                                 }
                             }
                         }
-
-                        bool debug = true;
+                        indexes[2] = Math.Min(indexes[2], indexes[5]);
+                        indexes[6] = indexFormat - 1;
+                        indexes[7] = format.Length;
+                        infoFraction = (fractionNumerator.ToString(), fractionDenominator.ToString());
                     }
                 }
                 else if (isFormatting)
@@ -1290,42 +1335,56 @@ namespace XlsxToHtmlConverter
                     }
                     else if (isValueNumber && formatChar == '.')
                     {
-                        if (isPeriodRequired || (isIncreasing && indexes[4] + 1 < value.Length))
+                        if (isPeriodRequired || (isIncreasing && indexValue + 1 < value.Length))
                         {
                             result += ".";
                         }
                     }
                     else if (isValueNumber && formatChar == ',')
                     {
-                        if (isIncreasing ? indexes[4] + 1 < value.Length : indexes[4] > 0)
+                        if (isIncreasing ? indexValue + 1 < value.Length : indexValue > 0)
                         {
                             result += ",";
                         }
                     }
-                    else if (isValueNumber && formatChar == 'E' && isIncreasing && indexes[5] + 1 < format.Length && (format[indexes[5] + 1] == '+' || format[indexes[5] + 1] == '-') && !string.IsNullOrEmpty(infoScientific.Item2))
+                    else if (isValueNumber && formatChar == 'E' && isIncreasing && !isFormattingScientific && indexes[4] >= 0 && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
                     {
-                        resultFormatted = result + (infoScientific.Item1 ? (format[indexes[5] + 1] == '-' ? "E" : "E+") : "E-");
+                        resultFormatted = result + (infoScientific.Item1 ? (format[indexFormat + 1] == '-' ? "E" : "E+") : "E-");
                         result = string.Empty;
                         isIncreasing = false;
-                        indexes[4] = infoScientific.Item2.Length;
-                        indexes[5] = indexes[3];
+                        indexValue = infoScientific.Item2.Length;
+                        indexFormat = indexes[4];
                         isFormattingScientific = true;
+                        continue;
+                    }
+                    else if (isValueNumber && isIncreasing && !isFormattingFraction && indexes[6] >= 0 && indexFormat >= indexes[5] && indexFormat <= indexes[6])
+                    {
+                        resultFormatted = result;
+                        result = string.Empty;
+                        isIncreasing = false;
+                        indexValue = infoFraction.Item1.Length;
+                        indexFormat = indexes[6];
+                        isFormattingFraction = true;
                         continue;
                     }
                     else if (isValueNumber && (formatChar == '0' || formatChar == '#' || formatChar == '?'))
                     {
-                        indexes[4] += isIncreasing ? 1 : -1;
-                        if (indexes[4] >= 0 && indexes[4] < (!isFormattingScientific ? value.Length : infoScientific.Item2.Length) && (formatChar == '0' || indexes[4] > 0 || value[indexes[4]] != '0' || isPeriodRequired || isFormattingScientific))
+                        indexValue += isIncreasing ? 1 : -1;
+                        if (indexValue >= 0 && indexValue < (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > indexes[6] ? infoFraction.Item2 : infoFraction.Item1)) : infoScientific.Item2).Length && (formatChar == '0' || indexValue > 0 || value[indexValue] != '0' || isPeriodRequired || isFormattingScientific || isFormattingFraction))
                         {
-                            if (isIncreasing && (indexes[5] >= indexes[3] || (indexes[5] + 2 < format.Length && format[indexes[5] + 1] == 'E' && (format[indexes[5] + 2] == '+' || format[indexes[5] + 2] == '-'))) && indexes[4] + 1 < value.Length && int.TryParse(value[indexes[4] + 1].ToString(), out int next) && next > 4)
+                            if (isIncreasing && !isFormattingFraction && (indexFormat >= indexes[3] || (isFormattingScientific && indexFormat + 2 < format.Length && format[indexFormat + 1] == 'E' && (format[indexFormat + 2] == '+' || format[indexFormat + 2] == '-'))) && indexValue + 1 < value.Length && int.TryParse(value[indexValue + 1].ToString(), out int next) && next > 4)
                             {
-                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexes[4] + 1 - indexes[0])).ToString(), format);
+                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexValue + 1 - indexes[0])).ToString(), format);
                             }
 
-                            result += !isFormattingScientific ? value[indexes[4]].ToString() : infoScientific.Item2[indexes[4]].ToString();
-                            if (!isFormattingScientific ? indexes[5] <= indexes[1] : (indexes[5] - 2 >= 0 && format[indexes[5] - 2] == 'E' && (format[indexes[5] - 1] == '+' || format[indexes[5] - 1] == '-')))
+                            result += (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > indexes[6] ? infoFraction.Item2 : infoFraction.Item1)) : infoScientific.Item2)[indexValue].ToString();
+                            if (!isIncreasing && (!isFormattingScientific ? (!isFormattingFraction ? indexFormat <= indexes[1] : indexFormat <= indexes[5]) : indexFormat - 2 >= 0 && format[indexFormat - 2] == 'E' && (format[indexFormat - 1] == '+' || format[indexFormat - 1] == '-')))
                             {
-                                result += new string((!isFormattingScientific ? value : infoScientific.Item2).Substring(0, indexes[4]).Reverse().ToArray());
+                                result += new string((!isFormattingScientific ? (!isFormattingFraction ? value : infoFraction.Item1) : infoScientific.Item2).Substring(0, indexValue).Reverse().ToArray());
+                            }
+                            else if (isIncreasing && isFormattingFraction && indexFormat >= indexes[7] && indexValue + 1 < infoFraction.Item2.Length)
+                            {
+                                result += infoFraction.Item2.Substring(indexValue + 1, infoFraction.Item2.Length - indexValue - 1);
                             }
                         }
                         else
@@ -1338,15 +1397,14 @@ namespace XlsxToHtmlConverter
                         result += formatChar;
                     }
                 }
-
-                indexes[5] += isIncreasing ? 1 : -1;
+                indexFormat += isIncreasing ? 1 : -1;
             }
             return result;
         }
 
         private static Dictionary<string, string> CellFormatToHtml(Fill fill, Font font, Border border, Alignment alignment, out string cellValueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors, ConverterConfig config)
         {
-            Dictionary<string, string> htmlStyle = new Dictionary<string, string>();
+            Dictionary<string, string> htmlStyles = new Dictionary<string, string>();
             cellValueContainer = "{0}";
             if (fill != null && fill.PatternFill != null && (fill.PatternFill.PatternType == null || (fill.PatternFill.PatternType.HasValue && fill.PatternFill.PatternType.Value != PatternValues.None)))
             {
@@ -1361,16 +1419,16 @@ namespace XlsxToHtmlConverter
                 }
                 if (!string.IsNullOrEmpty(background))
                 {
-                    htmlStyle.Add("background-color", background);
+                    htmlStyles.Add("background-color", background);
                 }
             }
             if (font != null)
             {
                 if (font.FontName != null && font.FontName.Val != null && font.FontName.Val.HasValue)
                 {
-                    htmlStyle.Add("font-family", font.FontName.Val.Value);
+                    htmlStyles.Add("font-family", font.FontName.Val.Value);
                 }
-                htmlStyle = JoinHtmlAttributes(htmlStyle, FontToHtml(font.Color, font.FontSize, font.Bold, font.Italic, font.Strike, font.Underline, out cellValueContainer, themeColors, config));
+                htmlStyles = JoinHtmlAttributes(htmlStyles, FontToHtml(font.Color, font.FontSize, font.Bold, font.Italic, font.Strike, font.Underline, out cellValueContainer, themeColors, config));
             }
             if (border != null)
             {
@@ -1379,7 +1437,7 @@ namespace XlsxToHtmlConverter
                     string borderLeft = BorderPropertiesToHtml(border.LeftBorder, themeColors, config);
                     if (!string.IsNullOrEmpty(borderLeft))
                     {
-                        htmlStyle.Add("border-left", borderLeft);
+                        htmlStyles.Add("border-left", borderLeft);
                     }
                 }
                 if (border.RightBorder != null)
@@ -1387,7 +1445,7 @@ namespace XlsxToHtmlConverter
                     string borderRight = BorderPropertiesToHtml(border.RightBorder, themeColors, config);
                     if (!string.IsNullOrEmpty(borderRight))
                     {
-                        htmlStyle.Add("border-right", borderRight);
+                        htmlStyles.Add("border-right", borderRight);
                     }
                 }
                 if (border.TopBorder != null)
@@ -1395,7 +1453,7 @@ namespace XlsxToHtmlConverter
                     string borderTop = BorderPropertiesToHtml(border.TopBorder, themeColors, config);
                     if (!string.IsNullOrEmpty(borderTop))
                     {
-                        htmlStyle.Add("border-top", borderTop);
+                        htmlStyles.Add("border-top", borderTop);
                     }
                 }
                 if (border.BottomBorder != null)
@@ -1403,7 +1461,7 @@ namespace XlsxToHtmlConverter
                     string borderBottom = BorderPropertiesToHtml(border.BottomBorder, themeColors, config);
                     if (!string.IsNullOrEmpty(borderBottom))
                     {
-                        htmlStyle.Add("border-bottom", borderBottom);
+                        htmlStyles.Add("border-bottom", borderBottom);
                     }
                 }
             }
@@ -1411,53 +1469,53 @@ namespace XlsxToHtmlConverter
             {
                 if (alignment.Horizontal != null && alignment.Horizontal.HasValue && alignment.Horizontal.Value != HorizontalAlignmentValues.General)
                 {
-                    htmlStyle.Add("text-align", alignment.Horizontal.Value == HorizontalAlignmentValues.Left ? "left" : (alignment.Horizontal.Value == HorizontalAlignmentValues.Right ? "right" : (alignment.Horizontal.Value == HorizontalAlignmentValues.Justify ? "justify" : "center")));
+                    htmlStyles.Add("text-align", alignment.Horizontal.Value == HorizontalAlignmentValues.Left ? "left" : (alignment.Horizontal.Value == HorizontalAlignmentValues.Right ? "right" : (alignment.Horizontal.Value == HorizontalAlignmentValues.Justify ? "justify" : "center")));
                 }
                 if (alignment.Vertical != null && alignment.Vertical.HasValue)
                 {
-                    htmlStyle.Add("vertical-align", alignment.Vertical.Value == VerticalAlignmentValues.Bottom ? "bottom" : (alignment.Vertical.Value == VerticalAlignmentValues.Top ? "top" : "middle"));
+                    htmlStyles.Add("vertical-align", alignment.Vertical.Value == VerticalAlignmentValues.Bottom ? "bottom" : (alignment.Vertical.Value == VerticalAlignmentValues.Top ? "top" : "middle"));
                 }
                 if (alignment.WrapText != null && alignment.WrapText.HasValue && alignment.WrapText.Value)
                 {
-                    htmlStyle.Add("word-wrap", "break-word");
-                    htmlStyle.Add("white-space", "normal");
+                    htmlStyles.Add("word-wrap", "break-word");
+                    htmlStyles.Add("white-space", "normal");
                 }
                 if (alignment.TextRotation != null && alignment.TextRotation.HasValue)
                 {
                     cellValueContainer = cellValueContainer.Replace("{0}", $"<div style=\"width: fit-content; transform: rotate(-{RoundNumber(alignment.TextRotation.Value, config.RoundingDigits)}deg);\">{{0}}</div>");
                 }
             }
-            return htmlStyle;
+            return htmlStyles;
         }
 
         private static Dictionary<string, string> FontToHtml(ColorType color, FontSize fontSize, Bold bold, Italic italic, Strike strike, Underline underline, out string cellValueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors, ConverterConfig config)
         {
-            Dictionary<string, string> htmlStyle = new Dictionary<string, string>();
+            Dictionary<string, string> htmlStyles = new Dictionary<string, string>();
             cellValueContainer = "{0}";
             if (color != null)
             {
                 string htmlColor = ColorTypeToHtml(color, themeColors, config);
                 if (!string.IsNullOrEmpty(htmlColor))
                 {
-                    htmlStyle.Add("color", htmlColor);
+                    htmlStyles.Add("color", htmlColor);
                 }
             }
             if (fontSize != null && fontSize.Val != null && fontSize.Val.HasValue)
             {
-                htmlStyle.Add("font-size", $"{RoundNumber(fontSize.Val.Value / 72 * 96, config.RoundingDigits)}px");
+                htmlStyles.Add("font-size", $"{RoundNumber(fontSize.Val.Value / 72 * 96, config.RoundingDigits)}px");
             }
             if (bold != null)
             {
-                htmlStyle.Add("font-weight", bold.Val == null || (bold.Val.HasValue && bold.Val.Value) ? "bold" : "normal");
+                htmlStyles.Add("font-weight", bold.Val == null || (bold.Val.HasValue && bold.Val.Value) ? "bold" : "normal");
             }
             if (italic != null)
             {
-                htmlStyle.Add("font-style", italic.Val == null || (italic.Val.HasValue && italic.Val.Value) ? "italic" : "normal");
+                htmlStyles.Add("font-style", italic.Val == null || (italic.Val.HasValue && italic.Val.Value) ? "italic" : "normal");
             }
-            string htmlStyleTextDecoraion = string.Empty;
+            string htmlStylesTextDecoraion = string.Empty;
             if (strike != null)
             {
-                htmlStyleTextDecoraion += strike.Val == null || (strike.Val.HasValue && strike.Val.Value) ? " line-through" : " none";
+                htmlStylesTextDecoraion += strike.Val == null || (strike.Val.HasValue && strike.Val.Value) ? " line-through" : " none";
             }
             if (underline != null && underline.Val != null && underline.Val.HasValue)
             {
@@ -1467,14 +1525,14 @@ namespace XlsxToHtmlConverter
                 }
                 else if (underline.Val.Value != UnderlineValues.None)
                 {
-                    htmlStyleTextDecoraion += " underline";
+                    htmlStylesTextDecoraion += " underline";
                 }
             }
-            if (!string.IsNullOrEmpty(htmlStyleTextDecoraion))
+            if (!string.IsNullOrEmpty(htmlStylesTextDecoraion))
             {
-                htmlStyle.Add("text-decoration", htmlStyleTextDecoraion.TrimStart());
+                htmlStyles.Add("text-decoration", htmlStylesTextDecoraion.TrimStart());
             }
-            return htmlStyle;
+            return htmlStyles;
         }
 
         private static string BorderPropertiesToHtml(BorderPropertiesType border, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors, ConverterConfig config)
@@ -1522,10 +1580,10 @@ namespace XlsxToHtmlConverter
             }
             if (border.Color != null)
             {
-                string value = ColorTypeToHtml(border.Color, themeColors, config);
-                if (!string.IsNullOrEmpty(value))
+                string htmlColor = ColorTypeToHtml(border.Color, themeColors, config);
+                if (!string.IsNullOrEmpty(htmlColor))
                 {
-                    htmlBorder += $" {value}";
+                    htmlBorder += $" {htmlColor}";
                 }
             }
             return htmlBorder.TrimStart();
@@ -1539,6 +1597,13 @@ namespace XlsxToHtmlConverter
             }
 
             double[] result = new double[4] { 0, 0, 0, 1 };
+            Action<double, double, double> actionUpdateColor = (red, green, blue) =>
+            {
+                result[0] = red;
+                result[1] = green;
+                result[2] = blue;
+            };
+
             if (color.Auto != null && color.Auto.HasValue && color.Auto.Value)
             {
                 return "initial";
@@ -1552,202 +1617,202 @@ namespace XlsxToHtmlConverter
                 switch (color.Indexed.Value)
                 {
                     case 0:
-                        UpdateArray(result, 0, 0, 0);
+                        actionUpdateColor.Invoke(0, 0, 0);
                         break;
                     case 1:
-                        UpdateArray(result, 255, 255, 255);
+                        actionUpdateColor.Invoke(255, 255, 255);
                         break;
                     case 2:
-                        UpdateArray(result, 255, 0, 0);
+                        actionUpdateColor.Invoke(255, 0, 0);
                         break;
                     case 3:
-                        UpdateArray(result, 0, 255, 0);
+                        actionUpdateColor.Invoke(0, 255, 0);
                         break;
                     case 4:
-                        UpdateArray(result, 0, 0, 255);
+                        actionUpdateColor.Invoke(0, 0, 255);
                         break;
                     case 5:
-                        UpdateArray(result, 255, 255, 0);
+                        actionUpdateColor.Invoke(255, 255, 0);
                         break;
                     case 6:
-                        UpdateArray(result, 255, 0, 255);
+                        actionUpdateColor.Invoke(255, 0, 255);
                         break;
                     case 7:
-                        UpdateArray(result, 0, 255, 255);
+                        actionUpdateColor.Invoke(0, 255, 255);
                         break;
                     case 8:
-                        UpdateArray(result, 0, 0, 0);
+                        actionUpdateColor.Invoke(0, 0, 0);
                         break;
                     case 9:
-                        UpdateArray(result, 255, 255, 255);
+                        actionUpdateColor.Invoke(255, 255, 255);
                         break;
                     case 10:
-                        UpdateArray(result, 255, 0, 0);
+                        actionUpdateColor.Invoke(255, 0, 0);
                         break;
                     case 11:
-                        UpdateArray(result, 0, 255, 0);
+                        actionUpdateColor.Invoke(0, 255, 0);
                         break;
                     case 12:
-                        UpdateArray(result, 0, 0, 255);
+                        actionUpdateColor.Invoke(0, 0, 255);
                         break;
                     case 13:
-                        UpdateArray(result, 255, 255, 0);
+                        actionUpdateColor.Invoke(255, 255, 0);
                         break;
                     case 14:
-                        UpdateArray(result, 255, 0, 255);
+                        actionUpdateColor.Invoke(255, 0, 255);
                         break;
                     case 15:
-                        UpdateArray(result, 0, 255, 255);
+                        actionUpdateColor.Invoke(0, 255, 255);
                         break;
                     case 16:
-                        UpdateArray(result, 128, 0, 0);
+                        actionUpdateColor.Invoke(128, 0, 0);
                         break;
                     case 17:
-                        UpdateArray(result, 0, 128, 0);
+                        actionUpdateColor.Invoke(0, 128, 0);
                         break;
                     case 18:
-                        UpdateArray(result, 0, 0, 128);
+                        actionUpdateColor.Invoke(0, 0, 128);
                         break;
                     case 19:
-                        UpdateArray(result, 128, 128, 0);
+                        actionUpdateColor.Invoke(128, 128, 0);
                         break;
                     case 20:
-                        UpdateArray(result, 128, 0, 128);
+                        actionUpdateColor.Invoke(128, 0, 128);
                         break;
                     case 21:
-                        UpdateArray(result, 0, 128, 128);
+                        actionUpdateColor.Invoke(0, 128, 128);
                         break;
                     case 22:
-                        UpdateArray(result, 192, 192, 192);
+                        actionUpdateColor.Invoke(192, 192, 192);
                         break;
                     case 23:
-                        UpdateArray(result, 128, 128, 128);
+                        actionUpdateColor.Invoke(128, 128, 128);
                         break;
                     case 24:
-                        UpdateArray(result, 153, 153, 255);
+                        actionUpdateColor.Invoke(153, 153, 255);
                         break;
                     case 25:
-                        UpdateArray(result, 153, 51, 102);
+                        actionUpdateColor.Invoke(153, 51, 102);
                         break;
                     case 26:
-                        UpdateArray(result, 255, 255, 204);
+                        actionUpdateColor.Invoke(255, 255, 204);
                         break;
                     case 27:
-                        UpdateArray(result, 204, 255, 255);
+                        actionUpdateColor.Invoke(204, 255, 255);
                         break;
                     case 28:
-                        UpdateArray(result, 102, 0, 102);
+                        actionUpdateColor.Invoke(102, 0, 102);
                         break;
                     case 29:
-                        UpdateArray(result, 255, 128, 128);
+                        actionUpdateColor.Invoke(255, 128, 128);
                         break;
                     case 30:
-                        UpdateArray(result, 0, 102, 204);
+                        actionUpdateColor.Invoke(0, 102, 204);
                         break;
                     case 31:
-                        UpdateArray(result, 204, 204, 255);
+                        actionUpdateColor.Invoke(204, 204, 255);
                         break;
                     case 32:
-                        UpdateArray(result, 0, 0, 128);
+                        actionUpdateColor.Invoke(0, 0, 128);
                         break;
                     case 33:
-                        UpdateArray(result, 255, 0, 255);
+                        actionUpdateColor.Invoke(255, 0, 255);
                         break;
                     case 34:
-                        UpdateArray(result, 255, 255, 0);
+                        actionUpdateColor.Invoke(255, 255, 0);
                         break;
                     case 35:
-                        UpdateArray(result, 0, 255, 255);
+                        actionUpdateColor.Invoke(0, 255, 255);
                         break;
                     case 36:
-                        UpdateArray(result, 128, 0, 128);
+                        actionUpdateColor.Invoke(128, 0, 128);
                         break;
                     case 37:
-                        UpdateArray(result, 128, 0, 0);
+                        actionUpdateColor.Invoke(128, 0, 0);
                         break;
                     case 38:
-                        UpdateArray(result, 0, 128, 128);
+                        actionUpdateColor.Invoke(0, 128, 128);
                         break;
                     case 39:
-                        UpdateArray(result, 0, 0, 255);
+                        actionUpdateColor.Invoke(0, 0, 255);
                         break;
                     case 40:
-                        UpdateArray(result, 0, 204, 255);
+                        actionUpdateColor.Invoke(0, 204, 255);
                         break;
                     case 41:
-                        UpdateArray(result, 204, 255, 255);
+                        actionUpdateColor.Invoke(204, 255, 255);
                         break;
                     case 42:
-                        UpdateArray(result, 204, 255, 204);
+                        actionUpdateColor.Invoke(204, 255, 204);
                         break;
                     case 43:
-                        UpdateArray(result, 255, 255, 153);
+                        actionUpdateColor.Invoke(255, 255, 153);
                         break;
                     case 44:
-                        UpdateArray(result, 153, 204, 255);
+                        actionUpdateColor.Invoke(153, 204, 255);
                         break;
                     case 45:
-                        UpdateArray(result, 255, 153, 204);
+                        actionUpdateColor.Invoke(255, 153, 204);
                         break;
                     case 46:
-                        UpdateArray(result, 204, 153, 255);
+                        actionUpdateColor.Invoke(204, 153, 255);
                         break;
                     case 47:
-                        UpdateArray(result, 255, 204, 153);
+                        actionUpdateColor.Invoke(255, 204, 153);
                         break;
                     case 48:
-                        UpdateArray(result, 51, 102, 255);
+                        actionUpdateColor.Invoke(51, 102, 255);
                         break;
                     case 49:
-                        UpdateArray(result, 51, 204, 204);
+                        actionUpdateColor.Invoke(51, 204, 204);
                         break;
                     case 50:
-                        UpdateArray(result, 153, 204, 0);
+                        actionUpdateColor.Invoke(153, 204, 0);
                         break;
                     case 51:
-                        UpdateArray(result, 255, 204, 0);
+                        actionUpdateColor.Invoke(255, 204, 0);
                         break;
                     case 52:
-                        UpdateArray(result, 255, 153, 0);
+                        actionUpdateColor.Invoke(255, 153, 0);
                         break;
                     case 53:
-                        UpdateArray(result, 255, 102, 0);
+                        actionUpdateColor.Invoke(255, 102, 0);
                         break;
                     case 54:
-                        UpdateArray(result, 102, 102, 153);
+                        actionUpdateColor.Invoke(102, 102, 153);
                         break;
                     case 55:
-                        UpdateArray(result, 150, 150, 150);
+                        actionUpdateColor.Invoke(150, 150, 150);
                         break;
                     case 56:
-                        UpdateArray(result, 0, 51, 102);
+                        actionUpdateColor.Invoke(0, 51, 102);
                         break;
                     case 57:
-                        UpdateArray(result, 51, 153, 102);
+                        actionUpdateColor.Invoke(51, 153, 102);
                         break;
                     case 58:
-                        UpdateArray(result, 0, 51, 0);
+                        actionUpdateColor.Invoke(0, 51, 0);
                         break;
                     case 59:
-                        UpdateArray(result, 51, 51, 0);
+                        actionUpdateColor.Invoke(51, 51, 0);
                         break;
                     case 60:
-                        UpdateArray(result, 153, 51, 0);
+                        actionUpdateColor.Invoke(153, 51, 0);
                         break;
                     case 61:
-                        UpdateArray(result, 153, 51, 102);
+                        actionUpdateColor.Invoke(153, 51, 102);
                         break;
                     case 62:
-                        UpdateArray(result, 51, 51, 153);
+                        actionUpdateColor.Invoke(51, 51, 153);
                         break;
                     case 63:
-                        UpdateArray(result, 51, 51, 51);
+                        actionUpdateColor.Invoke(51, 51, 51);
                         break;
                     case 64:
-                        UpdateArray(result, 128, 128, 128);
+                        actionUpdateColor.Invoke(128, 128, 128);
                         break;
                     case 65:
-                        UpdateArray(result, 255, 255, 255);
+                        actionUpdateColor.Invoke(255, 255, 255);
                         break;
                     default:
                         return string.Empty;
@@ -1777,7 +1842,8 @@ namespace XlsxToHtmlConverter
                 {
                     if (themeColor.SystemColor.Val != null && themeColor.SystemColor.Val.HasValue && ThemeSystemColors.ContainsKey(themeColor.SystemColor.Val.Value))
                     {
-                        UpdateArray(result, ThemeSystemColors[themeColor.SystemColor.Val.Value]);
+                        double[] colorSystem = ThemeSystemColors[themeColor.SystemColor.Val.Value];
+                        actionUpdateColor.Invoke(colorSystem[0], colorSystem[1], colorSystem[2]);
                     }
                     else if (themeColor.SystemColor.LastColor != null && themeColor.SystemColor.LastColor.HasValue)
                     {
@@ -1790,7 +1856,8 @@ namespace XlsxToHtmlConverter
                 }
                 else if (themeColor.PresetColor != null && themeColor.PresetColor.Val != null && themeColor.PresetColor.Val.HasValue && ThemePresetColors.ContainsKey(themeColor.PresetColor.Val.Value))
                 {
-                    UpdateArray(result, ThemePresetColors[themeColor.PresetColor.Val.Value]);
+                    double[] colorPreset = ThemePresetColors[themeColor.PresetColor.Val.Value];
+                    actionUpdateColor.Invoke(colorPreset[0], colorPreset[1], colorPreset[2]);
                 }
                 else
                 {
@@ -1893,18 +1960,18 @@ namespace XlsxToHtmlConverter
                 string topActual = top;
                 string widthActual = width;
                 string heightActual = height;
-                string htmlStyleTransform = string.Empty;
+                string htmlTransforms = string.Empty;
                 if (drawingInfo.Item3 != null && drawingInfo.Item3.Transform2D != null)
                 {
                     if (drawingInfo.Item3.Transform2D.Offset != null)
                     {
                         if (left == "0" && drawingInfo.Item3.Transform2D.Offset.X != null && drawingInfo.Item3.Transform2D.Offset.X.HasValue)
                         {
-                            htmlStyleTransform += $" translateX({RoundNumber(drawingInfo.Item3.Transform2D.Offset.X.Value / 914400.0 * 96, config.RoundingDigits)}px)";
+                            htmlTransforms += $" translateX({RoundNumber(drawingInfo.Item3.Transform2D.Offset.X.Value / 914400.0 * 96, config.RoundingDigits)}px)";
                         }
                         if (top == "0" && drawingInfo.Item3.Transform2D.Offset.Y != null && drawingInfo.Item3.Transform2D.Offset.Y.HasValue)
                         {
-                            htmlStyleTransform += $" translateY({RoundNumber(drawingInfo.Item3.Transform2D.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits)}px)";
+                            htmlTransforms += $" translateY({RoundNumber(drawingInfo.Item3.Transform2D.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits)}px)";
                         }
                     }
                     if (drawingInfo.Item3.Transform2D.Extents != null)
@@ -1920,20 +1987,20 @@ namespace XlsxToHtmlConverter
                     }
                     if (drawingInfo.Item3.Transform2D.Rotation != null && drawingInfo.Item3.Transform2D.Rotation.HasValue)
                     {
-                        htmlStyleTransform += $" rotate(-{RoundNumber(drawingInfo.Item3.Transform2D.Rotation.Value, config.RoundingDigits)}deg)";
+                        htmlTransforms += $" rotate(-{RoundNumber(drawingInfo.Item3.Transform2D.Rotation.Value, config.RoundingDigits)}deg)";
                     }
                     if (drawingInfo.Item3.Transform2D.HorizontalFlip != null && drawingInfo.Item3.Transform2D.HorizontalFlip.HasValue && drawingInfo.Item3.Transform2D.HorizontalFlip.Value)
                     {
-                        htmlStyleTransform += $" scaleX(-1)";
+                        htmlTransforms += $" scaleX(-1)";
                     }
                     if (drawingInfo.Item3.Transform2D.VerticalFlip != null && drawingInfo.Item3.Transform2D.VerticalFlip.HasValue && drawingInfo.Item3.Transform2D.VerticalFlip.Value)
                     {
-                        htmlStyleTransform += $" scaleY(-1)";
+                        htmlTransforms += $" scaleY(-1)";
                     }
                 }
 
                 bool isHidden = drawingInfo.Item2 != null && drawingInfo.Item2.Hidden != null && drawingInfo.Item2.Hidden.HasValue && drawingInfo.Item2.Hidden.Value;
-                writer.Write($"\n{new string(' ', 8)}{drawingInfo.Item1.Replace("{0}", $" style=\"position: absolute; left: {leftActual}; top: {topActual}; width: {widthActual}; height: {heightActual};{(!string.IsNullOrEmpty(htmlStyleTransform) ? $" transform:{htmlStyleTransform};" : string.Empty)}{(isHidden ? " visibility: hidden;" : string.Empty)}\"")}");
+                writer.Write($"\n{new string(' ', 8)}{drawingInfo.Item1.Replace("{0}", $" style=\"position: absolute; left: {leftActual}; top: {topActual}; width: {widthActual}; height: {heightActual};{(!string.IsNullOrEmpty(htmlTransforms) ? $" transform:{htmlTransforms};" : string.Empty)}{(isHidden ? " visibility: hidden;" : string.Empty)}\"")}");
             }
         }
 
@@ -2233,6 +2300,7 @@ namespace XlsxToHtmlConverter
             this.ConvertHiddenSheets = false;
             this.ConvertFirstSheetOnly = false;
             this.ConvertHtmlBodyOnly = false;
+            this.UseHtmlStyleClasses = true;
             this.RoundingDigits = 2;
         }
 
@@ -2309,6 +2377,11 @@ namespace XlsxToHtmlConverter
         public bool ConvertHtmlBodyOnly { get; set; }
 
         /// <summary>
+        /// Gets or sets whether to use the Html class attributes.
+        /// </summary>
+        public bool UseHtmlStyleClasses { get; set; }
+
+        /// <summary>
         /// Gets or sets the number of digits to round the numbers to, or to not use rounding if the value is negative.
         /// </summary>
         public int RoundingDigits { get; set; }
@@ -2338,6 +2411,7 @@ namespace XlsxToHtmlConverter
                 ConvertHiddenSheets = this.ConvertHiddenSheets,
                 ConvertFirstSheetOnly = this.ConvertFirstSheetOnly,
                 ConvertHtmlBodyOnly = this.ConvertHtmlBodyOnly,
+                UseHtmlStyleClasses = this.UseHtmlStyleClasses,
                 RoundingDigits = this.RoundingDigits
             };
         }
