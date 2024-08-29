@@ -193,7 +193,7 @@ namespace XlsxToHtmlConverter
                     }
                     Dictionary<uint, string> stylesheetNumberingFormats = new Dictionary<uint, string>();
                     Dictionary<uint, string> stylesheetNumberingFormatsDateTime = new Dictionary<uint, string>();
-                    Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool)> stylesheetNumberingFormatsNumber = new Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool)>();
+                    Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, List<string>)> stylesheetNumberingFormatsNumber = new Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, List<string>)>();
                     if (configClone.ConvertNumberFormats && stylesheet != null && stylesheet.NumberingFormats != null)
                     {
                         foreach (NumberingFormat numberingFormat in stylesheet.NumberingFormats.Descendants<NumberingFormat>())
@@ -314,15 +314,7 @@ namespace XlsxToHtmlConverter
                                     }
 
                                     GetReferenceRange(mergeCell.Reference.Value, out int mergeCellFromColumn, out int mergeCellFromRow, out int mergeCellToColumn, out int mergeCellToRow);
-                                    if (mergeCells.ContainsKey((mergeCellFromColumn, mergeCellFromRow)))
-                                    {
-                                        mergeCells[(mergeCellFromColumn, mergeCellFromRow)] = new int[2] { mergeCellToColumn - mergeCellFromColumn + 1, mergeCellToRow - mergeCellFromRow + 1 };
-                                    }
-                                    else
-                                    {
-                                        mergeCells.Add((mergeCellFromColumn, mergeCellFromRow), new int[2] { mergeCellToColumn - mergeCellFromColumn + 1, mergeCellToRow - mergeCellFromRow + 1 });
-                                    }
-
+                                    mergeCells[(mergeCellFromColumn, mergeCellFromRow)] = new int[2] { mergeCellToColumn - mergeCellFromColumn + 1, mergeCellToRow - mergeCellFromRow + 1 };
                                     for (int i = mergeCellFromColumn; i <= mergeCellToColumn; i++)
                                     {
                                         for (int j = mergeCellFromRow; j <= mergeCellToRow; j++)
@@ -513,15 +505,12 @@ namespace XlsxToHtmlConverter
                                 int rowSpanned = 1;
                                 if (mergeCells.ContainsKey((columnIndex, rowIndex)))
                                 {
-                                    if (mergeCells[(columnIndex, rowIndex)] is int[] mergeCellInfo)
-                                    {
-                                        columnSpanned = mergeCellInfo[0];
-                                        rowSpanned = mergeCellInfo[1];
-                                    }
-                                    else
+                                    if (!(mergeCells[(columnIndex, rowIndex)] is int[] mergeCellInfo))
                                     {
                                         continue;
                                     }
+                                    columnSpanned = mergeCellInfo[0];
+                                    rowSpanned = mergeCellInfo[1];
                                 }
 
                                 int styleIndex = cell.StyleIndex != null && cell.StyleIndex.HasValue ? (int)cell.StyleIndex.Value : (row.StyleIndex != null && row.StyleIndex.HasValue ? (int)row.StyleIndex.Value : -1);
@@ -637,6 +626,14 @@ namespace XlsxToHtmlConverter
                                     }
                                 }
 
+                                Dictionary<string, string> htmlStylesCell = new Dictionary<string, string>();
+                                string cellValueContainer = "{0}";
+                                if (configClone.ConvertStyles && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length)
+                                {
+                                    htmlStylesCell = !configClone.UseHtmlStyleClasses && stylesheetCellFormats[styleIndex].Item1 != null ? JoinHtmlAttributes(htmlStylesCell, stylesheetCellFormats[styleIndex].Item1) : htmlStylesCell;
+                                    cellValueContainer = !string.IsNullOrEmpty(stylesheetCellFormats[styleIndex].Item2) ? cellValueContainer.Replace("{0}", stylesheetCellFormats[styleIndex].Item2) : cellValueContainer;
+                                }
+
                                 string cellValue = string.Empty;
                                 string cellValueRaw = string.Empty;
                                 if (cell.CellValue != null)
@@ -709,8 +706,9 @@ namespace XlsxToHtmlConverter
                                         }
                                         else
                                         {
+                                            bool isCellValueNumber = double.TryParse(cellValueRaw, out double cellValueNumber);
                                             string[] numberFormatCodeComponents = numberFormatCode.Split(';');
-                                            if (numberFormatCodeComponents.Length > 1 && double.TryParse(cellValueRaw, out double cellValueNumber))
+                                            if (numberFormatCodeComponents.Length > 1 && isCellValueNumber)
                                             {
                                                 int indexComponent = cellValueNumber > 0 || (numberFormatCodeComponents.Length == 2 && cellValueNumber == 0) ? 0 : (cellValueNumber < 0 ? 1 : (numberFormatCodeComponents.Length > 2 ? 2 : -1));
                                                 numberFormatCode = indexComponent >= 0 ? numberFormatCodeComponents[indexComponent] : numberFormatCode;
@@ -719,7 +717,74 @@ namespace XlsxToHtmlConverter
                                             {
                                                 numberFormatCode = numberFormatCodeComponents.Length > 3 ? numberFormatCodeComponents[3] : numberFormatCode;
                                             }
-                                            cellValue = GetEscapedString(GetFormattedNumber(cellValueRaw, numberFormatCode.Trim(), ref stylesheetNumberingFormatsNumber));
+                                            cellValue = GetEscapedString(GetFormattedNumber(cellValueRaw, numberFormatCode.Trim(), ref stylesheetNumberingFormatsNumber, out List<string> conditions));
+                                            if (config.ConvertStyles && isCellValueNumber && conditions != null)
+                                            {
+                                                for (int i = 0; i < conditions.Count; i++)
+                                                {
+                                                    string conditionColor = string.Empty;
+                                                    switch (conditions[i].ToLower())
+                                                    {
+                                                        case "black":
+                                                            conditionColor = "rgb(0, 0, 0)";
+                                                            break;
+                                                        case "blue":
+                                                            conditionColor = "rgb(0, 0, 255)";
+                                                            break;
+                                                        case "cyan":
+                                                            conditionColor = "rgb(0, 255, 255)";
+                                                            break;
+                                                        case "green":
+                                                            conditionColor = "rgb(0, 128, 0)";
+                                                            break;
+                                                        case "magenta":
+                                                            conditionColor = "rgb(255, 0, 255)";
+                                                            break;
+                                                        case "red":
+                                                            conditionColor = "rgb(255, 0, 0)";
+                                                            break;
+                                                        case "white":
+                                                            conditionColor = "rgb(255, 255, 255)";
+                                                            break;
+                                                        case "yellow":
+                                                            conditionColor = "rgb(255, 255, 0)";
+                                                            break;
+                                                    }
+                                                    bool isConditionMet = true;
+                                                    if (i + 1 < conditions.Count && !char.IsLetter(conditions[i + 1][0]))
+                                                    {
+                                                        i++;
+                                                        if (conditions[i].StartsWith("="))
+                                                        {
+                                                            isConditionMet = double.TryParse(conditions[i].Substring(1, conditions[i].Length - 1), out double conditionValue) && cellValueNumber == conditionValue;
+                                                        }
+                                                        else if (conditions[i].StartsWith("<>"))
+                                                        {
+                                                            isConditionMet = double.TryParse(conditions[i].Substring(2, conditions[i].Length - 2), out double conditionValue) && cellValueNumber != conditionValue;
+                                                        }
+                                                        else if (conditions[i].StartsWith(">="))
+                                                        {
+                                                            isConditionMet = double.TryParse(conditions[i].Substring(2, conditions[i].Length - 2), out double conditionValue) && cellValueNumber >= conditionValue;
+                                                        }
+                                                        else if (conditions[i].StartsWith("<="))
+                                                        {
+                                                            isConditionMet = double.TryParse(conditions[i].Substring(2, conditions[i].Length - 2), out double conditionValue) && cellValueNumber <= conditionValue;
+                                                        }
+                                                        else if (conditions[i].StartsWith(">"))
+                                                        {
+                                                            isConditionMet = double.TryParse(conditions[i].Substring(1, conditions[i].Length - 1), out double conditionValue) && cellValueNumber > conditionValue;
+                                                        }
+                                                        else if (conditions[i].StartsWith("<"))
+                                                        {
+                                                            isConditionMet = double.TryParse(conditions[i].Substring(1, conditions[i].Length - 1), out double conditionValue) && cellValueNumber < conditionValue;
+                                                        }
+                                                    }
+                                                    if (!string.IsNullOrEmpty(conditionColor) && isConditionMet)
+                                                    {
+                                                        htmlStylesCell["color"] = conditionColor;
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                     else if (!isSharedString)
@@ -728,8 +793,6 @@ namespace XlsxToHtmlConverter
                                     }
                                 }
 
-                                Dictionary<string, string> htmlStylesCell = new Dictionary<string, string>();
-                                string cellValueContainer = "{0}";
                                 if (configClone.ConvertStyles)
                                 {
                                     if (cell.DataType != null && cell.DataType.HasValue)
@@ -746,12 +809,6 @@ namespace XlsxToHtmlConverter
                                     else if (isNumberFormatDefaultDateTime || double.TryParse(cellValueRaw, out double _))
                                     {
                                         htmlStylesCell.Add("text-align", "right");
-                                    }
-
-                                    if (styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length)
-                                    {
-                                        htmlStylesCell = !configClone.UseHtmlStyleClasses && stylesheetCellFormats[styleIndex].Item1 != null ? JoinHtmlAttributes(htmlStylesCell, stylesheetCellFormats[styleIndex].Item1) : htmlStylesCell;
-                                        cellValueContainer = !string.IsNullOrEmpty(stylesheetCellFormats[styleIndex].Item2) ? cellValueContainer.Replace("{0}", stylesheetCellFormats[styleIndex].Item2) : cellValueContainer;
                                     }
 
                                     int differentialStyleIndex = -1;
@@ -996,6 +1053,20 @@ namespace XlsxToHtmlConverter
             toRow = Math.Max(firstRow, secondRow);
         }
 
+        private static Dictionary<string, string> JoinHtmlAttributes(Dictionary<string, string> original, Dictionary<string, string> joining)
+        {
+            if (joining == null)
+            {
+                return original;
+            }
+
+            foreach (KeyValuePair<string, string> pair in joining)
+            {
+                original[pair.Key] = pair.Value;
+            }
+            return original;
+        }
+
         private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional, int indent)
         {
             if (attributes == null)
@@ -1009,27 +1080,6 @@ namespace XlsxToHtmlConverter
                 htmlAttributes += $"{pair.Key}: {pair.Value};{(indent >= 0 ? $"\n{new string(' ', indent)}" : " ")}";
             }
             return isAdditional ? $" {htmlAttributes.TrimEnd()}" : htmlAttributes.TrimEnd();
-        }
-
-        private static Dictionary<string, string> JoinHtmlAttributes(Dictionary<string, string> original, Dictionary<string, string> joining)
-        {
-            if (joining == null)
-            {
-                return original;
-            }
-
-            foreach (KeyValuePair<string, string> pair in joining)
-            {
-                if (original.ContainsKey(pair.Key))
-                {
-                    original[pair.Key] = pair.Value;
-                }
-                else
-                {
-                    original.Add(pair.Key, pair.Value);
-                }
-            }
-            return original;
         }
 
         private static bool GetNumberFormulaCondition(string value, IEnumerable<Formula> formulas, int formulasCount, Func<double[], bool> actionEvaluation)
@@ -1055,23 +1105,22 @@ namespace XlsxToHtmlConverter
             return index >= formulasCount && actionEvaluation.Invoke(parameters);
         }
 
-        private static string GetFormattedNumber(string value, string format, ref Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool)> formatsCalculated)
+        private static string GetFormattedNumber(string value, string format, ref Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, List<string>)> formatsCalculated, out List<string> conditions)
         {
             if (string.IsNullOrEmpty(format))
             {
+                conditions = null;
                 return value;
             }
 
             bool isValueNumber = double.TryParse(value, out double valueNumber);
             if (!isValueNumber && !format.Contains("@"))
             {
+                conditions = null;
                 return value;
             }
 
             int infoValue = value.Length;
-            bool isFormatCalculated = formatsCalculated.ContainsKey(format);
-            (int, int, int, bool, int, int, int, int, bool, bool) infoFormat = isFormatCalculated ? formatsCalculated[format] : (format.Length, format.Length, format.Length, false, -1, -1, -1, -1, false, false);
-
             Action actionUpdateValue = () =>
             {
                 value = isValueNumber ? valueNumber.ToString(stringFormatNumber) : value;
@@ -1079,6 +1128,9 @@ namespace XlsxToHtmlConverter
                 infoValue = infoValue < 0 ? value.Length : infoValue;
             };
             actionUpdateValue.Invoke();
+
+            bool isFormatCalculated = formatsCalculated.ContainsKey(format);
+            (int, int, int, bool, int, int, int, int, bool, bool, List<string>) infoFormat = isFormatCalculated ? formatsCalculated[format] : (format.Length, format.Length, format.Length, false, -1, -1, -1, -1, false, false, new List<string>());
 
             (bool, string) valueScientific = (true, "0");
             bool isFormattingScientific = false;
@@ -1251,6 +1303,7 @@ namespace XlsxToHtmlConverter
                     infoFormat.Item2 = Math.Min(infoFormat.Item2, infoFormat.Item3 + 1);
                     infoFormat.Item5 = Math.Min(infoFormat.Item5, infoFormat.Item3);
                     infoFormat.Item8 = Math.Min(infoFormat.Item8, infoFormat.Item3);
+                    infoFormat.Item11 = infoFormat.Item11.Count > 0 ? infoFormat.Item11 : null;
                     formatsCalculated.Add(format, infoFormat);
                     isFormatCalculated = true;
                     actionUpdateInfo.Invoke();
@@ -1274,12 +1327,23 @@ namespace XlsxToHtmlConverter
                 }
                 else if (isIncreasing ? formatChar == '[' && indexFormat + 1 < format.Length : formatChar == ']' && indexFormat > 0)
                 {
+                    if (!isFormatCalculated)
+                    {
+                        infoFormat.Item11.Add(string.Empty);
+                    }
                     do
                     {
-                        //TODO: conditions
                         indexFormat += isIncreasing ? 1 : -1;
+                        if (!isFormatCalculated)
+                        {
+                            infoFormat.Item11[infoFormat.Item11.Count - 1] += format[indexFormat].ToString();
+                        }
                     } while (isIncreasing ? indexFormat + 1 < format.Length && format[indexFormat + 1] != ']' : indexFormat > 0 && format[indexFormat - 1] != '[');
                     indexFormat += isIncreasing ? 2 : -2;
+                    if (!isFormatCalculated)
+                    {
+                        infoFormat.Item11[infoFormat.Item11.Count - 1] = infoFormat.Item11[infoFormat.Item11.Count - 1].Trim();
+                    }
                     continue;
                 }
                 else if (formatChar == '\"' && (isIncreasing ? indexFormat + 1 < format.Length : indexFormat > 0))
@@ -1352,19 +1416,17 @@ namespace XlsxToHtmlConverter
                     {
                         result += isIncreasing ? value : new string(value.Reverse().ToArray());
                     }
+                    else if (formatChar == ';')
+                    {
+                        result += infoFormat.Item11 == null || infoFormat.Item11.Count <= 0 ? ";" : string.Empty;
+                    }
                     else if (isValueNumber && formatChar == '.')
                     {
-                        if (infoFormat.Item9 || (isIncreasing && indexValue + 1 < value.Length))
-                        {
-                            result += ".";
-                        }
+                        result += infoFormat.Item9 || (isIncreasing && indexValue + 1 < value.Length) ? "." : string.Empty;
                     }
                     else if (isValueNumber && formatChar == ',')
                     {
-                        if (isIncreasing ? indexValue + 1 < value.Length : indexValue > 0)
-                        {
-                            result += ",";
-                        }
+                        result += (isIncreasing ? indexValue + 1 < value.Length : indexValue > 0) ? "," : string.Empty;
                     }
                     else if (isValueNumber && formatChar == 'E' && isIncreasing && !isFormattingScientific && infoFormat.Item5 >= 0 && indexFormat + 1 < format.Length && (format[indexFormat + 1] == '+' || format[indexFormat + 1] == '-'))
                     {
@@ -1393,7 +1455,7 @@ namespace XlsxToHtmlConverter
                         {
                             if (isIncreasing && !isFormattingFraction && (indexFormat >= infoFormat.Item3 || (isFormattingScientific && indexFormat + 2 < format.Length && format[indexFormat + 1] == 'E' && (format[indexFormat + 2] == '+' || format[indexFormat + 2] == '-'))) && indexValue + 1 < value.Length && int.TryParse(value[indexValue + 1].ToString(), out int next) && next > 4)
                             {
-                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexValue + 1 - infoValue)).ToString(stringFormatNumber), format, ref formatsCalculated);
+                                return GetFormattedNumber((valueNumber + (10 - next) / Math.Pow(10, indexValue + 1 - infoValue)).ToString(stringFormatNumber), format, ref formatsCalculated, out conditions);
                             }
 
                             result += (!isFormattingScientific ? (!isFormattingFraction ? value : (indexFormat > infoFormat.Item7 ? valueFraction.Item2 : valueFraction.Item1)) : valueScientific.Item2)[indexValue].ToString();
@@ -1418,6 +1480,7 @@ namespace XlsxToHtmlConverter
                 }
                 indexFormat += isIncreasing ? 1 : -1;
             }
+            conditions = infoFormat.Item11;
             return result;
         }
 
