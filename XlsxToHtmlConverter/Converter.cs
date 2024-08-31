@@ -191,7 +191,7 @@ namespace XlsxToHtmlConverter
                             stylesheetDifferentialFormats[stylesheetDifferentialFormatIndex] = (CellFormatToHtml(differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer, themeColors, configClone), cellValueContainer);
                         }
                     }
-                    Dictionary<uint, string> stylesheetNumberingFormats = new Dictionary<uint, string>();
+                    Dictionary<uint, string[]> stylesheetNumberingFormats = new Dictionary<uint, string[]>();
                     Dictionary<uint, string> stylesheetNumberingFormatsDateTime = new Dictionary<uint, string>();
                     Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, List<string>)> stylesheetNumberingFormatsNumber = new Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, List<string>)>();
                     if (configClone.ConvertNumberFormats && stylesheet != null && stylesheet.NumberingFormats != null)
@@ -200,7 +200,22 @@ namespace XlsxToHtmlConverter
                         {
                             if (numberingFormat.NumberFormatId != null && numberingFormat.NumberFormatId.HasValue)
                             {
-                                stylesheetNumberingFormats.Add(numberingFormat.NumberFormatId.Value, numberingFormat.FormatCode != null && numberingFormat.FormatCode.HasValue ? System.Web.HttpUtility.HtmlDecode(numberingFormat.FormatCode.Value) : string.Empty);
+                                string formatCode = numberingFormat.FormatCode != null && numberingFormat.FormatCode.HasValue ? System.Web.HttpUtility.HtmlDecode(numberingFormat.FormatCode.Value) : string.Empty;
+                                List<string> formatCodeSplitted = new List<string>();
+                                string formatCodeCurrent = string.Empty;
+                                for (int i = 0; i < formatCode.Length; i++)
+                                {
+                                    if (formatCode[i] == ';' && (i - 1 < 0 || formatCode[i - 1] != '\\'))
+                                    {
+                                        formatCodeSplitted.Add(formatCodeCurrent);
+                                        formatCodeCurrent = string.Empty;
+                                    }
+                                    else
+                                    {
+                                        formatCodeCurrent += formatCode[i];
+                                    }
+                                }
+                                stylesheetNumberingFormats.Add(numberingFormat.NumberFormatId.Value, formatCodeSplitted.ToArray());
                             }
                         }
                     }
@@ -293,7 +308,7 @@ namespace XlsxToHtmlConverter
                                 columnWidthDefault = RoundNumber(worksheetFormatProperties.DefaultColumnWidth != null && worksheetFormatProperties.DefaultColumnWidth.HasValue ? worksheetFormatProperties.DefaultColumnWidth.Value : (worksheetFormatProperties.BaseColumnWidth != null && worksheetFormatProperties.BaseColumnWidth.HasValue ? worksheetFormatProperties.BaseColumnWidth.Value : columnWidthDefault), configClone.RoundingDigits);
                                 rowHeightDefault = RoundNumber(worksheetFormatProperties.DefaultRowHeight != null && worksheetFormatProperties.DefaultRowHeight.HasValue ? worksheetFormatProperties.DefaultRowHeight.Value / 72 * 96 : rowHeightDefault, configClone.RoundingDigits);
                             }
-                            else if (worksheetDescendant is Columns columnsGroup && config.ConvertSizes)
+                            else if (worksheetDescendant is Columns columnsGroup && configClone.ConvertSizes)
                             {
                                 foreach (Column column in columnsGroup.Descendants<Column>())
                                 {
@@ -514,118 +529,6 @@ namespace XlsxToHtmlConverter
                                 }
 
                                 int styleIndex = cell.StyleIndex != null && cell.StyleIndex.HasValue ? (int)cell.StyleIndex.Value : (row.StyleIndex != null && row.StyleIndex.HasValue ? (int)row.StyleIndex.Value : -1);
-
-                                string numberFormatCode = string.Empty;
-                                bool isNumberFormatDefaultDateTime = false;
-                                if (configClone.ConvertNumberFormats && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length)
-                                {
-                                    switch (stylesheetCellFormats[styleIndex].Item3)
-                                    {
-                                        case 0:
-                                            numberFormatCode = string.Empty;
-                                            break;
-                                        case 1:
-                                            numberFormatCode = "0";
-                                            break;
-                                        case 2:
-                                            numberFormatCode = "0.00";
-                                            break;
-                                        case 3:
-                                            numberFormatCode = "#,##0";
-                                            break;
-                                        case 4:
-                                            numberFormatCode = "#,##0.00";
-                                            break;
-                                        case 9:
-                                            numberFormatCode = "0%";
-                                            break;
-                                        case 10:
-                                            numberFormatCode = "0.00%";
-                                            break;
-                                        case 11:
-                                            numberFormatCode = "0.00E+00";
-                                            break;
-                                        case 12:
-                                            numberFormatCode = "# ?/?";
-                                            break;
-                                        case 13:
-                                            numberFormatCode = "# ??/??";
-                                            break;
-                                        case 14:
-                                            numberFormatCode = "MM-dd-yy";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 15:
-                                            numberFormatCode = "d-MMM-yy";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 16:
-                                            numberFormatCode = "d-MMM";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 17:
-                                            numberFormatCode = "MMM-yy";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 18:
-                                            numberFormatCode = "h:mm AM/PM";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 19:
-                                            numberFormatCode = "h:mm:ss AM/PM";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 20:
-                                            numberFormatCode = "h:mm";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 21:
-                                            numberFormatCode = "h:mm:ss";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 22:
-                                            numberFormatCode = "M/d/yy h:mm";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 37:
-                                            numberFormatCode = "#,##0 ;(#,##0)";
-                                            break;
-                                        case 38:
-                                            numberFormatCode = "#,##0 ;[Red](#,##0)";
-                                            break;
-                                        case 39:
-                                            numberFormatCode = "#,##0.00;(#,##0.00)";
-                                            break;
-                                        case 40:
-                                            numberFormatCode = "#,##0.00;[Red](#,##0.00)";
-                                            break;
-                                        case 45:
-                                            numberFormatCode = "mm:ss";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 46:
-                                            numberFormatCode = "[h]:mm:ss";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 47:
-                                            numberFormatCode = "mmss.0";
-                                            isNumberFormatDefaultDateTime = true;
-                                            break;
-                                        case 48:
-                                            numberFormatCode = "##0.0E+0";
-                                            break;
-                                        case 49:
-                                            numberFormatCode = "@";
-                                            break;
-                                        default:
-                                            if (stylesheetNumberingFormats.ContainsKey(stylesheetCellFormats[styleIndex].Item3))
-                                            {
-                                                numberFormatCode = stylesheetNumberingFormats[stylesheetCellFormats[styleIndex].Item3];
-                                            }
-                                            break;
-                                    }
-                                }
-
                                 Dictionary<string, string> htmlStylesCell = new Dictionary<string, string>();
                                 string cellValueContainer = "{0}";
                                 if (configClone.ConvertStyles && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length)
@@ -636,25 +539,146 @@ namespace XlsxToHtmlConverter
 
                                 string cellValue = string.Empty;
                                 string cellValueRaw = string.Empty;
+                                bool isCellValueNumber = false;
                                 if (cell.CellValue != null)
                                 {
-                                    cellValue = cell.CellValue.Text;
-
-                                    bool isSharedString = false;
-                                    if (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.SharedString && int.TryParse(cellValue, out int sharedStringId) && sharedStringId >= 0 && sharedStringId < cellValueSharedStrings.Length)
+                                    bool isCellValueSharedString = false;
+                                    if (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.SharedString && int.TryParse(cell.CellValue.Text, out int sharedStringId) && sharedStringId >= 0 && sharedStringId < cellValueSharedStrings.Length)
                                     {
-                                        isSharedString = true;
+                                        isCellValueSharedString = true;
                                         cellValue = cellValueSharedStrings[sharedStringId].Item1;
                                         cellValueRaw = cellValueSharedStrings[sharedStringId].Item2;
                                     }
                                     else
                                     {
+                                        cellValue = cell.CellValue.Text;
                                         cellValueRaw = cellValue;
+                                    }
+                                    isCellValueNumber = double.TryParse(cellValueRaw, out double cellValueNumber);
+
+                                    string numberFormatCode = string.Empty;
+                                    bool isNumberFormatDefaultDateTime = false;
+                                    if (configClone.ConvertNumberFormats && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length)
+                                    {
+                                        switch (stylesheetCellFormats[styleIndex].Item3)
+                                        {
+                                            case 0:
+                                                numberFormatCode = string.Empty;
+                                                break;
+                                            case 1:
+                                                numberFormatCode = "0";
+                                                break;
+                                            case 2:
+                                                numberFormatCode = "0.00";
+                                                break;
+                                            case 3:
+                                                numberFormatCode = "#,##0";
+                                                break;
+                                            case 4:
+                                                numberFormatCode = "#,##0.00";
+                                                break;
+                                            case 9:
+                                                numberFormatCode = "0%";
+                                                break;
+                                            case 10:
+                                                numberFormatCode = "0.00%";
+                                                break;
+                                            case 11:
+                                                numberFormatCode = "0.00E+00";
+                                                break;
+                                            case 12:
+                                                numberFormatCode = "# ?/?";
+                                                break;
+                                            case 13:
+                                                numberFormatCode = "# ??/??";
+                                                break;
+                                            case 14:
+                                                numberFormatCode = "MM-dd-yy";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 15:
+                                                numberFormatCode = "d-MMM-yy";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 16:
+                                                numberFormatCode = "d-MMM";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 17:
+                                                numberFormatCode = "MMM-yy";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 18:
+                                                numberFormatCode = "h:mm AM/PM";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 19:
+                                                numberFormatCode = "h:mm:ss AM/PM";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 20:
+                                                numberFormatCode = "h:mm";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 21:
+                                                numberFormatCode = "h:mm:ss";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 22:
+                                                numberFormatCode = "M/d/yy h:mm";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 37:
+                                                numberFormatCode = "#,##0 ;(#,##0)";
+                                                break;
+                                            case 38:
+                                                numberFormatCode = "#,##0 ;[Red](#,##0)";
+                                                break;
+                                            case 39:
+                                                numberFormatCode = "#,##0.00;(#,##0.00)";
+                                                break;
+                                            case 40:
+                                                numberFormatCode = "#,##0.00;[Red](#,##0.00)";
+                                                break;
+                                            case 45:
+                                                numberFormatCode = "mm:ss";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 46:
+                                                numberFormatCode = "[h]:mm:ss";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 47:
+                                                numberFormatCode = "mmss.0";
+                                                isNumberFormatDefaultDateTime = true;
+                                                break;
+                                            case 48:
+                                                numberFormatCode = "##0.0E+0";
+                                                break;
+                                            case 49:
+                                                numberFormatCode = "@";
+                                                break;
+                                            default:
+                                                if (stylesheetNumberingFormats.ContainsKey(stylesheetCellFormats[styleIndex].Item3))
+                                                {
+                                                    string[] numberFormatCodeParts = stylesheetNumberingFormats[stylesheetCellFormats[styleIndex].Item3];
+                                                    if (numberFormatCodeParts.Length > 1 && isCellValueNumber)
+                                                    {
+                                                        int indexComponent = cellValueNumber > 0 || (numberFormatCodeParts.Length == 2 && cellValueNumber == 0) ? 0 : (cellValueNumber < 0 ? 1 : (numberFormatCodeParts.Length > 2 ? 2 : -1));
+                                                        numberFormatCode = indexComponent >= 0 ? numberFormatCodeParts[indexComponent] : numberFormatCode;
+                                                    }
+                                                    else
+                                                    {
+                                                        numberFormatCode = numberFormatCodeParts.Length > 3 ? numberFormatCodeParts[3] : numberFormatCode;
+                                                    }
+                                                }
+                                                break;
+                                        }
                                     }
 
                                     if (!string.IsNullOrEmpty(numberFormatCode))
                                     {
-                                        if ((isNumberFormatDefaultDateTime || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && double.TryParse(cellValueRaw, out double cellValueDate))
+                                        if ((isNumberFormatDefaultDateTime || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && isCellValueNumber)
                                         {
                                             if (!isNumberFormatDefaultDateTime && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length && stylesheetNumberingFormatsDateTime.ContainsKey(stylesheetCellFormats[styleIndex].Item3))
                                             {
@@ -700,25 +724,12 @@ namespace XlsxToHtmlConverter
                                                 }
                                                 numberFormatCode = numberFormatCodeNew;
                                             }
-
-                                            DateTime dateValue = DateTime.FromOADate(cellValueDate).Date;
-                                            cellValue = GetEscapedString(dateValue.ToString(numberFormatCode));
+                                            cellValue = GetEscapedString(DateTime.FromOADate(cellValueNumber).Date.ToString(numberFormatCode));
                                         }
                                         else
                                         {
-                                            bool isCellValueNumber = double.TryParse(cellValueRaw, out double cellValueNumber);
-                                            string[] numberFormatCodeComponents = numberFormatCode.Split(';');
-                                            if (numberFormatCodeComponents.Length > 1 && isCellValueNumber)
-                                            {
-                                                int indexComponent = cellValueNumber > 0 || (numberFormatCodeComponents.Length == 2 && cellValueNumber == 0) ? 0 : (cellValueNumber < 0 ? 1 : (numberFormatCodeComponents.Length > 2 ? 2 : -1));
-                                                numberFormatCode = indexComponent >= 0 ? numberFormatCodeComponents[indexComponent] : numberFormatCode;
-                                            }
-                                            else
-                                            {
-                                                numberFormatCode = numberFormatCodeComponents.Length > 3 ? numberFormatCodeComponents[3] : numberFormatCode;
-                                            }
                                             cellValue = GetEscapedString(GetFormattedNumber(cellValueRaw, numberFormatCode.Trim(), ref stylesheetNumberingFormatsNumber, out List<string> conditions));
-                                            if (config.ConvertStyles && isCellValueNumber && conditions != null)
+                                            if (configClone.ConvertStyles && isCellValueNumber && conditions != null)
                                             {
                                                 for (int i = 0; i < conditions.Count; i++)
                                                 {
@@ -787,7 +798,7 @@ namespace XlsxToHtmlConverter
                                             }
                                         }
                                     }
-                                    else if (!isSharedString)
+                                    else if (!isCellValueSharedString)
                                     {
                                         cellValue = GetEscapedString(cellValue);
                                     }
@@ -806,7 +817,7 @@ namespace XlsxToHtmlConverter
                                             htmlStylesCell.Add("text-align", "right");
                                         }
                                     }
-                                    else if (isNumberFormatDefaultDateTime || double.TryParse(cellValueRaw, out double _))
+                                    else if (isCellValueNumber)
                                     {
                                         htmlStylesCell.Add("text-align", "right");
                                     }
@@ -1416,10 +1427,6 @@ namespace XlsxToHtmlConverter
                     {
                         result += isIncreasing ? value : new string(value.Reverse().ToArray());
                     }
-                    else if (formatChar == ';')
-                    {
-                        result += infoFormat.Item11 == null || infoFormat.Item11.Count <= 0 ? ";" : string.Empty;
-                    }
                     else if (isValueNumber && formatChar == '.')
                     {
                         result += infoFormat.Item9 || (isIncreasing && indexValue + 1 < value.Length) ? "." : string.Empty;
@@ -1922,9 +1929,9 @@ namespace XlsxToHtmlConverter
                 }
                 else if (themeColor.SystemColor != null)
                 {
-                    if (themeColor.SystemColor.Val != null && themeColor.SystemColor.Val.HasValue && ThemeSystemColors.ContainsKey(themeColor.SystemColor.Val.Value))
+                    if (themeColor.SystemColor.Val != null && themeColor.SystemColor.Val.HasValue && themeSystemColors.ContainsKey(themeColor.SystemColor.Val.Value))
                     {
-                        double[] colorSystem = ThemeSystemColors[themeColor.SystemColor.Val.Value];
+                        double[] colorSystem = themeSystemColors[themeColor.SystemColor.Val.Value];
                         actionUpdateColor.Invoke(colorSystem[0], colorSystem[1], colorSystem[2]);
                     }
                     else if (themeColor.SystemColor.LastColor != null && themeColor.SystemColor.LastColor.HasValue)
@@ -1936,9 +1943,9 @@ namespace XlsxToHtmlConverter
                         return string.Empty;
                     }
                 }
-                else if (themeColor.PresetColor != null && themeColor.PresetColor.Val != null && themeColor.PresetColor.Val.HasValue && ThemePresetColors.ContainsKey(themeColor.PresetColor.Val.Value))
+                else if (themeColor.PresetColor != null && themeColor.PresetColor.Val != null && themeColor.PresetColor.Val.HasValue && themePresetColors.ContainsKey(themeColor.PresetColor.Val.Value))
                 {
-                    double[] colorPreset = ThemePresetColors[themeColor.PresetColor.Val.Value];
+                    double[] colorPreset = themePresetColors[themeColor.PresetColor.Val.Value];
                     actionUpdateColor.Invoke(colorPreset[0], colorPreset[1], colorPreset[2]);
                 }
                 else
@@ -2095,7 +2102,7 @@ namespace XlsxToHtmlConverter
         private static readonly Regex regexNumbers = new Regex(@"\d+", RegexOptions.Compiled);
         private static readonly Regex regexLetters = new Regex("[A-Za-z]+", RegexOptions.Compiled);
 
-        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, double[]> ThemeSystemColors = new Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, double[]>()
+        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, double[]> themeSystemColors = new Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, double[]>()
         {
             { DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder, new double [3] { 180, 180, 180 } },
             { DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption, new double [3] { 153, 180, 209 } },
@@ -2129,7 +2136,7 @@ namespace XlsxToHtmlConverter
             { DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText, new double [3] { 0, 0, 0 } }
         };
 
-        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, double[]> ThemePresetColors = new Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, double[]>()
+        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, double[]> themePresetColors = new Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, double[]>()
         {
             { DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue, new double[3] { 240, 248, 255 } },
             { DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite, new double[3] { 250, 235, 215 } },
