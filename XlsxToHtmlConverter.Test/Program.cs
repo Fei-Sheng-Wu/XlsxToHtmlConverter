@@ -30,15 +30,13 @@ namespace XlsxToHtmlConverter.Test
                 Console.WriteLine("Please enter the path to the Xlsx file:");
 
                 Console.CursorVisible = true;
-                //xlsxFilePath = Console.ReadLine();
-                xlsxFilePath = "E:\\Personal\\SVN\\C# Library\\XlsxToHtmlConverter\\sample.xlsx";
+                xlsxFilePath = Console.ReadLine();
                 Console.CursorVisible = false;
 
                 Console.WriteLine("Please enter the path to the Html file:");
 
                 Console.CursorVisible = true;
-                //htmlFilePath = Console.ReadLine();
-                htmlFilePath = "E:\\Personal\\SVN\\C# Library\\XlsxToHtmlConverter\\sample.html";
+                htmlFilePath = Console.ReadLine();
                 Console.CursorVisible = false;
             }
 
