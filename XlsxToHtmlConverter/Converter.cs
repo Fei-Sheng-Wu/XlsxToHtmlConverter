@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
-using System.Runtime.CompilerServices;
 
 namespace XlsxToHtmlConverter
 {
