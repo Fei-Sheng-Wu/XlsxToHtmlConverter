@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
+using System.Runtime.CompilerServices;
 
 namespace XlsxToHtmlConverter
 {
@@ -268,7 +269,7 @@ namespace XlsxToHtmlConverter
                                 cellValue = GetEscapedString(text);
                                 cellValueRaw = text;
                             }
-                            cellValueSharedStrings[sharedStringIndex] = (cellValue, cellValueRaw);
+                            cellValueSharedStrings[sharedStringIndex] = (cellValue, cellValueRaw != cellValue ? cellValueRaw : string.Empty);
                         }
                     }
 
@@ -548,6 +549,7 @@ namespace XlsxToHtmlConverter
                                         isCellValueSharedString = true;
                                         cellValue = cellValueSharedStrings[sharedStringId].Item1;
                                         cellValueRaw = cellValueSharedStrings[sharedStringId].Item2;
+                                        cellValueRaw = string.IsNullOrEmpty(cellValueRaw) ? cellValue : cellValueRaw;
                                     }
                                     else
                                     {
@@ -1277,7 +1279,6 @@ namespace XlsxToHtmlConverter
                     valueFraction = (fractionNumerator.ToString(), fractionDenominator.ToString());
                     actionUpdateValue.Invoke();
                 }
-
                 indexValue = infoValue;
                 indexFormat = infoFormat.Item2 - 1;
                 isIncreasing = false;
@@ -1965,7 +1966,7 @@ namespace XlsxToHtmlConverter
                 HlsToRgb(hue, luminosity, saturation, out result[0], out result[1], out result[2]);
             }
 
-            return $"{(result[3] >= 1 ? "rgb" : "rgba")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Round(result[3])}" : string.Empty)})";
+            return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Round(result[3])}" : string.Empty)})";
         }
 
         private static void HexToRgba(string hex, out double red, out double green, out double blue, out double alpha)
