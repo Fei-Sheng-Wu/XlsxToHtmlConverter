@@ -65,7 +65,7 @@ namespace XlsxToHtmlConverter.Test
                 //Open the Html file
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(htmlFilePath) { UseShellExecute = true, CreateNoWindow = true });
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(htmlFilePath) { UseShellExecute = true, CreateNoWindow = true })?.Dispose();
                 }
                 finally
                 {
