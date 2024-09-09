@@ -214,6 +214,7 @@ namespace XlsxToHtmlConverter
                                         formatCodeCurrent += formatCode[i];
                                     }
                                 }
+                                formatCodeSplitted.Add(formatCodeCurrent);
                                 stylesheetNumberingFormats[numberingFormat.NumberFormatId.Value] = formatCodeSplitted.ToArray();
                             }
                         }
@@ -1511,6 +1512,7 @@ namespace XlsxToHtmlConverter
             cellValueContainer = "{0}";
             if (fill != null && fill.PatternFill != null && (fill.PatternFill.PatternType == null || (fill.PatternFill.PatternType.HasValue && fill.PatternFill.PatternType.Value != PatternValues.None)))
             {
+                //TODO: gradient fill & pattern fill
                 string background = string.Empty;
                 if (fill.PatternFill.ForegroundColor != null)
                 {
@@ -1663,6 +1665,10 @@ namespace XlsxToHtmlConverter
                 {
                     htmlBorder += " medium dotted";
                 }
+                else if (border.Style.Value == BorderStyleValues.Double)
+                {
+                    htmlBorder += " medium double";
+                }
                 else if (border.Style.Value == BorderStyleValues.Thin)
                 {
                     htmlBorder += " thin solid";
@@ -1675,10 +1681,6 @@ namespace XlsxToHtmlConverter
                 {
                     htmlBorder += " thin dotted";
                 }
-                else if (border.Style.Value == BorderStyleValues.Double)
-                {
-                    htmlBorder += " double";
-                }
             }
             if (border.Color != null)
             {
@@ -1689,6 +1691,238 @@ namespace XlsxToHtmlConverter
                 }
             }
             return htmlBorder.TrimStart();
+        }
+
+        private static void DrawingsToHtml(WorksheetPart worksheet, OpenXmlElement anchor, StreamWriter writer, string left, string top, string width, string height, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors, ConverterConfig config)
+        {
+            if (anchor == null)
+            {
+                return;
+            }
+
+            string element = string.Empty;
+            DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeProperties shapeProperties = null;
+            DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeStyle shapeStyle = null;
+            DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties nonVisualProperties = null;
+            foreach (OpenXmlElement drawing in anchor.Elements())
+            {
+                if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture && config.ConvertPictures && picture.BlipFill != null && picture.BlipFill.Blip != null && picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue && worksheet.DrawingsPart != null && worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) is ImagePart imagePart)
+                {
+                    Stream imageStream = imagePart.GetStream();
+                    if (!imageStream.CanRead)
+                    {
+                        continue;
+                    }
+                    else if (imageStream.CanSeek)
+                    {
+                        imageStream.Seek(0, SeekOrigin.Begin);
+                    }
+                    byte[] data = new byte[imageStream.Length];
+                    imageStream.Read(data, 0, (int)imageStream.Length);
+                    string base64 = Convert.ToBase64String(data, Base64FormattingOptions.None);
+                    string description = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.HasValue ? $" alt=\"{picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value}\"" : string.Empty;
+                    element = $"<img loading=\"lazy\" decoding=\"async\" style=\"{{0}}\" src=\"data:{imagePart.ContentType};base64,{base64}\"{description} />";
+                    shapeProperties = picture.ShapeProperties;
+                    shapeStyle = picture.ShapeStyle;
+                    nonVisualProperties = picture.NonVisualPictureProperties.NonVisualDrawingProperties;
+                    break;
+                }
+                else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape)
+                {
+                    //TODO: shape text
+                    string shapeText = shape.TextBody != null ? $"<span>{shape.TextBody.InnerText}</span>" : string.Empty;
+
+                    Dictionary<string, string> htmlStylesShape = new Dictionary<string, string>() { { "word-wrap", "break-word" }, { "overflow-x", "hidden" }, { "overflow-y", "hidden" } };
+                    double[] paddings = new double[4] { 0.13, 0.25, 0.13, 0.25 };
+                    if (shape.TextBody != null && shape.TextBody.BodyProperties != null)
+                    {
+                        paddings[0] = shape.TextBody.BodyProperties.TopInset != null && shape.TextBody.BodyProperties.TopInset.HasValue ? shape.TextBody.BodyProperties.TopInset.Value : paddings[0];
+                        paddings[1] = shape.TextBody.BodyProperties.RightInset != null && shape.TextBody.BodyProperties.RightInset.HasValue ? shape.TextBody.BodyProperties.RightInset.Value : paddings[1];
+                        paddings[2] = shape.TextBody.BodyProperties.BottomInset != null && shape.TextBody.BodyProperties.BottomInset.HasValue ? shape.TextBody.BodyProperties.BottomInset.Value : paddings[2];
+                        paddings[3] = shape.TextBody.BodyProperties.LeftInset != null && shape.TextBody.BodyProperties.LeftInset.HasValue ? shape.TextBody.BodyProperties.LeftInset.Value : paddings[3];
+                        if (shape.TextBody.BodyProperties.Anchor != null && shape.TextBody.BodyProperties.Anchor.HasValue && shape.TextBody.BodyProperties.Anchor.Value != DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Top)
+                        {
+                            htmlStylesShape["align-content"] = shape.TextBody.BodyProperties.Anchor.Value == DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Center ? "center" : "end";
+                        }
+                        if (shape.TextBody.BodyProperties.AnchorCenter != null && shape.TextBody.BodyProperties.AnchorCenter.HasValue && shape.TextBody.BodyProperties.AnchorCenter.Value)
+                        {
+                            htmlStylesShape["text-align"] = "center";
+                        }
+                        if (shape.TextBody.BodyProperties.Wrap != null && shape.TextBody.BodyProperties.Wrap.HasValue && shape.TextBody.BodyProperties.Wrap.Value == DocumentFormat.OpenXml.Drawing.TextWrappingValues.None)
+                        {
+                            htmlStylesShape.Remove("word-wrap");
+                        }
+                        if (shape.TextBody.BodyProperties.HorizontalOverflow != null && shape.TextBody.BodyProperties.HorizontalOverflow.HasValue && shape.TextBody.BodyProperties.HorizontalOverflow.Value == DocumentFormat.OpenXml.Drawing.TextHorizontalOverflowValues.Overflow)
+                        {
+                            htmlStylesShape.Remove("overflow-x");
+                        }
+                        if (shape.TextBody.BodyProperties.VerticalOverflow != null && shape.TextBody.BodyProperties.VerticalOverflow.HasValue && shape.TextBody.BodyProperties.VerticalOverflow.Value == DocumentFormat.OpenXml.Drawing.TextVerticalOverflowValues.Overflow)
+                        {
+                            htmlStylesShape.Remove("overflow-y");
+                        }
+                        if (shape.TextBody.BodyProperties.Vertical != null && shape.TextBody.BodyProperties.Vertical.HasValue)
+                        {
+                            if (shape.TextBody.BodyProperties.Vertical.Value == DocumentFormat.OpenXml.Drawing.TextVerticalValues.Vertical270)
+                            {
+                                shapeText = $"<div style=\"width: fit-content; transform: rotate(270deg);\">{shapeText}</div>";
+                            }
+                            else if (shape.TextBody.BodyProperties.Vertical.Value != DocumentFormat.OpenXml.Drawing.TextVerticalValues.Horizontal)
+                            {
+                                shapeText = $"<div style=\"width: fit-content; transform: rotate(90deg);\">{shapeText}</div>";
+                            }
+                        }
+                        if (shape.TextBody.BodyProperties.Rotation != null && shape.TextBody.BodyProperties.Rotation.HasValue)
+                        {
+                            shapeText = $"<div style=\"width: fit-content; transform: rotate({RoundNumber(shape.TextBody.BodyProperties.Rotation.Value / 60000.0, config.RoundingDigits)}deg);\">{shapeText}</div>";
+                        }
+                    }
+                    htmlStylesShape["padding"] = $"{RoundNumber(paddings[0] / 2.54 * 96, config.RoundingDigits)}px {RoundNumber(paddings[1] / 2.54 * 96, config.RoundingDigits)}px {RoundNumber(paddings[2] / 2.54 * 96, config.RoundingDigits)}px {RoundNumber(paddings[3] / 2.54 * 96, config.RoundingDigits)}px";
+                    element = $"<div style=\"{{0}}{GetHtmlAttributesString(htmlStylesShape, true, -1)}\">{shapeText}</div>";
+                    shapeProperties = shape.ShapeProperties;
+                    shapeStyle = shape.ShapeStyle;
+                    nonVisualProperties = shape.NonVisualShapeProperties.NonVisualDrawingProperties;
+                }
+            }
+            if (string.IsNullOrEmpty(element))
+            {
+                return;
+            }
+            string widthActual = width;
+            string heightActual = height;
+            Dictionary<string, string> htmlStyles = new Dictionary<string, string>();
+            bool isFillHandled = false;
+            bool isOutlineHandled = false;
+            if (shapeProperties != null)
+            {
+                foreach (OpenXmlElement propertiesElement in shapeProperties.Elements())
+                {
+                    if (propertiesElement is DocumentFormat.OpenXml.Drawing.Transform2D propertiesTransform)
+                    {
+                        string htmlTransforms = string.Empty;
+                        if (propertiesTransform.Offset != null)
+                        {
+                            if (left == "0" && propertiesTransform.Offset.X != null && propertiesTransform.Offset.X.HasValue)
+                            {
+                                htmlTransforms += $" translateX({RoundNumber(propertiesTransform.Offset.X.Value / 914400.0 * 96, config.RoundingDigits)}px)";
+                            }
+                            if (top == "0" && propertiesTransform.Offset.Y != null && propertiesTransform.Offset.Y.HasValue)
+                            {
+                                htmlTransforms += $" translateY({RoundNumber(propertiesTransform.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits)}px)";
+                            }
+                        }
+                        if (propertiesTransform.Extents != null)
+                        {
+                            if (widthActual == "auto" && propertiesTransform.Extents.Cx != null && propertiesTransform.Extents.Cx.HasValue)
+                            {
+                                widthActual = $"{RoundNumber(propertiesTransform.Extents.Cx.Value / 914400.0 * 96, config.RoundingDigits)}px";
+                            }
+                            if (heightActual == "auto" && propertiesTransform.Extents.Cy != null && propertiesTransform.Extents.Cy.HasValue)
+                            {
+                                heightActual = $"{RoundNumber(propertiesTransform.Extents.Cy.Value / 914400.0 * 96, config.RoundingDigits)}px";
+                            }
+                        }
+                        if (propertiesTransform.Rotation != null && propertiesTransform.Rotation.HasValue)
+                        {
+                            htmlTransforms += $" rotate({RoundNumber(propertiesTransform.Rotation.Value / 60000.0, config.RoundingDigits)}deg)";
+                        }
+                        if (propertiesTransform.HorizontalFlip != null && propertiesTransform.HorizontalFlip.HasValue && propertiesTransform.HorizontalFlip.Value)
+                        {
+                            htmlTransforms += $" scaleX(-1)";
+                        }
+                        if (propertiesTransform.VerticalFlip != null && propertiesTransform.VerticalFlip.HasValue && propertiesTransform.VerticalFlip.Value)
+                        {
+                            htmlTransforms += $" scaleY(-1)";
+                        }
+                        if (!string.IsNullOrEmpty(htmlTransforms))
+                        {
+                            htmlStyles["transform"] = htmlTransforms.TrimStart();
+                        }
+                    }
+                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.NoFill)
+                    {
+                        isFillHandled = true;
+                    }
+                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.SolidFill propertiesFillSolid)
+                    {
+                        string htmlColor = ColorReferenceToHtml(propertiesFillSolid, themeColors);
+                        if (!string.IsNullOrEmpty(htmlColor))
+                        {
+                            htmlStyles["background-color"] = htmlColor;
+                        }
+                        isFillHandled = true;
+                    }
+                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.Outline propertiesOutline)
+                    {
+                        string outlineWidth = propertiesOutline.Width != null && propertiesOutline.Width.HasValue ? $"{RoundNumber(propertiesOutline.Width.Value / 914400.0 * 96, config.RoundingDigits)}px" : "thin";
+                        string outlineStyle = propertiesOutline.CompoundLineType != null && propertiesOutline.CompoundLineType.HasValue && propertiesOutline.CompoundLineType.Value != DocumentFormat.OpenXml.Drawing.CompoundLineValues.Single ? "double" : "solid";
+                        string outlineColor = string.Empty;
+                        foreach (OpenXmlElement outlineElement in propertiesOutline.Elements())
+                        {
+                            if (outlineElement is DocumentFormat.OpenXml.Drawing.PresetDash outlineDash && outlineDash.Val != null && outlineDash.Val.HasValue)
+                            {
+                                if (outlineDash.Val.Value == DocumentFormat.OpenXml.Drawing.PresetLineDashValues.Dot || outlineDash.Val.Value == DocumentFormat.OpenXml.Drawing.PresetLineDashValues.SystemDashDotDot)
+                                {
+                                    outlineStyle = "dotted";
+                                }
+                                else if (outlineDash.Val.Value != DocumentFormat.OpenXml.Drawing.PresetLineDashValues.Solid)
+                                {
+                                    outlineStyle = "dashed";
+                                }
+                            }
+                            else if (outlineElement is DocumentFormat.OpenXml.Drawing.CustomDash)
+                            {
+                                outlineStyle = "dashed";
+                            }
+                            else if (outlineElement is DocumentFormat.OpenXml.Drawing.SolidFill outlineFillSolid)
+                            {
+                                outlineColor = ColorReferenceToHtml(outlineFillSolid, themeColors);
+                            }
+                        }
+                        htmlStyles["border"] = $"{outlineWidth} {outlineStyle}{(!string.IsNullOrEmpty(outlineColor) ? $" {outlineColor}" : string.Empty)}";
+                        isOutlineHandled = true;
+                    }
+                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.PresetGeometry geometryPreset && geometryPreset.Preset != null && geometryPreset.Preset.HasValue && geometryPreset.Preset.Value != DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle)
+                    {
+                        //TODO: shapes
+                    }
+                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.CustomGeometry geometryCustom && geometryCustom.PathList != null)
+                    {
+                        //TODO: shapes
+                    }
+                }
+            }
+            if (shapeStyle != null)
+            {
+                if (!isFillHandled && shapeStyle.FillReference != null)
+                {
+                    string htmlColor = ColorReferenceToHtml(shapeStyle.FillReference, themeColors);
+                    if (!string.IsNullOrEmpty(htmlColor))
+                    {
+                        htmlStyles["background-color"] = htmlColor;
+                    }
+                }
+                if (!isOutlineHandled && shapeStyle.LineReference != null)
+                {
+                    string htmlColor = ColorReferenceToHtml(shapeStyle.LineReference, themeColors);
+                    if (!string.IsNullOrEmpty(htmlColor))
+                    {
+                        htmlStyles["border"] = $"thin solid {htmlColor}";
+                    }
+                }
+                if (shapeStyle.FontReference != null)
+                {
+                    string htmlColor = ColorReferenceToHtml(shapeStyle.FontReference, themeColors);
+                    if (!string.IsNullOrEmpty(htmlColor))
+                    {
+                        htmlStyles["color"] = htmlColor;
+                    }
+                }
+            }
+            if (nonVisualProperties != null && nonVisualProperties.Hidden != null && nonVisualProperties.Hidden.HasValue && nonVisualProperties.Hidden.Value)
+            {
+                htmlStyles["visibility"] = "hidden";
+            }
+            writer.Write($"\n{new string(' ', 8)}{element.Replace("{0}", $"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{GetHtmlAttributesString(htmlStyles, true, -1)}")}");
         }
 
         private static string ColorTypeToHtml(ColorType color, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors)
@@ -1929,7 +2163,7 @@ namespace XlsxToHtmlConverter
                 RgbToHsl(result[0], result[1], result[2], out double hue, out double saturation, out double luminance);
                 HslToRgb(hue, saturation, color.Tint.Value < 0 ? luminance * (1 + color.Tint.Value) : luminance * (1 - color.Tint.Value) + color.Tint.Value, out result[0], out result[1], out result[2]);
             }
-            return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Max(0, Math.Min(1, Math.Round(result[3])))}" : string.Empty)})";
+            return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Max(0, Math.Min(1, Math.Round(result[3], 2)))}" : string.Empty)})";
         }
 
         private static string ColorReferenceToHtml(OpenXmlElement color, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors)
@@ -1945,7 +2179,7 @@ namespace XlsxToHtmlConverter
             {
                 return string.Empty;
             }
-            return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Max(0, Math.Min(1, Math.Round(result[3])))}" : string.Empty)})";
+            return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Max(0, Math.Min(1, Math.Round(result[3], 2)))}" : string.Empty)})";
         }
 
         private static bool GetElementColor(OpenXmlElement color, OpenXmlElementList colorEffects, ref double[] result, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors)
@@ -2082,15 +2316,26 @@ namespace XlsxToHtmlConverter
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Complement)
                 {
-                    //TODO: complement
+                    double colorMax = Math.Max(result[0], Math.Max(result[1], result[2]));
+                    result[0] = colorMax - result[0];
+                    result[1] = colorMax - result[1];
+                    result[2] = colorMax - result[2];
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Gamma)
                 {
-                    //TODO: gamma
+                    for (int i = 0; i < 3; i++)
+                    {
+                        result[i] /= 255;
+                        result[i] = (result[i] > 0.04045 ? Math.Pow((result[i] + 0.055) / 1.055, 2.4) : result[i] / 12.92) * 255;
+                    }
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.InverseGamma)
                 {
-                    //TODO: inverse gamma
+                    for (int i = 0; i < 3; i++)
+                    {
+                        result[i] /= 255;
+                        result[i] = (result[i] > 0.0031308 ? 1.055 * Math.Pow(result[i], 1 / 2.4) - 0.055 : result[i] * 12.92) * 255;
+                    }
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Red red && red.Val != null && red.Val.HasValue)
                 {
@@ -2227,207 +2472,6 @@ namespace XlsxToHtmlConverter
             red = (saturation == 0 ? luminance : actionCalculateColor(hue + 120)) * 255.0;
             green = (saturation == 0 ? luminance : actionCalculateColor(hue)) * 255.0;
             blue = (saturation == 0 ? luminance : actionCalculateColor(hue - 120)) * 255.0;
-        }
-
-        private static void DrawingsToHtml(WorksheetPart worksheet, OpenXmlElement anchor, StreamWriter writer, string left, string top, string width, string height, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors, ConverterConfig config)
-        {
-            if (anchor == null)
-            {
-                return;
-            }
-
-            string element = string.Empty;
-            DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeProperties shapeProperties = null;
-            DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeStyle shapeStyle = null;
-            DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties nonVisualProperties = null;
-            foreach (OpenXmlElement drawing in anchor.Elements())
-            {
-                if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture && config.ConvertPictures && picture.BlipFill != null && picture.BlipFill.Blip != null && picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue && worksheet.DrawingsPart != null && worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) is ImagePart imagePart)
-                {
-                    Stream imageStream = imagePart.GetStream();
-                    if (!imageStream.CanRead)
-                    {
-                        continue;
-                    }
-                    else if (imageStream.CanSeek)
-                    {
-                        imageStream.Seek(0, SeekOrigin.Begin);
-                    }
-                    byte[] data = new byte[imageStream.Length];
-                    imageStream.Read(data, 0, (int)imageStream.Length);
-                    string base64 = Convert.ToBase64String(data, Base64FormattingOptions.None);
-                    string description = picture.NonVisualPictureProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description != null && picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.HasValue ? $" alt=\"{picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value}\"" : string.Empty;
-                    element = $"<img loading=\"lazy\" decoding=\"async\" style=\"{{0}}\" src=\"data:{imagePart.ContentType};base64,{base64}\"{description} />";
-                    shapeProperties = picture.ShapeProperties;
-                    shapeStyle = picture.ShapeStyle;
-                    nonVisualProperties = picture.NonVisualPictureProperties.NonVisualDrawingProperties;
-                    break;
-                }
-                else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape)
-                {
-                    //TODO: shape text
-                    string text = shape.TextBody != null ? $"<span>{shape.TextBody.InnerText}</span>" : string.Empty;
-
-                    Dictionary<string, string> htmlStylesShape = new Dictionary<string, string>() { { "word-wrap", "break-word" }, { "overflow-x", "hidden" }, { "overflow-y", "hidden" } };
-                    double[] paddings = new double[4] { 0.13, 0.25, 0.13, 0.25 };
-                    if (shape.TextBody != null && shape.TextBody.BodyProperties != null)
-                    {
-                        paddings[0] = shape.TextBody.BodyProperties.TopInset != null && shape.TextBody.BodyProperties.TopInset.HasValue ? shape.TextBody.BodyProperties.TopInset.Value : paddings[0];
-                        paddings[1] = shape.TextBody.BodyProperties.RightInset != null && shape.TextBody.BodyProperties.RightInset.HasValue ? shape.TextBody.BodyProperties.RightInset.Value : paddings[1];
-                        paddings[2] = shape.TextBody.BodyProperties.BottomInset != null && shape.TextBody.BodyProperties.BottomInset.HasValue ? shape.TextBody.BodyProperties.BottomInset.Value : paddings[2];
-                        paddings[3] = shape.TextBody.BodyProperties.LeftInset != null && shape.TextBody.BodyProperties.LeftInset.HasValue ? shape.TextBody.BodyProperties.LeftInset.Value : paddings[3];
-                        if (shape.TextBody.BodyProperties.Anchor != null && shape.TextBody.BodyProperties.Anchor.HasValue && shape.TextBody.BodyProperties.Anchor.Value != DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Top)
-                        {
-                            htmlStylesShape["align-content"] = shape.TextBody.BodyProperties.Anchor.Value == DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Center ? "center" : "end";
-                        }
-                        if (shape.TextBody.BodyProperties.AnchorCenter != null && shape.TextBody.BodyProperties.AnchorCenter.HasValue && shape.TextBody.BodyProperties.AnchorCenter.Value)
-                        {
-                            htmlStylesShape["text-align"] = "center";
-                        }
-                        if (shape.TextBody.BodyProperties.Wrap != null && shape.TextBody.BodyProperties.Wrap.HasValue && shape.TextBody.BodyProperties.Wrap.Value == DocumentFormat.OpenXml.Drawing.TextWrappingValues.None)
-                        {
-                            htmlStylesShape.Remove("word-wrap");
-                        }
-                        if (shape.TextBody.BodyProperties.HorizontalOverflow != null && shape.TextBody.BodyProperties.HorizontalOverflow.HasValue && shape.TextBody.BodyProperties.HorizontalOverflow.Value == DocumentFormat.OpenXml.Drawing.TextHorizontalOverflowValues.Overflow)
-                        {
-                            htmlStylesShape.Remove("overflow-x");
-                        }
-                        if (shape.TextBody.BodyProperties.VerticalOverflow != null && shape.TextBody.BodyProperties.VerticalOverflow.HasValue && shape.TextBody.BodyProperties.VerticalOverflow.Value == DocumentFormat.OpenXml.Drawing.TextVerticalOverflowValues.Overflow)
-                        {
-                            htmlStylesShape.Remove("overflow-y");
-                        }
-                    }
-                    htmlStylesShape["padding"] = $"{RoundNumber(paddings[0] / 2.54 * 96, config.RoundingDigits)}px {RoundNumber(paddings[1] / 2.54 * 96, config.RoundingDigits)}px {RoundNumber(paddings[2] / 2.54 * 96, config.RoundingDigits)}px {RoundNumber(paddings[3] / 2.54 * 96, config.RoundingDigits)}px";
-                    element = $"<div style=\"{{0}}{GetHtmlAttributesString(htmlStylesShape, true, -1)}\">{text}</div>";
-                    shapeProperties = shape.ShapeProperties;
-                    shapeStyle = shape.ShapeStyle;
-                    nonVisualProperties = shape.NonVisualShapeProperties.NonVisualDrawingProperties;
-                }
-            }
-            if (string.IsNullOrEmpty(element))
-            {
-                return;
-            }
-            string widthActual = width;
-            string heightActual = height;
-            Dictionary<string, string> htmlStyles = new Dictionary<string, string>();
-            bool isFillHandled = false;
-            bool isOutlineHandled = false;
-            if (shapeProperties != null)
-            {
-                foreach (OpenXmlElement propertiesElement in shapeProperties.Elements())
-                {
-                    if (propertiesElement is DocumentFormat.OpenXml.Drawing.Transform2D propertiesTransform)
-                    {
-                        string htmlTransforms = string.Empty;
-                        if (propertiesTransform.Offset != null)
-                        {
-                            if (left == "0" && propertiesTransform.Offset.X != null && propertiesTransform.Offset.X.HasValue)
-                            {
-                                htmlTransforms += $" translateX({RoundNumber(propertiesTransform.Offset.X.Value / 914400.0 * 96, config.RoundingDigits)}px)";
-                            }
-                            if (top == "0" && propertiesTransform.Offset.Y != null && propertiesTransform.Offset.Y.HasValue)
-                            {
-                                htmlTransforms += $" translateY({RoundNumber(propertiesTransform.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits)}px)";
-                            }
-                        }
-                        if (propertiesTransform.Extents != null)
-                        {
-                            if (widthActual == "auto" && propertiesTransform.Extents.Cx != null && propertiesTransform.Extents.Cx.HasValue)
-                            {
-                                widthActual = $"{RoundNumber(propertiesTransform.Extents.Cx.Value / 914400.0 * 96, config.RoundingDigits)}px";
-                            }
-                            if (heightActual == "auto" && propertiesTransform.Extents.Cy != null && propertiesTransform.Extents.Cy.HasValue)
-                            {
-                                heightActual = $"{RoundNumber(propertiesTransform.Extents.Cy.Value / 914400.0 * 96, config.RoundingDigits)}px";
-                            }
-                        }
-                        if (propertiesTransform.Rotation != null && propertiesTransform.Rotation.HasValue)
-                        {
-                            htmlTransforms += $" rotate({RoundNumber(propertiesTransform.Rotation.Value / 60000.0, config.RoundingDigits)}deg)";
-                        }
-                        if (propertiesTransform.HorizontalFlip != null && propertiesTransform.HorizontalFlip.HasValue && propertiesTransform.HorizontalFlip.Value)
-                        {
-                            htmlTransforms += $" scaleX(-1)";
-                        }
-                        if (propertiesTransform.VerticalFlip != null && propertiesTransform.VerticalFlip.HasValue && propertiesTransform.VerticalFlip.Value)
-                        {
-                            htmlTransforms += $" scaleY(-1)";
-                        }
-                        if (!string.IsNullOrEmpty(htmlTransforms))
-                        {
-                            htmlStyles["transform"] = htmlTransforms.TrimStart();
-                        }
-                    }
-                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.NoFill)
-                    {
-                        isFillHandled = true;
-                    }
-                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.SolidFill propertiesFillSolid)
-                    {
-                        string htmlColor = ColorReferenceToHtml(propertiesFillSolid, themeColors);
-                        if (!string.IsNullOrEmpty(htmlColor))
-                        {
-                            htmlStyles["background-color"] = htmlColor;
-                        }
-                        isFillHandled = true;
-                    }
-                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.Outline propertiesOutline)
-                    {
-                        string outlineWidth = propertiesOutline.Width != null && propertiesOutline.Width.HasValue ? $"{RoundNumber(propertiesOutline.Width.Value / 914400.0 * 96, config.RoundingDigits)}px" : "thin";
-                        string outlineColor = string.Empty;
-                        foreach (OpenXmlElement outlineElement in propertiesOutline.Elements())
-                        {
-                            if (outlineElement is DocumentFormat.OpenXml.Drawing.SolidFill outlineFillSolid)
-                            {
-                                outlineColor = ColorReferenceToHtml(outlineFillSolid, themeColors);
-                            }
-                        }
-                        htmlStyles["border"] = $"thin solid{(!string.IsNullOrEmpty(outlineColor) ? $" {outlineColor}" : string.Empty)}";
-                        isOutlineHandled = true;
-                    }
-                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.PresetGeometry geometryPreset && geometryPreset.Preset != null && geometryPreset.Preset.HasValue && geometryPreset.Preset.Value != DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle)
-                    {
-                        //TODO: shapes
-                    }
-                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.CustomGeometry geometryCustom && geometryCustom.PathList != null)
-                    {
-                        //TODO: shapes
-                    }
-                }
-            }
-            if (shapeStyle != null)
-            {
-                if (!isFillHandled && shapeStyle.FillReference != null)
-                {
-                    string htmlColor = ColorReferenceToHtml(shapeStyle.FillReference, themeColors);
-                    if (!string.IsNullOrEmpty(htmlColor))
-                    {
-                        htmlStyles["background-color"] = htmlColor;
-                    }
-                }
-                if (!isOutlineHandled && shapeStyle.LineReference != null)
-                {
-                    string htmlColor = ColorReferenceToHtml(shapeStyle.LineReference, themeColors);
-                    if (!string.IsNullOrEmpty(htmlColor))
-                    {
-                        htmlStyles["border"] = $"thin solid {htmlColor}";
-                    }
-                }
-                if (shapeStyle.FontReference != null)
-                {
-                    string htmlColor = ColorReferenceToHtml(shapeStyle.FontReference, themeColors);
-                    if (!string.IsNullOrEmpty(htmlColor))
-                    {
-                        htmlStyles["color"] = htmlColor;
-                    }
-                }
-            }
-            if (nonVisualProperties != null && nonVisualProperties.Hidden != null && nonVisualProperties.Hidden.HasValue && nonVisualProperties.Hidden.Value)
-            {
-                htmlStyles["visibility"] = "hidden";
-            }
-            writer.Write($"\n{new string(' ', 8)}{element.Replace("{0}", $"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{GetHtmlAttributesString(htmlStyles, true, -1)}")}");
         }
 
         #endregion
