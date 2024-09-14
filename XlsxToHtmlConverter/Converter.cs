@@ -151,10 +151,10 @@ namespace XlsxToHtmlConverter
                 {
                     WorkbookPart workbook = document.WorkbookPart;
 
-                    DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors = null;
+                    DocumentFormat.OpenXml.Drawing.Color2Type[] themes = null;
                     if (workbook.ThemePart != null && workbook.ThemePart.Theme != null && workbook.ThemePart.Theme.ThemeElements != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme != null)
                     {
-                        themeColors = new DocumentFormat.OpenXml.Drawing.Color2Type[12] {
+                        themes = new DocumentFormat.OpenXml.Drawing.Color2Type[12] {
                             workbook.ThemePart.Theme.ThemeElements.ColorScheme.Light1Color,
                             workbook.ThemePart.Theme.ThemeElements.ColorScheme.Dark1Color,
                             workbook.ThemePart.Theme.ThemeElements.ColorScheme.Light2Color,
@@ -179,7 +179,7 @@ namespace XlsxToHtmlConverter
                             Fill fill = (cellFormat.ApplyFill == null || (cellFormat.ApplyFill.HasValue && cellFormat.ApplyFill.Value)) && cellFormat.FillId != null && cellFormat.FillId.HasValue && stylesheet.Fills != null && cellFormat.FillId.Value < stylesheet.Fills.ChildElements.Count ? (Fill)stylesheet.Fills.ChildElements[(int)cellFormat.FillId.Value] : null;
                             Font font = (cellFormat.ApplyFont == null || (cellFormat.ApplyFont.HasValue && cellFormat.ApplyFont.Value)) && cellFormat.FontId != null && cellFormat.FontId.HasValue && stylesheet.Fonts != null && cellFormat.FontId.Value < stylesheet.Fonts.ChildElements.Count ? (Font)stylesheet.Fonts.ChildElements[(int)cellFormat.FontId.Value] : null;
                             Border border = (cellFormat.ApplyBorder == null || (cellFormat.ApplyBorder.HasValue && cellFormat.ApplyBorder.Value)) && cellFormat.BorderId != null && cellFormat.BorderId.HasValue && stylesheet.Borders != null && cellFormat.BorderId.Value < stylesheet.Borders.ChildElements.Count ? (Border)stylesheet.Borders.ChildElements[(int)cellFormat.BorderId.Value] : null;
-                            stylesheetCellFormats[stylesheetFormatIndex] = (CellFormatToHtml(fill, font, border, cellFormat.ApplyAlignment == null || (cellFormat.ApplyAlignment.HasValue && cellFormat.ApplyAlignment.Value) ? cellFormat.Alignment : null, out string cellValueContainer, themeColors, configClone), cellValueContainer, cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || (cellFormat.ApplyNumberFormat.HasValue && cellFormat.ApplyNumberFormat.Value)) ? cellFormat.NumberFormatId.Value : 0);
+                            stylesheetCellFormats[stylesheetFormatIndex] = (CellFormatToHtml(fill, font, border, cellFormat.ApplyAlignment == null || (cellFormat.ApplyAlignment.HasValue && cellFormat.ApplyAlignment.Value) ? cellFormat.Alignment : null, out string cellValueContainer, themes, configClone), cellValueContainer, cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || (cellFormat.ApplyNumberFormat.HasValue && cellFormat.ApplyNumberFormat.Value)) ? cellFormat.NumberFormatId.Value : 0);
                         }
                     }
                     (Dictionary<string, string>, string)[] stylesheetDifferentialFormats = new (Dictionary<string, string>, string)[stylesheet != null && stylesheet.DifferentialFormats != null ? stylesheet.DifferentialFormats.ChildElements.Count : 0];
@@ -187,7 +187,7 @@ namespace XlsxToHtmlConverter
                     {
                         if (stylesheet.DifferentialFormats.ChildElements[stylesheetDifferentialFormatIndex] is DifferentialFormat differentialFormat)
                         {
-                            stylesheetDifferentialFormats[stylesheetDifferentialFormatIndex] = (CellFormatToHtml(differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer, themeColors, configClone), cellValueContainer);
+                            stylesheetDifferentialFormats[stylesheetDifferentialFormatIndex] = (CellFormatToHtml(differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, out string cellValueContainer, themes, configClone), cellValueContainer);
                         }
                     }
                     Dictionary<uint, string[]> stylesheetNumberingFormats = new Dictionary<uint, string[]>();
@@ -230,26 +230,7 @@ namespace XlsxToHtmlConverter
                             string cellValueRaw = string.Empty;
                             if (configClone.ConvertStyles)
                             {
-                                foreach (OpenXmlElement element in sharedString.Elements())
-                                {
-                                    if (element is Text text)
-                                    {
-                                        cellValue += GetEscapedString(text.Text);
-                                        cellValueRaw += text.Text;
-                                    }
-                                    else if (element is Run run && run.Text != null)
-                                    {
-                                        Dictionary<string, string> htmlStylesRun = new Dictionary<string, string>();
-                                        string cellValueContainer = "{0}";
-                                        if (configClone.ConvertStyles && run.RunProperties is RunProperties runProperties)
-                                        {
-                                            htmlStylesRun = JoinHtmlAttributes(htmlStylesRun, FontToHtml(runProperties, out cellValueContainer, themeColors, configClone));
-                                        }
-                                        string htmlStylesRunString = GetHtmlAttributesString(htmlStylesRun, false, -1);
-                                        cellValue += $"<span{(!string.IsNullOrEmpty(htmlStylesRunString) ? $" style=\"{htmlStylesRunString}\"" : string.Empty)}>{cellValueContainer.Replace("{0}", GetEscapedString(run.Text.Text))}</span>";
-                                        cellValueRaw += run.Text.Text;
-                                    }
-                                }
+                                cellValue = CellContentToHtml(sharedString, x => cellValueRaw += x, themes, configClone);
                             }
                             else
                             {
@@ -339,7 +320,7 @@ namespace XlsxToHtmlConverter
                             }
                             else if (worksheetElement is SheetProperties worksheetProperties && configClone.ConvertSheetTitles && worksheetProperties.TabColor != null)
                             {
-                                sheetTabColor = ColorTypeToHtml(worksheetProperties.TabColor, themeColors);
+                                sheetTabColor = ColorTypeToHtml(worksheetProperties.TabColor, themes);
                             }
                             else if (worksheetElement is SheetFormatProperties worksheetFormatProperties)
                             {
@@ -945,17 +926,18 @@ namespace XlsxToHtmlConverter
 
                         if (worksheetPart.DrawingsPart != null && worksheetPart.DrawingsPart.WorksheetDrawing != null)
                         {
-                            foreach (OpenXmlElement drawing in worksheetPart.DrawingsPart.WorksheetDrawing.Elements())
+                            foreach (OpenXmlElement drawingElement in worksheetPart.DrawingsPart.WorksheetDrawing.Elements())
                             {
-                                if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor)
+                                string drawing = string.Empty;
+                                if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absoluteAnchor)
                                 {
                                     string left = absoluteAnchor.Position != null && absoluteAnchor.Position.X != null && absoluteAnchor.Position.X.HasValue ? $"{RoundNumber(absoluteAnchor.Position.X.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "0";
                                     string top = absoluteAnchor.Position != null && absoluteAnchor.Position.Y != null && absoluteAnchor.Position.Y.HasValue ? $"{RoundNumber(absoluteAnchor.Position.Y.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "0";
                                     string width = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cx != null && absoluteAnchor.Extent.Cx.HasValue ? $"{RoundNumber(absoluteAnchor.Extent.Cx.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "auto";
                                     string height = absoluteAnchor.Extent != null && absoluteAnchor.Extent.Cy != null && absoluteAnchor.Extent.Cy.HasValue ? $"{RoundNumber(absoluteAnchor.Extent.Cy.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "auto";
-                                    DrawingsToHtml(worksheetPart, absoluteAnchor, writer, left, top, width, height, themeColors, configClone);
+                                    drawing = DrawingsToHtml(worksheetPart, absoluteAnchor, left, top, width, height, themes, configClone);
                                 }
-                                else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor)
+                                else if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor oneCellAnchor)
                                 {
                                     double left = configClone.ConvertSizes && oneCellAnchor.FromMarker != null && oneCellAnchor.FromMarker.ColumnId != null && int.TryParse(oneCellAnchor.FromMarker.ColumnId.Text, out int columnId) && drawingColumnMarkers.ContainsKey(columnId) ? drawingColumnMarkers[columnId] : double.NaN;
                                     double leftOffset = oneCellAnchor.FromMarker.ColumnOffset != null && int.TryParse(oneCellAnchor.FromMarker.ColumnOffset.Text, out int columnOffset) ? RoundNumber(columnOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
@@ -963,9 +945,9 @@ namespace XlsxToHtmlConverter
                                     double topOffset = oneCellAnchor.FromMarker.RowOffset != null && int.TryParse(oneCellAnchor.FromMarker.RowOffset.Text, out int rowOffset) ? RoundNumber(rowOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
                                     string width = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cx != null && oneCellAnchor.Extent.Cx.HasValue ? $"{RoundNumber(oneCellAnchor.Extent.Cx.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "auto";
                                     string height = oneCellAnchor.Extent != null && oneCellAnchor.Extent.Cy != null && oneCellAnchor.Extent.Cy.HasValue ? $"{RoundNumber(oneCellAnchor.Extent.Cy.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "auto";
-                                    DrawingsToHtml(worksheetPart, oneCellAnchor, writer, !double.IsNaN(left) ? $"calc({left}% + {leftOffset}px)" : "0", !double.IsNaN(top) ? $"{RoundNumber(top + topOffset, configClone.RoundingDigits)}px" : "0", width, height, themeColors, configClone);
+                                    drawing = DrawingsToHtml(worksheetPart, oneCellAnchor, !double.IsNaN(left) ? $"calc({left}% + {leftOffset}px)" : "0", !double.IsNaN(top) ? $"{RoundNumber(top + topOffset, configClone.RoundingDigits)}px" : "0", width, height, themes, configClone);
                                 }
-                                else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor)
+                                else if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor twoCellAnchor)
                                 {
                                     double fromColumn = configClone.ConvertSizes && twoCellAnchor.FromMarker != null && twoCellAnchor.FromMarker.ColumnId != null && int.TryParse(twoCellAnchor.FromMarker.ColumnId.Text, out int fromColumnId) && drawingColumnMarkers.ContainsKey(fromColumnId) ? drawingColumnMarkers[fromColumnId] : double.NaN;
                                     double fromColumnOffset = twoCellAnchor.FromMarker.ColumnOffset != null && int.TryParse(twoCellAnchor.FromMarker.ColumnOffset.Text, out int fromMarkerColumnOffset) ? RoundNumber(fromMarkerColumnOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
@@ -975,7 +957,11 @@ namespace XlsxToHtmlConverter
                                     double toColumnOffset = twoCellAnchor.ToMarker.ColumnOffset != null && int.TryParse(twoCellAnchor.ToMarker.ColumnOffset.Text, out int toMarkerColumnOffset) ? RoundNumber(toMarkerColumnOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
                                     double toRow = configClone.ConvertSizes && twoCellAnchor.ToMarker != null && twoCellAnchor.ToMarker.RowId != null && int.TryParse(twoCellAnchor.ToMarker.RowId.Text, out int toRowId) && drawingRowMarkers.ContainsKey(toRowId) ? drawingRowMarkers[toRowId] : double.NaN;
                                     double toRowOffset = twoCellAnchor.ToMarker.RowOffset != null && int.TryParse(twoCellAnchor.ToMarker.RowOffset.Text, out int toMarkerRowOffset) ? RoundNumber(toMarkerRowOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
-                                    DrawingsToHtml(worksheetPart, twoCellAnchor, writer, !double.IsNaN(fromColumn) ? $"calc({fromColumn}% + {fromColumnOffset}px)" : "0", !double.IsNaN(fromRow) ? $"{RoundNumber(fromRow + fromRowOffset, configClone.RoundingDigits)}px" : "0", !double.IsNaN(fromColumn) && !double.IsNaN(toColumn) ? $"calc({RoundNumber(toColumn - fromColumn, configClone.RoundingDigits)}% + {RoundNumber(toColumnOffset - fromColumnOffset, configClone.RoundingDigits)}px)" : "auto", !double.IsNaN(fromRow) && !double.IsNaN(toRow) ? $"{RoundNumber(toRow + toRowOffset - fromRow - fromRowOffset, configClone.RoundingDigits)}px" : "auto", themeColors, configClone);
+                                    drawing = DrawingsToHtml(worksheetPart, twoCellAnchor, !double.IsNaN(fromColumn) ? $"calc({fromColumn}% + {fromColumnOffset}px)" : "0", !double.IsNaN(fromRow) ? $"{RoundNumber(fromRow + fromRowOffset, configClone.RoundingDigits)}px" : "0", !double.IsNaN(fromColumn) && !double.IsNaN(toColumn) ? $"calc({RoundNumber(toColumn - fromColumn, configClone.RoundingDigits)}% + {RoundNumber(toColumnOffset - fromColumnOffset, configClone.RoundingDigits)}px)" : "auto", !double.IsNaN(fromRow) && !double.IsNaN(toRow) ? $"{RoundNumber(toRow + toRowOffset - fromRow - fromRowOffset, configClone.RoundingDigits)}px" : "auto", themes, configClone);
+                                }
+                                if (!string.IsNullOrEmpty(drawing))
+                                {
+                                    writer.Write($"\n{new string(' ', 8)}{drawing}");
                                 }
                             }
                         }
@@ -1029,6 +1015,35 @@ namespace XlsxToHtmlConverter
             return System.Web.HttpUtility.HtmlEncode(value).Replace(" ", "&nbsp;");
         }
 
+        private static Dictionary<string, string> JoinHtmlAttributes(Dictionary<string, string> original, Dictionary<string, string> joining)
+        {
+            if (joining == null)
+            {
+                return original;
+            }
+
+            foreach (KeyValuePair<string, string> pair in joining)
+            {
+                original[pair.Key] = pair.Value;
+            }
+            return original;
+        }
+
+        private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional, int indent)
+        {
+            if (attributes == null)
+            {
+                return string.Empty;
+            }
+
+            string htmlAttributes = string.Empty;
+            foreach (KeyValuePair<string, string> pair in attributes)
+            {
+                htmlAttributes += $"{pair.Key}: {pair.Value};{(indent >= 0 ? $"\n{new string(' ', indent)}" : " ")}";
+            }
+            return !string.IsNullOrEmpty(htmlAttributes) ? (isAdditional ? $" {htmlAttributes.TrimEnd()}" : htmlAttributes.TrimEnd()) : string.Empty;
+        }
+
         private static int GetColumnIndex(string cell)
         {
             int index = -1;
@@ -1063,35 +1078,6 @@ namespace XlsxToHtmlConverter
             fromRow = Math.Min(firstRow, secondRow);
             toColumn = Math.Max(firstColumn, secondColumn);
             toRow = Math.Max(firstRow, secondRow);
-        }
-
-        private static Dictionary<string, string> JoinHtmlAttributes(Dictionary<string, string> original, Dictionary<string, string> joining)
-        {
-            if (joining == null)
-            {
-                return original;
-            }
-
-            foreach (KeyValuePair<string, string> pair in joining)
-            {
-                original[pair.Key] = pair.Value;
-            }
-            return original;
-        }
-
-        private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional, int indent)
-        {
-            if (attributes == null)
-            {
-                return string.Empty;
-            }
-
-            string htmlAttributes = string.Empty;
-            foreach (KeyValuePair<string, string> pair in attributes)
-            {
-                htmlAttributes += $"{pair.Key}: {pair.Value};{(indent >= 0 ? $"\n{new string(' ', indent)}" : " ")}";
-            }
-            return !string.IsNullOrEmpty(htmlAttributes) ? (isAdditional ? $" {htmlAttributes.TrimEnd()}" : htmlAttributes.TrimEnd()) : htmlAttributes;
         }
 
         private static bool GetNumberFormulaCondition(string value, IEnumerable<Formula> formulas, int formulasCount, Func<double[], bool> actionEvaluation)
@@ -1506,21 +1492,74 @@ namespace XlsxToHtmlConverter
             return result;
         }
 
-        private static Dictionary<string, string> CellFormatToHtml(Fill fill, Font font, Border border, Alignment alignment, out string cellValueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors, ConverterConfig config)
+        private static string CellContentToHtml(OpenXmlElement content, Action<string> actionUpdateValueRaw, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
+        {
+            if (content == null)
+            {
+                return string.Empty;
+            }
+
+            string result = string.Empty;
+            foreach (OpenXmlElement contentElement in content.Elements())
+            {
+                if (contentElement is DocumentFormat.OpenXml.Drawing.Paragraph paragraph)
+                {
+                    result += $"<div style=\"width: fit-content;\">{CellContentToHtml(paragraph, actionUpdateValueRaw, themes, config)}</div>";
+                }
+                else if (contentElement is Text text)
+                {
+                    result += GetEscapedString(text.Text);
+                    actionUpdateValueRaw?.Invoke(text.Text);
+                }
+                else if (contentElement is DocumentFormat.OpenXml.Drawing.Text textDrawing)
+                {
+                    result += GetEscapedString(textDrawing.Text);
+                    actionUpdateValueRaw?.Invoke(textDrawing.Text);
+                }
+                else if (contentElement is DocumentFormat.OpenXml.Drawing.EndParagraphRunProperties endParagraphRunProperties)
+                {
+                    //TODO: paragraph styles
+                }
+                else
+                {
+                    string cellValue = string.Empty;
+                    string cellValueContainer = "{0}";
+                    Dictionary<string, string> htmlStylesRun = null;
+                    if (contentElement is Run run && run.Text != null)
+                    {
+                        cellValue = run.Text.Text;
+                        htmlStylesRun = run.RunProperties is RunProperties properties ? FontToHtml(properties, out cellValueContainer, themes, config) : null;
+                    }
+                    else if (contentElement is DocumentFormat.OpenXml.Drawing.Run runDrawing && runDrawing.Text != null)
+                    {
+                        cellValue = runDrawing.Text.Text;
+                        htmlStylesRun = runDrawing.RunProperties is DocumentFormat.OpenXml.Drawing.RunProperties properties ? FontToHtml(properties, out cellValueContainer, themes, config) : null;
+                    }
+                    if (!string.IsNullOrEmpty(cellValue)) {
+                        string htmlStylesRunString = GetHtmlAttributesString(htmlStylesRun, false, -1);
+                        result += $"<span{(!string.IsNullOrEmpty(htmlStylesRunString) ? $" style=\"{htmlStylesRunString}\"" : string.Empty)}>{cellValueContainer.Replace("{0}", GetEscapedString(cellValue))}</span>";
+                        actionUpdateValueRaw?.Invoke(cellValue);
+                    }
+                }
+            }
+            return result;
+        }
+
+        private static Dictionary<string, string> CellFormatToHtml(Fill fill, Font font, Border border, Alignment alignment, out string cellValueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             Dictionary<string, string> htmlStyles = new Dictionary<string, string>();
             cellValueContainer = "{0}";
             if (fill != null && fill.PatternFill != null && (fill.PatternFill.PatternType == null || (fill.PatternFill.PatternType.HasValue && fill.PatternFill.PatternType.Value != PatternValues.None)))
             {
-                //TODO: gradient fill & pattern fill
+                //TODO: pattern & gradient fills
                 string background = string.Empty;
                 if (fill.PatternFill.ForegroundColor != null)
                 {
-                    background = ColorTypeToHtml(fill.PatternFill.ForegroundColor, themeColors);
+                    background = ColorTypeToHtml(fill.PatternFill.ForegroundColor, themes);
                 }
                 if (string.IsNullOrEmpty(background) && fill.PatternFill.BackgroundColor != null)
                 {
-                    background = ColorTypeToHtml(fill.PatternFill.BackgroundColor, themeColors);
+                    background = ColorTypeToHtml(fill.PatternFill.BackgroundColor, themes);
                 }
                 if (!string.IsNullOrEmpty(background))
                 {
@@ -1529,26 +1568,26 @@ namespace XlsxToHtmlConverter
             }
             if (font != null)
             {
-                htmlStyles = JoinHtmlAttributes(htmlStyles, FontToHtml(font, out cellValueContainer, themeColors, config));
+                htmlStyles = JoinHtmlAttributes(htmlStyles, FontToHtml(font, out cellValueContainer, themes, config));
             }
             if (border != null)
             {
-                string borderTop = BorderPropertiesToHtml(border.TopBorder, themeColors);
+                string borderTop = BorderPropertiesToHtml(border.TopBorder, themes);
                 if (!string.IsNullOrEmpty(borderTop))
                 {
                     htmlStyles["border-top"] = borderTop;
                 }
-                string borderRight = BorderPropertiesToHtml(border.RightBorder, themeColors);
+                string borderRight = BorderPropertiesToHtml(border.RightBorder, themes);
                 if (!string.IsNullOrEmpty(borderRight))
                 {
                     htmlStyles["border-right"] = borderRight;
                 }
-                string borderBottom = BorderPropertiesToHtml(border.BottomBorder, themeColors);
+                string borderBottom = BorderPropertiesToHtml(border.BottomBorder, themes);
                 if (!string.IsNullOrEmpty(borderBottom))
                 {
                     htmlStyles["border-bottom"] = borderBottom;
                 }
-                string borderLeft = BorderPropertiesToHtml(border.LeftBorder, themeColors);
+                string borderLeft = BorderPropertiesToHtml(border.LeftBorder, themes);
                 if (!string.IsNullOrEmpty(borderLeft))
                 {
                     htmlStyles["border-left"] = borderLeft;
@@ -1576,7 +1615,7 @@ namespace XlsxToHtmlConverter
             return htmlStyles;
         }
 
-        private static Dictionary<string, string> FontToHtml(OpenXmlElement font, out string cellValueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors, ConverterConfig config)
+        private static Dictionary<string, string> FontToHtml(OpenXmlElement font, out string cellValueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             Dictionary<string, string> htmlStyles = new Dictionary<string, string>();
             cellValueContainer = "{0}";
@@ -1598,7 +1637,7 @@ namespace XlsxToHtmlConverter
                 }
                 else if (fontElement is ColorType fontColor)
                 {
-                    string htmlColor = ColorTypeToHtml(fontColor, themeColors);
+                    string htmlColor = ColorTypeToHtml(fontColor, themes);
                     if (!string.IsNullOrEmpty(htmlColor))
                     {
                         htmlStyles["color"] = htmlColor;
@@ -1639,7 +1678,7 @@ namespace XlsxToHtmlConverter
             return htmlStyles;
         }
 
-        private static string BorderPropertiesToHtml(BorderPropertiesType border, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors)
+        private static string BorderPropertiesToHtml(BorderPropertiesType border, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
         {
             if (border == null)
             {
@@ -1684,7 +1723,7 @@ namespace XlsxToHtmlConverter
             }
             if (border.Color != null)
             {
-                string htmlColor = ColorTypeToHtml(border.Color, themeColors);
+                string htmlColor = ColorTypeToHtml(border.Color, themes);
                 if (!string.IsNullOrEmpty(htmlColor))
                 {
                     htmlBorder += $" {htmlColor}";
@@ -1693,20 +1732,20 @@ namespace XlsxToHtmlConverter
             return htmlBorder.TrimStart();
         }
 
-        private static void DrawingsToHtml(WorksheetPart worksheet, OpenXmlElement anchor, StreamWriter writer, string left, string top, string width, string height, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors, ConverterConfig config)
+        private static string DrawingsToHtml(WorksheetPart worksheet, OpenXmlElement anchor, string left, string top, string width, string height, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             if (anchor == null)
             {
-                return;
+                return string.Empty;
             }
 
             string element = string.Empty;
             DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeProperties shapeProperties = null;
             DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeStyle shapeStyle = null;
             DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties nonVisualProperties = null;
-            foreach (OpenXmlElement drawing in anchor.Elements())
+            foreach (OpenXmlElement anchorElement in anchor.Elements())
             {
-                if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture && config.ConvertPictures && picture.BlipFill != null && picture.BlipFill.Blip != null && picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue && worksheet.DrawingsPart != null && worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) is ImagePart imagePart)
+                if (anchorElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture && config.ConvertPictures && picture.BlipFill != null && picture.BlipFill.Blip != null && picture.BlipFill.Blip.Embed != null && picture.BlipFill.Blip.Embed.HasValue && worksheet.DrawingsPart != null && worksheet.DrawingsPart.GetPartById(picture.BlipFill.Blip.Embed.Value) is ImagePart imagePart)
                 {
                     Stream imageStream = imagePart.GetStream();
                     if (!imageStream.CanRead)
@@ -1727,11 +1766,9 @@ namespace XlsxToHtmlConverter
                     nonVisualProperties = picture.NonVisualPictureProperties.NonVisualDrawingProperties;
                     break;
                 }
-                else if (drawing is DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape)
+                else if (anchorElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape)
                 {
-                    //TODO: shape text
-                    string shapeText = shape.TextBody != null ? $"<span>{shape.TextBody.InnerText}</span>" : string.Empty;
-
+                    string shapeText = shape.TextBody != null ? CellContentToHtml(shape.TextBody, null, themes, config) : string.Empty;
                     Dictionary<string, string> htmlStylesShape = new Dictionary<string, string>() { { "word-wrap", "break-word" }, { "overflow-x", "hidden" }, { "overflow-y", "hidden" } };
                     double[] paddings = new double[4] { 0.13, 0.25, 0.13, 0.25 };
                     if (shape.TextBody != null && shape.TextBody.BodyProperties != null)
@@ -1781,11 +1818,12 @@ namespace XlsxToHtmlConverter
                     shapeProperties = shape.ShapeProperties;
                     shapeStyle = shape.ShapeStyle;
                     nonVisualProperties = shape.NonVisualShapeProperties.NonVisualDrawingProperties;
+                    break;
                 }
             }
             if (string.IsNullOrEmpty(element))
             {
-                return;
+                return string.Empty;
             }
             string widthActual = width;
             string heightActual = height;
@@ -1844,7 +1882,7 @@ namespace XlsxToHtmlConverter
                     }
                     else if (propertiesElement is DocumentFormat.OpenXml.Drawing.SolidFill propertiesFillSolid)
                     {
-                        string htmlColor = ColorReferenceToHtml(propertiesFillSolid, themeColors);
+                        string htmlColor = ColorReferenceToHtml(propertiesFillSolid, themes);
                         if (!string.IsNullOrEmpty(htmlColor))
                         {
                             htmlStyles["background-color"] = htmlColor;
@@ -1875,7 +1913,7 @@ namespace XlsxToHtmlConverter
                             }
                             else if (outlineElement is DocumentFormat.OpenXml.Drawing.SolidFill outlineFillSolid)
                             {
-                                outlineColor = ColorReferenceToHtml(outlineFillSolid, themeColors);
+                                outlineColor = ColorReferenceToHtml(outlineFillSolid, themes);
                             }
                         }
                         htmlStyles["border"] = $"{outlineWidth} {outlineStyle}{(!string.IsNullOrEmpty(outlineColor) ? $" {outlineColor}" : string.Empty)}";
@@ -1883,11 +1921,11 @@ namespace XlsxToHtmlConverter
                     }
                     else if (propertiesElement is DocumentFormat.OpenXml.Drawing.PresetGeometry geometryPreset && geometryPreset.Preset != null && geometryPreset.Preset.HasValue && geometryPreset.Preset.Value != DocumentFormat.OpenXml.Drawing.ShapeTypeValues.Rectangle)
                     {
-                        //TODO: shapes
+                        //TODO: preset shapes
                     }
                     else if (propertiesElement is DocumentFormat.OpenXml.Drawing.CustomGeometry geometryCustom && geometryCustom.PathList != null)
                     {
-                        //TODO: shapes
+                        //TODO: custom shapes
                     }
                 }
             }
@@ -1895,7 +1933,7 @@ namespace XlsxToHtmlConverter
             {
                 if (!isFillHandled && shapeStyle.FillReference != null)
                 {
-                    string htmlColor = ColorReferenceToHtml(shapeStyle.FillReference, themeColors);
+                    string htmlColor = ColorReferenceToHtml(shapeStyle.FillReference, themes);
                     if (!string.IsNullOrEmpty(htmlColor))
                     {
                         htmlStyles["background-color"] = htmlColor;
@@ -1903,7 +1941,7 @@ namespace XlsxToHtmlConverter
                 }
                 if (!isOutlineHandled && shapeStyle.LineReference != null)
                 {
-                    string htmlColor = ColorReferenceToHtml(shapeStyle.LineReference, themeColors);
+                    string htmlColor = ColorReferenceToHtml(shapeStyle.LineReference, themes);
                     if (!string.IsNullOrEmpty(htmlColor))
                     {
                         htmlStyles["border"] = $"thin solid {htmlColor}";
@@ -1911,7 +1949,7 @@ namespace XlsxToHtmlConverter
                 }
                 if (shapeStyle.FontReference != null)
                 {
-                    string htmlColor = ColorReferenceToHtml(shapeStyle.FontReference, themeColors);
+                    string htmlColor = ColorReferenceToHtml(shapeStyle.FontReference, themes);
                     if (!string.IsNullOrEmpty(htmlColor))
                     {
                         htmlStyles["color"] = htmlColor;
@@ -1922,10 +1960,10 @@ namespace XlsxToHtmlConverter
             {
                 htmlStyles["visibility"] = "hidden";
             }
-            writer.Write($"\n{new string(' ', 8)}{element.Replace("{0}", $"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{GetHtmlAttributesString(htmlStyles, true, -1)}")}");
+            return element.Replace("{0}", $"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{GetHtmlAttributesString(htmlStyles, true, -1)}");
         }
 
-        private static string ColorTypeToHtml(ColorType color, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors)
+        private static string ColorTypeToHtml(ColorType color, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
         {
             if (color == null)
             {
@@ -2153,7 +2191,7 @@ namespace XlsxToHtmlConverter
                         return string.Empty;
                 }
             }
-            else if (color.Theme == null || !color.Theme.HasValue || themeColors == null || color.Theme.Value < 0 || color.Theme.Value >= themeColors.Length || !(themeColors[color.Theme.Value].FirstChild is OpenXmlElement themeColorElement) || !GetElementColor(themeColorElement, themeColorElement.ChildElements, ref result, themeColors))
+            else if (color.Theme == null || !color.Theme.HasValue || themes == null || color.Theme.Value < 0 || color.Theme.Value >= themes.Length || !(themes[color.Theme.Value].FirstChild is OpenXmlElement themeColorElement) || !GetElementColor(themeColorElement, themeColorElement.ChildElements, ref result, themes))
             {
                 return string.Empty;
             }
@@ -2166,7 +2204,7 @@ namespace XlsxToHtmlConverter
             return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Max(0, Math.Min(1, Math.Round(result[3], 2)))}" : string.Empty)})";
         }
 
-        private static string ColorReferenceToHtml(OpenXmlElement color, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors)
+        private static string ColorReferenceToHtml(OpenXmlElement color, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
         {
             if (color == null)
             {
@@ -2175,14 +2213,14 @@ namespace XlsxToHtmlConverter
 
             double[] result = new double[4] { 0, 0, 0, 1 };
             OpenXmlElement colorElement = color.FirstChild;
-            if (colorElement == null || !GetElementColor(colorElement, colorElement.ChildElements, ref result, themeColors))
+            if (colorElement == null || !GetElementColor(colorElement, colorElement.ChildElements, ref result, themes))
             {
                 return string.Empty;
             }
             return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Max(0, Math.Min(1, Math.Round(result[3], 2)))}" : string.Empty)})";
         }
 
-        private static bool GetElementColor(OpenXmlElement color, OpenXmlElementList colorEffects, ref double[] result, DocumentFormat.OpenXml.Drawing.Color2Type[] themeColors)
+        private static bool GetElementColor(OpenXmlElement color, OpenXmlElementList colorEffects, ref double[] result, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
         {
             if (color == null)
             {
@@ -2233,53 +2271,53 @@ namespace XlsxToHtmlConverter
                 DocumentFormat.OpenXml.Drawing.Color2Type colorTheme = null;
                 if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Light1)
                 {
-                    colorTheme = themeColors[0];
+                    colorTheme = themes[0];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Dark1)
                 {
-                    colorTheme = themeColors[1];
+                    colorTheme = themes[1];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Light2)
                 {
-                    colorTheme = themeColors[2];
+                    colorTheme = themes[2];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Dark2)
                 {
-                    colorTheme = themeColors[3];
+                    colorTheme = themes[3];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent1)
                 {
-                    colorTheme = themeColors[4];
+                    colorTheme = themes[4];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent2)
                 {
-                    colorTheme = themeColors[5];
+                    colorTheme = themes[5];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent3)
                 {
-                    colorTheme = themeColors[6];
+                    colorTheme = themes[6];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent4)
                 {
-                    colorTheme = themeColors[7];
+                    colorTheme = themes[7];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent5)
                 {
-                    colorTheme = themeColors[8];
+                    colorTheme = themes[8];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent6)
                 {
-                    colorTheme = themeColors[9];
+                    colorTheme = themes[9];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Hyperlink)
                 {
-                    colorTheme = themeColors[10];
+                    colorTheme = themes[10];
                 }
                 else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.FollowedHyperlink)
                 {
-                    colorTheme = themeColors[11];
+                    colorTheme = themes[11];
                 }
-                return GetElementColor(colorTheme.FirstChild, colorScheme.ChildElements, ref result, themeColors);
+                return GetElementColor(colorTheme.FirstChild, colorScheme.ChildElements, ref result, themes);
             }
             else
             {
