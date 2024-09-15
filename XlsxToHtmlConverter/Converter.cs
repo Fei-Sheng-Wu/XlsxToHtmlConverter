@@ -1748,14 +1748,41 @@ namespace XlsxToHtmlConverter
             }
             if (font.Underline != null)
             {
-                //TODO: underlines
                 if (!font.Underline.HasValue || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Single || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Words)
                 {
                     stylesTextDecoraion += " underline";
                 }
+                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Heavy)
+                {
+                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline 4px;\">{{0}}</span>");
+                }
                 else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Double)
                 {
                     valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline double;\">{{0}}</span>");
+                }
+                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Dash || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashLong || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDash)
+                {
+                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dashed;\">{{0}}</span>");
+                }
+                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashHeavy || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashLongHeavy || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDashHeavy)
+                {
+                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dashed 4px;\">{{0}}</span>");
+                }
+                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Dotted || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDotDash)
+                {
+                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dotted;\">{{0}}</span>");
+                }
+                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.HeavyDotted || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDotDashHeavy)
+                {
+                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dotted 4px;\">{{0}}</span>");
+                }
+                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Wavy)
+                {
+                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline wavy;\">{{0}}</span>");
+                }
+                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.WavyDouble || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.WavyHeavy)
+                {
+                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline wavy 4px;\">{{0}}</span>");
                 }
                 isTextDecoraionSet = true;
             }
