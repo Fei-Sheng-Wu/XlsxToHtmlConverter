@@ -54,10 +54,10 @@ string filename = @"C:\path\to\file.xlsx";
 XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream);
 ```
 
-A third optional parameter can be set to decide whether to use `MemoryStream` or `FileStream`. When set to `false`, it uses a `FileStream` to read the file instead of loading the entire file into a `MemoryStream` at once, effectively reducing the memory usage for larger files but at the cost of slowing down the conversion significantly.
+A third optional parameter can be set to decide whether to use a `MemoryStream` or a `FileStream`. When set to `true`, a `MemoryStream` is used to load the entire file at once instead of reading the file with a `FileStream`. Please note that using a `MemoryStream` will use up significantly more memory, especially for larger files.
 
 ```c#
-XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream, false);
+XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream, true);
 ```
 
 ### Conversion Configurations
@@ -78,6 +78,7 @@ XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterCo
     ConvertSizes = true,
     ConvertNumberFormats = true,
     ConvertPictures = true,
+    ConvertShapes = true,
     ConvertSheetTitles = true,
     ConvertHiddenSheets = false,
     ConvertFirstSheetOnly = false,
