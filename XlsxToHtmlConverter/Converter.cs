@@ -1056,12 +1056,12 @@ namespace XlsxToHtmlConverter
                 return string.Empty;
             }
 
-            string htmlAttributes = string.Empty;
+            string result = string.Empty;
             foreach (KeyValuePair<string, string> pair in attributes)
             {
-                htmlAttributes += $"{pair.Key}: {pair.Value};{(indent < 0 ? " " : $"\n{new string(' ', indent)}")}";
+                result += $"{pair.Key}: {pair.Value};{(indent < 0 ? " " : $"\n{new string(' ', indent)}")}";
             }
-            return !string.IsNullOrEmpty(htmlAttributes) ? (isAdditional ? $" {htmlAttributes.TrimEnd()}" : htmlAttributes.TrimEnd()) : string.Empty;
+            return !string.IsNullOrEmpty(result) ? (isAdditional ? $" {result.TrimEnd()}" : result.TrimEnd()) : string.Empty;
         }
 
         private static int GetColumnIndex(string cell)
@@ -1509,21 +1509,58 @@ namespace XlsxToHtmlConverter
         private static Dictionary<string, string> CellFormatToHtml(Fill fill, Font font, Border border, Alignment alignment, ref string valueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             Dictionary<string, string> styles = new Dictionary<string, string>();
-            if (fill != null && fill.PatternFill != null && (fill.PatternFill.PatternType == null || !fill.PatternFill.PatternType.HasValue || fill.PatternFill.PatternType.Value != PatternValues.None))
+            if (fill != null)
             {
-                //TODO: pattern & gradient fills
-                string background = string.Empty;
-                if (fill.PatternFill.ForegroundColor != null)
+                if (fill.PatternFill != null && (fill.PatternFill.PatternType == null || !fill.PatternFill.PatternType.HasValue || fill.PatternFill.PatternType.Value != PatternValues.None))
                 {
-                    background = ColorTypeToHtml(fill.PatternFill.ForegroundColor, themes);
+                    //TODO: pattern fills
+                    string fillColor = string.Empty;
+                    if (fill.PatternFill.ForegroundColor != null)
+                    {
+                        fillColor = ColorTypeToHtml(fill.PatternFill.ForegroundColor, themes);
+                    }
+                    if (string.IsNullOrEmpty(fillColor) && fill.PatternFill.BackgroundColor != null)
+                    {
+                        fillColor = ColorTypeToHtml(fill.PatternFill.BackgroundColor, themes);
+                    }
+                    if (!string.IsNullOrEmpty(fillColor))
+                    {
+                        styles["background"] = fillColor;
+                    }
                 }
-                if (string.IsNullOrEmpty(background) && fill.PatternFill.BackgroundColor != null)
+                else if (fill.GradientFill != null)
                 {
-                    background = ColorTypeToHtml(fill.PatternFill.BackgroundColor, themes);
-                }
-                if (!string.IsNullOrEmpty(background))
-                {
-                    styles["background-color"] = background;
+                    if (fill.GradientFill.Type == null || !fill.GradientFill.Type.HasValue || fill.GradientFill.Type.Value == GradientValues.Linear)
+                    {
+                        string fillColor = $"linear-gradient({(fill.GradientFill.Degree != null && fill.GradientFill.Degree.HasValue ? RoundNumber(((fill.GradientFill.Degree.Value + 90) % 360 + 360) % 360, config.RoundingDigits) : 90)}deg";
+                        foreach (GradientStop gradient in fill.GradientFill.Elements<GradientStop>())
+                        {
+                            if (gradient.Color != null)
+                            {
+                                string gradientColor = ColorTypeToHtml(gradient.Color, themes);
+                                fillColor += !string.IsNullOrEmpty(gradientColor) ? $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber(gradient.Position.Value * 100, config.RoundingDigits)}%" : string.Empty)}" : string.Empty;
+                            }
+                        }
+                        styles["background"] = $"{fillColor})";
+                    }
+                    else
+                    {
+                        double gradientLeft = fill.GradientFill.Left != null && fill.GradientFill.Left.HasValue ? fill.GradientFill.Left.Value : 0;
+                        double gradientTop = fill.GradientFill.Top != null && fill.GradientFill.Top.HasValue ? fill.GradientFill.Top.Value : 0;
+                        double gradientRight = fill.GradientFill.Right != null && fill.GradientFill.Right.HasValue ? fill.GradientFill.Right.Value : 0;
+                        double gradientBottom = fill.GradientFill.Bottom != null && fill.GradientFill.Bottom.HasValue ? fill.GradientFill.Bottom.Value : 0;
+                        double gradientRadius = ((gradientLeft + gradientRight) / 2 + (gradientTop + gradientBottom) / 2 - gradientLeft - gradientTop) / 2;
+                        string fillColor = $"radial-gradient(circle at {RoundNumber((gradientLeft + gradientRight) / 2 * 100, config.RoundingDigits)}% {RoundNumber((gradientTop + gradientBottom) / 2 * 100, config.RoundingDigits)}%";
+                        foreach (GradientStop gradient in fill.GradientFill.Elements<GradientStop>())
+                        {
+                            if (gradient.Color != null)
+                            {
+                                string gradientColor = ColorTypeToHtml(gradient.Color, themes);
+                                fillColor += !string.IsNullOrEmpty(gradientColor) ? $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber((gradientRadius + gradient.Position.Value * (1 - gradientRadius)) * 100, config.RoundingDigits)}%" : string.Empty)}" : string.Empty;
+                            }
+                        }
+                        styles["background"] = $"{fillColor})";
+                    }
                 }
             }
             if (font != null)
@@ -1540,7 +1577,7 @@ namespace XlsxToHtmlConverter
                         return false;
                     }
 
-                    string htmlBorder = string.Empty;
+                    string result = string.Empty;
                     if (borderProperties.Style != null && borderProperties.Style.HasValue)
                     {
                         if (borderProperties.Style.Value == BorderStyleValues.None)
@@ -1550,46 +1587,43 @@ namespace XlsxToHtmlConverter
                         }
                         else if (borderProperties.Style.Value == BorderStyleValues.Thick)
                         {
-                            htmlBorder += " thick solid";
+                            result += " thick solid";
                         }
                         else if (borderProperties.Style.Value == BorderStyleValues.Medium)
                         {
-                            htmlBorder += " medium solid";
+                            result += " medium solid";
                         }
                         else if (borderProperties.Style.Value == BorderStyleValues.MediumDashed || borderProperties.Style.Value == BorderStyleValues.MediumDashDot)
                         {
-                            htmlBorder += " medium dashed";
+                            result += " medium dashed";
                         }
                         else if (borderProperties.Style.Value == BorderStyleValues.MediumDashDotDot)
                         {
-                            htmlBorder += " medium dotted";
+                            result += " medium dotted";
                         }
                         else if (borderProperties.Style.Value == BorderStyleValues.Double)
                         {
-                            htmlBorder += " medium double";
+                            result += " medium double";
                         }
                         else if (borderProperties.Style.Value == BorderStyleValues.Thin)
                         {
-                            htmlBorder += " thin solid";
+                            result += " thin solid";
                         }
                         else if (borderProperties.Style.Value == BorderStyleValues.Dashed || borderProperties.Style.Value == BorderStyleValues.DashDot || borderProperties.Style.Value == BorderStyleValues.SlantDashDot)
                         {
-                            htmlBorder += " thin dashed";
+                            result += " thin dashed";
                         }
                         else if (borderProperties.Style.Value == BorderStyleValues.DashDotDot || borderProperties.Style.Value == BorderStyleValues.Hair)
                         {
-                            htmlBorder += " thin dotted";
+                            result += " thin dotted";
                         }
                     }
                     if (borderProperties.Color != null)
                     {
-                        string htmlColor = ColorTypeToHtml(borderProperties.Color, themes);
-                        if (!string.IsNullOrEmpty(htmlColor))
-                        {
-                            htmlBorder += $" {htmlColor}";
-                        }
+                        string borderColor = ColorTypeToHtml(borderProperties.Color, themes);
+                        result += !string.IsNullOrEmpty(borderColor) ? $" {borderColor}" : string.Empty;
                     }
-                    attribute = htmlBorder.TrimStart();
+                    attribute = result.TrimStart();
                     return !string.IsNullOrEmpty(attribute);
                 }
 
@@ -1655,10 +1689,10 @@ namespace XlsxToHtmlConverter
                 }
                 else if (fontElement is Color fontColor)
                 {
-                    string htmlColor = ColorTypeToHtml(fontColor, themes);
-                    if (!string.IsNullOrEmpty(htmlColor))
+                    string textColor = ColorTypeToHtml(fontColor, themes);
+                    if (!string.IsNullOrEmpty(textColor))
                     {
-                        styles["color"] = htmlColor;
+                        styles["color"] = textColor;
                     }
                 }
                 else if (fontElement is FontSize fontSize && fontSize.Val != null && fontSize.Val.HasValue)
@@ -1802,10 +1836,10 @@ namespace XlsxToHtmlConverter
                 }
                 else if (fontElement is DocumentFormat.OpenXml.Drawing.SolidFill fontFillSolid)
                 {
-                    string htmlColor = ColorReferenceToHtml(fontFillSolid, themes);
-                    if (!string.IsNullOrEmpty(htmlColor))
+                    string fontColor = ColorReferenceToHtml(fontFillSolid, themes);
+                    if (!string.IsNullOrEmpty(fontColor))
                     {
-                        styles["color"] = htmlColor;
+                        styles["color"] = fontColor;
                     }
                 }
                 else if (fontElement is DocumentFormat.OpenXml.Drawing.TextFontType fontName && fontName.Typeface != null && fontName.Typeface.HasValue)
@@ -2011,16 +2045,16 @@ namespace XlsxToHtmlConverter
                 {
                     if (propertiesElement is DocumentFormat.OpenXml.Drawing.Transform2D propertiesTransform)
                     {
-                        string htmlTransforms = string.Empty;
+                        string elementStylesTransforms = string.Empty;
                         if (propertiesTransform.Offset != null)
                         {
                             if (left == "0" && propertiesTransform.Offset.X != null && propertiesTransform.Offset.X.HasValue && propertiesTransform.Offset.X.Value != 0)
                             {
-                                htmlTransforms += $" translateX({RoundNumber(propertiesTransform.Offset.X.Value / 914400.0 * 96, config.RoundingDigits)}px)";
+                                elementStylesTransforms += $" translateX({RoundNumber(propertiesTransform.Offset.X.Value / 914400.0 * 96, config.RoundingDigits)}px)";
                             }
                             if (top == "0" && propertiesTransform.Offset.Y != null && propertiesTransform.Offset.Y.HasValue && propertiesTransform.Offset.Y.Value != 0)
                             {
-                                htmlTransforms += $" translateY({RoundNumber(propertiesTransform.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits)}px)";
+                                elementStylesTransforms += $" translateY({RoundNumber(propertiesTransform.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits)}px)";
                             }
                         }
                         if (propertiesTransform.Extents != null)
@@ -2036,19 +2070,19 @@ namespace XlsxToHtmlConverter
                         }
                         if (propertiesTransform.Rotation != null && propertiesTransform.Rotation.HasValue && propertiesTransform.Rotation.Value != 0)
                         {
-                            htmlTransforms += $" rotate({RoundNumber(propertiesTransform.Rotation.Value / 60000.0, config.RoundingDigits)}deg)";
+                            elementStylesTransforms += $" rotate({RoundNumber(propertiesTransform.Rotation.Value / 60000.0, config.RoundingDigits)}deg)";
                         }
                         if (propertiesTransform.HorizontalFlip != null && (!propertiesTransform.HorizontalFlip.HasValue || propertiesTransform.HorizontalFlip.Value))
                         {
-                            htmlTransforms += $" scaleX(-1)";
+                            elementStylesTransforms += $" scaleX(-1)";
                         }
                         if (propertiesTransform.VerticalFlip != null && (!propertiesTransform.VerticalFlip.HasValue || propertiesTransform.VerticalFlip.Value))
                         {
-                            htmlTransforms += $" scaleY(-1)";
+                            elementStylesTransforms += $" scaleY(-1)";
                         }
-                        if (!string.IsNullOrEmpty(htmlTransforms))
+                        if (!string.IsNullOrEmpty(elementStylesTransforms))
                         {
-                            elementStyles["transform"] = htmlTransforms.TrimStart();
+                            elementStyles["transform"] = elementStylesTransforms.TrimStart();
                         }
                     }
                     else if (propertiesElement is DocumentFormat.OpenXml.Drawing.NoFill)
@@ -2057,10 +2091,10 @@ namespace XlsxToHtmlConverter
                     }
                     else if (propertiesElement is DocumentFormat.OpenXml.Drawing.SolidFill propertiesFillSolid)
                     {
-                        string htmlColor = ColorReferenceToHtml(propertiesFillSolid, themes);
-                        if (!string.IsNullOrEmpty(htmlColor))
+                        string fillColor = ColorReferenceToHtml(propertiesFillSolid, themes);
+                        if (!string.IsNullOrEmpty(fillColor))
                         {
-                            elementStyles["background-color"] = htmlColor;
+                            elementStyles["background"] = fillColor;
                         }
                         isFillHandled = true;
                     }
@@ -2101,26 +2135,26 @@ namespace XlsxToHtmlConverter
             {
                 if (!isFillHandled && elementShapeStyle.FillReference != null)
                 {
-                    string htmlColor = ColorReferenceToHtml(elementShapeStyle.FillReference, themes);
-                    if (!string.IsNullOrEmpty(htmlColor))
+                    string fillColor = ColorReferenceToHtml(elementShapeStyle.FillReference, themes);
+                    if (!string.IsNullOrEmpty(fillColor))
                     {
-                        elementStyles["background-color"] = htmlColor;
+                        elementStyles["background"] = fillColor;
                     }
                 }
                 if (!isOutlineHandled && elementShapeStyle.LineReference != null)
                 {
-                    string htmlColor = ColorReferenceToHtml(elementShapeStyle.LineReference, themes);
-                    if (!string.IsNullOrEmpty(htmlColor))
+                    string outlineColor = ColorReferenceToHtml(elementShapeStyle.LineReference, themes);
+                    if (!string.IsNullOrEmpty(outlineColor))
                     {
-                        elementStyles["border"] = $"thin solid {htmlColor}";
+                        elementStyles["border"] = $"thin solid {outlineColor}";
                     }
                 }
                 if (elementShapeStyle.FontReference != null)
                 {
-                    string htmlColor = ColorReferenceToHtml(elementShapeStyle.FontReference, themes);
-                    if (!string.IsNullOrEmpty(htmlColor))
+                    string fontColor = ColorReferenceToHtml(elementShapeStyle.FontReference, themes);
+                    if (!string.IsNullOrEmpty(fontColor))
                     {
-                        elementStyles["color"] = htmlColor;
+                        elementStyles["color"] = fontColor;
                     }
                 }
             }
@@ -2954,7 +2988,7 @@ td {
     color: black;
     text-align: left;
     vertical-align: bottom;
-    background-color: transparent;
+    background: transparent;
     border: thin solid lightgray;
     border-collapse: collapse;
     white-space: nowrap;
