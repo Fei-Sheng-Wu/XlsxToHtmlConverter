@@ -1,17 +1,16 @@
 # XlsxToHtmlConverter v1.2.20-dev
 
 [![C#](https://img.shields.io/badge/C%23-100%25-blue.svg?style=flat-square)](https://docs.microsoft.com/en-us/dotnet/csharp/)
-[![Target Framework](https://img.shields.io/badge/.Net-%E2%89%A55.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/5.0)
-[![Target Framework](https://img.shields.io/badge/.Net%20Core-%E2%89%A53.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/3.0)
+[![Target Framework](https://img.shields.io/badge/.Net-%E2%89%A56.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
 [![Target Framework](https://img.shields.io/badge/.Net%20Standard-%E2%89%A52.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/platform/dotnet-standard)
-[![Nuget](https://img.shields.io/badge/Nuget-v1.2.19%20%28%E2%89%A519.6K%20Total%20Downloads%29-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.19)
+[![Nuget](https://img.shields.io/badge/Nuget-v1.2.19%20%28%E2%89%A519.8K%20Total%20Downloads%29-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.19)
 [![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 
 > A fast Xlsx to Html file converter. Support cell fills, fonts, borders, alignments, and other styles. Support different cell sizes and merged cells. Support custom number formats and basic conditions. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.
 
 ## Dependencies
 
-**DocumentFormat.OpenXml** ≥ 2.7.1
+**DocumentFormat.OpenXml** ≥ 3.0.0
 
 ## Main Features
 
@@ -54,7 +53,9 @@ string filename = @"C:\path\to\file.xlsx";
 XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream);
 ```
 
-A third optional parameter can be set to decide whether to use a `MemoryStream` or a `FileStream`. When set to `true`, a `MemoryStream` is used to load the entire file at once instead of reading the file with a `FileStream`. Please note that using a `MemoryStream` will use up significantly more memory, especially for larger files.
+A third optional parameter can be set to decide whether to use a `MemoryStream` or a `FileStream`. When set to `true`, a `MemoryStream` is used to load the entire file at once instead of reading the file with a `FileStream`.
+
+> Please note that using a `MemoryStream` will use up significantly more memory, especially for larger files.
 
 ```c#
 XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream, true);
@@ -64,13 +65,13 @@ XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream, true);
 
 `ConverterConfig` include flexible and customizable conversion configurations.
 
-> In cases where the converter is unable to produce the correct stylings, it is suggested to set `ConvertStyles` to `false`, which will ensure the conversion of all the content with default stylings.
+> In rare cases where the converter is unable to produce the correct stylings, it is suggested to set `ConvertStyles` to `false`, which will at least ensure the conversion of all the content with default stylings.
 
 ```c#
 XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
 {
     PageTitle = "My Title",
-    PresetStyles = XlsxToHtmlConverter.ConverterConfig.DefaultPresetStyles + "body { background-color: skyblue; } table { width: 100%; }",
+    PresetStyles = XlsxToHtmlConverter.ConverterConfig.DefaultPresetStyles + " body { background-color: skyblue; } table { width: 100%; }",
     ErrorMessage = "An unhandled error occured during the conversion: {EXCEPTION}",
     Encoding = System.Text.Encoding.UTF8,
     BufferSize = 65536,
@@ -84,6 +85,7 @@ XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterCo
     ConvertFirstSheetOnly = false,
     ConvertHtmlBodyOnly = false,
     UseHtmlStyleClasses = true,
+    UseHexColors = true,
     RoundingDigits = 2
 };
 ```
