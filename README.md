@@ -1,4 +1,4 @@
-# XlsxToHtmlConverter v1.2.20
+# XlsxToHtmlConverter v1.2.21-dev
 
 [![C#](https://img.shields.io/badge/C%23-100%25-blue.svg?style=flat-square)](https://docs.microsoft.com/en-us/dotnet/csharp/)
 [![Target Framework](https://img.shields.io/badge/.Net-%E2%89%A56.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
