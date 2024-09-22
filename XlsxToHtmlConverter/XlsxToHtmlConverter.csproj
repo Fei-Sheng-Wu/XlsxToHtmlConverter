@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>net6.0;netstandard2.0</TargetFrameworks>
     <Title>XlsxToHtmlConverter</Title>
-    <Version>1.2.20</Version>
+    <Version>1.2.21</Version>
     <Authors>FeiShengWu</Authors>
     <Description>A fast Xlsx to Html file converter. Support cell fills, fonts, borders, alignments, and other styles. Support different cell sizes and merged cells. Support custom number formats and basic conditions. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.</Description>
     <Copyright>Copyright © 2024 FeiShengWu</Copyright>
