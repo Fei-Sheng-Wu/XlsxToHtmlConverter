@@ -340,7 +340,7 @@ namespace XlsxToHtmlConverter
                             }
                             else if (worksheetElement is SheetProperties worksheetProperties && configClone.ConvertSheetTitles && worksheetProperties.TabColor != null)
                             {
-                                sheetTabColor = ColorTypeToHtml(worksheetProperties.TabColor, themes);
+                                ColorTypeToHtml(worksheetProperties.TabColor, out sheetTabColor, themes, configClone);
                             }
                             else if (worksheetElement is SheetFormatProperties worksheetFormatProperties)
                             {
@@ -1113,12 +1113,17 @@ namespace XlsxToHtmlConverter
             int index = 0;
             foreach (Formula formula in formulas)
             {
+                if (!double.TryParse(formula.Text, out double formulaDouble))
+                {
+                    continue;
+                }
+
                 index++;
-                if (index > formulasCount || !double.TryParse(formula.Text, out double formulaDouble))
+                parameters[index] = formulaDouble;
+                if (index > formulasCount)
                 {
                     break;
                 }
-                parameters[index] = formulaDouble;
             }
             return index >= formulasCount && actionEvaluation.Invoke(parameters);
         }
@@ -1257,7 +1262,7 @@ namespace XlsxToHtmlConverter
                             while (weight > 1);
                         };
 
-                        while (fractionNumerator == 1 && fractionDenominator == 1)
+                        while (true)
                         {
                             int middleNumerator = fractionParts[0] + fractionParts[2];
                             int middleDenominator = fractionParts[1] + fractionParts[3];
@@ -1369,14 +1374,14 @@ namespace XlsxToHtmlConverter
                     }
                     continue;
                 }
-                else if (formatChar == '\"' && (isIncreasing ? indexFormat + 1 < format.Length : indexFormat > 0))
+                else if (formatChar == '"' && (isIncreasing ? indexFormat + 1 < format.Length : indexFormat > 0))
                 {
                     do
                     {
                         indexFormat += isIncreasing ? 1 : -1;
                         result += isFormatCalculated ? format[indexFormat].ToString() : string.Empty;
                     }
-                    while (isIncreasing ? indexFormat + 1 < format.Length && format[indexFormat + 1] != '\"' : indexFormat > 0 && format[indexFormat - 1] != '\"');
+                    while (isIncreasing ? indexFormat + 1 < format.Length && format[indexFormat + 1] != '"' : indexFormat > 0 && format[indexFormat - 1] != '"');
                     indexFormat += isIncreasing ? 2 : -2;
                     continue;
                 }
@@ -1515,15 +1520,7 @@ namespace XlsxToHtmlConverter
                 {
                     //TODO: pattern fills
                     string fillColor = string.Empty;
-                    if (fill.PatternFill.ForegroundColor != null)
-                    {
-                        fillColor = ColorTypeToHtml(fill.PatternFill.ForegroundColor, themes);
-                    }
-                    if (string.IsNullOrEmpty(fillColor) && fill.PatternFill.BackgroundColor != null)
-                    {
-                        fillColor = ColorTypeToHtml(fill.PatternFill.BackgroundColor, themes);
-                    }
-                    if (!string.IsNullOrEmpty(fillColor))
+                    if ((fill.PatternFill.ForegroundColor != null && ColorTypeToHtml(fill.PatternFill.ForegroundColor, out fillColor, themes, config)) || fill.PatternFill.BackgroundColor != null && ColorTypeToHtml(fill.PatternFill.BackgroundColor, out fillColor, themes, config))
                     {
                         styles["background"] = fillColor;
                     }
@@ -1535,10 +1532,9 @@ namespace XlsxToHtmlConverter
                         string fillColor = $"linear-gradient({(fill.GradientFill.Degree != null && fill.GradientFill.Degree.HasValue ? RoundNumber(((fill.GradientFill.Degree.Value + 90) % 360 + 360) % 360, config.RoundingDigits) : 90)}deg";
                         foreach (GradientStop gradient in fill.GradientFill.Elements<GradientStop>())
                         {
-                            if (gradient.Color != null)
+                            if (gradient.Color != null && ColorTypeToHtml(gradient.Color, out string gradientColor, themes, config))
                             {
-                                string gradientColor = ColorTypeToHtml(gradient.Color, themes);
-                                fillColor += !string.IsNullOrEmpty(gradientColor) ? $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber(gradient.Position.Value * 100, config.RoundingDigits)}%" : string.Empty)}" : string.Empty;
+                                fillColor += $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber(gradient.Position.Value * 100, config.RoundingDigits)}%" : string.Empty)}";
                             }
                         }
                         styles["background"] = $"{fillColor})";
@@ -1553,10 +1549,9 @@ namespace XlsxToHtmlConverter
                         string fillColor = $"radial-gradient(circle at {RoundNumber((gradientLeft + gradientRight) / 2 * 100, config.RoundingDigits)}% {RoundNumber((gradientTop + gradientBottom) / 2 * 100, config.RoundingDigits)}%";
                         foreach (GradientStop gradient in fill.GradientFill.Elements<GradientStop>())
                         {
-                            if (gradient.Color != null)
+                            if (gradient.Color != null && ColorTypeToHtml(gradient.Color, out string gradientColor, themes, config))
                             {
-                                string gradientColor = ColorTypeToHtml(gradient.Color, themes);
-                                fillColor += !string.IsNullOrEmpty(gradientColor) ? $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber((gradientRadius + gradient.Position.Value * (1 - gradientRadius)) * 100, config.RoundingDigits)}%" : string.Empty)}" : string.Empty;
+                                fillColor += $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber((gradientRadius + gradient.Position.Value * (1 - gradientRadius)) * 100, config.RoundingDigits)}%" : string.Empty)}";
                             }
                         }
                         styles["background"] = $"{fillColor})";
@@ -1618,10 +1613,9 @@ namespace XlsxToHtmlConverter
                             result += " thin dotted";
                         }
                     }
-                    if (borderProperties.Color != null)
+                    if (borderProperties.Color != null && ColorTypeToHtml(borderProperties.Color, out string borderColor, themes, config))
                     {
-                        string borderColor = ColorTypeToHtml(borderProperties.Color, themes);
-                        result += !string.IsNullOrEmpty(borderColor) ? $" {borderColor}" : string.Empty;
+                        result += $" {borderColor}";
                     }
                     attribute = result.TrimStart();
                     return !string.IsNullOrEmpty(attribute);
@@ -1687,13 +1681,9 @@ namespace XlsxToHtmlConverter
                 {
                     styles["font-family"] = fontName.Val.Value;
                 }
-                else if (fontElement is Color fontColor)
+                else if (fontElement is Color fontColor && ColorTypeToHtml(fontColor, out string textColor, themes, config))
                 {
-                    string textColor = ColorTypeToHtml(fontColor, themes);
-                    if (!string.IsNullOrEmpty(textColor))
-                    {
-                        styles["color"] = textColor;
-                    }
+                    styles["color"] = textColor;
                 }
                 else if (fontElement is FontSize fontSize && fontSize.Val != null && fontSize.Val.HasValue)
                 {
@@ -1834,13 +1824,9 @@ namespace XlsxToHtmlConverter
                 {
                     styles["color"] = "transparent";
                 }
-                else if (fontElement is DocumentFormat.OpenXml.Drawing.SolidFill fontFillSolid)
+                else if (fontElement is DocumentFormat.OpenXml.Drawing.SolidFill fontFillSolid && ColorReferenceToHtml(fontFillSolid, out string fontColor, themes, config))
                 {
-                    string fontColor = ColorReferenceToHtml(fontFillSolid, themes);
-                    if (!string.IsNullOrEmpty(fontColor))
-                    {
-                        styles["color"] = fontColor;
-                    }
+                    styles["color"] = fontColor;
                 }
                 else if (fontElement is DocumentFormat.OpenXml.Drawing.TextFontType fontName && fontName.Typeface != null && fontName.Typeface.HasValue)
                 {
@@ -1865,6 +1851,7 @@ namespace XlsxToHtmlConverter
             }
 
             string element = string.Empty;
+            Dictionary<string, string> elementStyles = new Dictionary<string, string>();
             DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeProperties elementShapeProperties = null;
             DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeStyle elementShapeStyle = null;
             DocumentFormat.OpenXml.Drawing.Spreadsheet.NonVisualDrawingProperties elementNonVisualProperties = null;
@@ -1894,8 +1881,14 @@ namespace XlsxToHtmlConverter
                 else if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape && config.ConvertShapes)
                 {
                     string shapeValue = !config.ConvertStyles && shape.TextBody != null ? shape.TextBody.InnerText : string.Empty;
-                    Dictionary<string, string> shapeStyles = new Dictionary<string, string>() { { "overflow-wrap", "break-word" }, { "white-space", "normal" }, { "overflow-x", "hidden" }, { "overflow-y", "hidden" } };
-                    double[] shapePaddings = new double[4] { 0.13 / 2.54 * 96, 0.25 / 2.54 * 96, 0.13 / 2.54 * 96, 0.25 / 2.54 * 96 };
+                    elementStyles["overflow-wrap"] = "break-word";
+                    elementStyles["white-space"] = "normal";
+                    elementStyles["overflow-x"] = "hidden";
+                    elementStyles["overflow-y"] = "hidden";
+                    double shapePaddingTop = 0.13 / 2.54 * 96;
+                    double shapePaddingRight = 0.25 / 2.54 * 96;
+                    double shapePaddingBottom = 0.13 / 2.54 * 96;
+                    double shapePaddingLeft = 0.25 / 2.54 * 96;
                     if (shape.TextBody != null)
                     {
                         foreach (OpenXmlElement textBodyElement in shape.TextBody.Elements())
@@ -1971,7 +1964,7 @@ namespace XlsxToHtmlConverter
                                     else if (paragraphElement is DocumentFormat.OpenXml.Drawing.EndParagraphRunProperties endParagraphRunProperties)
                                     {
                                         string valueContainer = "{0}";
-                                        FontPropertiesToHtml(endParagraphRunProperties, ref shapeStyles, ref valueContainer, themes, config);
+                                        FontPropertiesToHtml(endParagraphRunProperties, ref elementStyles, ref valueContainer, themes, config);
                                         paragraphValueContainer = valueContainer.Replace("{0}", paragraphValueContainer);
                                     }
                                 }
@@ -1979,36 +1972,36 @@ namespace XlsxToHtmlConverter
                             }
                             else if (textBodyElement is DocumentFormat.OpenXml.Drawing.BodyProperties bodyProperties)
                             {
-                                shapePaddings[0] = bodyProperties.TopInset != null && bodyProperties.TopInset.HasValue ? bodyProperties.TopInset.Value / 914400.0 * 96 : shapePaddings[0];
-                                shapePaddings[1] = bodyProperties.RightInset != null && bodyProperties.RightInset.HasValue ? bodyProperties.RightInset.Value / 914400.0 * 96 : shapePaddings[1];
-                                shapePaddings[2] = bodyProperties.BottomInset != null && bodyProperties.BottomInset.HasValue ? bodyProperties.BottomInset.Value / 914400.0 * 96 : shapePaddings[2];
-                                shapePaddings[3] = bodyProperties.LeftInset != null && bodyProperties.LeftInset.HasValue ? bodyProperties.LeftInset.Value / 914400.0 * 96 : shapePaddings[3];
+                                shapePaddingTop = bodyProperties.TopInset != null && bodyProperties.TopInset.HasValue ? bodyProperties.TopInset.Value / 914400.0 * 96 : shapePaddingTop;
+                                shapePaddingRight = bodyProperties.RightInset != null && bodyProperties.RightInset.HasValue ? bodyProperties.RightInset.Value / 914400.0 * 96 : shapePaddingRight;
+                                shapePaddingBottom = bodyProperties.BottomInset != null && bodyProperties.BottomInset.HasValue ? bodyProperties.BottomInset.Value / 914400.0 * 96 : shapePaddingBottom;
+                                shapePaddingLeft = bodyProperties.LeftInset != null && bodyProperties.LeftInset.HasValue ? bodyProperties.LeftInset.Value / 914400.0 * 96 : shapePaddingLeft;
                                 if (bodyProperties.Anchor != null && bodyProperties.Anchor.HasValue && bodyProperties.Anchor.Value != DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Top)
                                 {
-                                    shapeStyles["align-content"] = bodyProperties.Anchor.Value == DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Center ? "center" : "end";
+                                    elementStyles["align-content"] = bodyProperties.Anchor.Value == DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Center ? "center" : "end";
                                 }
                                 if (bodyProperties.AnchorCenter != null && bodyProperties.AnchorCenter.HasValue && bodyProperties.AnchorCenter.Value)
                                 {
-                                    shapeStyles["text-align"] = "center";
+                                    elementStyles["text-align"] = "center";
                                 }
                                 if (bodyProperties.Wrap != null && bodyProperties.Wrap.HasValue && bodyProperties.Wrap.Value == DocumentFormat.OpenXml.Drawing.TextWrappingValues.None)
                                 {
-                                    shapeStyles.Remove("overflow-wrap");
-                                    shapeStyles.Remove("white-space");
+                                    elementStyles.Remove("overflow-wrap");
+                                    elementStyles.Remove("white-space");
                                 }
                                 if (bodyProperties.HorizontalOverflow != null && bodyProperties.HorizontalOverflow.HasValue && bodyProperties.HorizontalOverflow.Value == DocumentFormat.OpenXml.Drawing.TextHorizontalOverflowValues.Overflow)
                                 {
-                                    shapeStyles.Remove("overflow-x");
+                                    elementStyles.Remove("overflow-x");
                                 }
                                 if (bodyProperties.VerticalOverflow != null && bodyProperties.VerticalOverflow.HasValue && bodyProperties.VerticalOverflow.Value == DocumentFormat.OpenXml.Drawing.TextVerticalOverflowValues.Overflow)
                                 {
-                                    shapeStyles.Remove("overflow-y");
+                                    elementStyles.Remove("overflow-y");
                                 }
                                 if (bodyProperties.Vertical != null && bodyProperties.Vertical.HasValue && bodyProperties.Vertical.Value != DocumentFormat.OpenXml.Drawing.TextVerticalValues.Horizontal)
                                 {
                                     if (bodyProperties.Vertical.Value == DocumentFormat.OpenXml.Drawing.TextVerticalValues.Vertical270)
                                     {
-                                        shapeStyles["writing-mode"] = "vertical-rl";
+                                        elementStyles["writing-mode"] = "vertical-rl";
                                     }
                                     else
                                     {
@@ -2022,8 +2015,8 @@ namespace XlsxToHtmlConverter
                             }
                         }
                     }
-                    shapeStyles["padding"] = $"{RoundNumber(shapePaddings[0], config.RoundingDigits)}px {RoundNumber(shapePaddings[1], config.RoundingDigits)}px {RoundNumber(shapePaddings[2], config.RoundingDigits)}px {RoundNumber(shapePaddings[3], config.RoundingDigits)}px";
-                    element = $"<div style=\"box-sizing: border-box; {{0}}{GetHtmlAttributesString(shapeStyles, true, -1)}\">{shapeValue}</div>";
+                    elementStyles["padding"] = $"{RoundNumber(shapePaddingTop, config.RoundingDigits)}px {RoundNumber(shapePaddingRight, config.RoundingDigits)}px {RoundNumber(shapePaddingBottom, config.RoundingDigits)}px {RoundNumber(shapePaddingLeft, config.RoundingDigits)}px";
+                    element = $"<div style=\"box-sizing: border-box; {{0}}\">{shapeValue}</div>";
                     elementShapeProperties = shape.ShapeProperties;
                     elementShapeStyle = shape.ShapeStyle;
                     elementNonVisualProperties = shape.NonVisualShapeProperties.NonVisualDrawingProperties;
@@ -2038,7 +2031,6 @@ namespace XlsxToHtmlConverter
             string heightActual = height;
             bool isFillHandled = false;
             bool isOutlineHandled = false;
-            Dictionary<string, string> elementStyles = new Dictionary<string, string>();
             if (elementShapeProperties != null)
             {
                 foreach (OpenXmlElement propertiesElement in elementShapeProperties.Elements())
@@ -2089,13 +2081,9 @@ namespace XlsxToHtmlConverter
                     {
                         isFillHandled = true;
                     }
-                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.SolidFill propertiesFillSolid)
+                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.SolidFill propertiesFillSolid && ColorReferenceToHtml(propertiesFillSolid, out string fillColor, themes, config))
                     {
-                        string fillColor = ColorReferenceToHtml(propertiesFillSolid, themes);
-                        if (!string.IsNullOrEmpty(fillColor))
-                        {
-                            elementStyles["background"] = fillColor;
-                        }
+                        elementStyles["background"] = fillColor;
                         isFillHandled = true;
                     }
                     else if (propertiesElement is DocumentFormat.OpenXml.Drawing.Outline propertiesOutline)
@@ -2115,7 +2103,7 @@ namespace XlsxToHtmlConverter
                             }
                             else if (outlineElement is DocumentFormat.OpenXml.Drawing.SolidFill outlineFillSolid)
                             {
-                                outlineColor = ColorReferenceToHtml(outlineFillSolid, themes);
+                                ColorReferenceToHtml(outlineFillSolid, out outlineColor, themes, config);
                             }
                         }
                         elementStyles["border"] = $"{outlineWidth} {outlineStyle}{(!string.IsNullOrEmpty(outlineColor) ? $" {outlineColor}" : string.Empty)}";
@@ -2127,35 +2115,71 @@ namespace XlsxToHtmlConverter
                     }
                     else if (propertiesElement is DocumentFormat.OpenXml.Drawing.CustomGeometry geometryCustom && geometryCustom.PathList != null)
                     {
-                        //TODO: custom shapes
+                        string attribute = $"path('";
+                        double pointLastX = 0;
+                        double pointLastY = 0;
+                        foreach (DocumentFormat.OpenXml.Drawing.Path geometryPath in geometryCustom.PathList.Elements<DocumentFormat.OpenXml.Drawing.Path>())
+                        {
+                            foreach (OpenXmlElement geometryPathElement in geometryPath.Elements())
+                            {
+                                if (geometryPathElement is DocumentFormat.OpenXml.Drawing.ArcTo geometryPathArcTo)
+                                {
+                                    double arcRadiusX = geometryPathArcTo.WidthRadius != null && geometryPathArcTo.WidthRadius.HasValue && double.TryParse(geometryPathArcTo.WidthRadius.Value, out double radiusWidth) ? radiusWidth / 914400.0 * 96 : 0;
+                                    double arcRadiusY = geometryPathArcTo.HeightRadius != null && geometryPathArcTo.HeightRadius.HasValue && double.TryParse(geometryPathArcTo.HeightRadius.Value, out double radiusHeight) ? radiusHeight / 914400.0 * 96 : 0;
+                                    double arcAngleStart = geometryPathArcTo.StartAngle != null && geometryPathArcTo.StartAngle.HasValue && double.TryParse(geometryPathArcTo.StartAngle.Value, out double angleStart) ? angleStart / 60000.0 * Math.PI / 180 : 0;
+                                    double arcAngleEnd = geometryPathArcTo.SwingAngle != null && geometryPathArcTo.SwingAngle.HasValue && double.TryParse(geometryPathArcTo.SwingAngle.Value, out double angleSwing) ? arcAngleStart + angleSwing / 60000.0 * Math.PI / 180 : arcAngleStart;
+                                    pointLastX = RoundNumber(pointLastX - arcRadiusX * Math.Cos(arcAngleStart) + arcRadiusX * Math.Cos(arcAngleEnd), config.RoundingDigits);
+                                    pointLastY = RoundNumber(pointLastY - arcRadiusY * Math.Sin(arcAngleStart) + arcRadiusY * Math.Sin(arcAngleEnd), config.RoundingDigits);
+                                    attribute += $"A {RoundNumber(arcRadiusX, config.RoundingDigits)} {RoundNumber(arcRadiusY, config.RoundingDigits)} 0 1 1 {pointLastX},{pointLastY} ";
+                                }
+                                else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.CloseShapePath)
+                                {
+                                    attribute += "Z ";
+                                }
+                                else
+                                {
+                                    if (geometryPathElement is DocumentFormat.OpenXml.Drawing.MoveTo)
+                                    {
+                                        attribute += "M ";
+                                    }
+                                    else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.LineTo)
+                                    {
+                                        attribute += "L ";
+                                    }
+                                    else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.CubicBezierCurveTo)
+                                    {
+                                        attribute += "C ";
+                                    }
+                                    else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.QuadraticBezierCurveTo)
+                                    {
+                                        attribute += "Q ";
+                                    }
+                                    foreach (DocumentFormat.OpenXml.Drawing.Point geometryPathPoint in geometryPathElement.Elements<DocumentFormat.OpenXml.Drawing.Point>())
+                                    {
+                                        pointLastX = geometryPathPoint.X != null && geometryPathPoint.X.HasValue && double.TryParse(geometryPathPoint.X.Value, out double pointX) ? RoundNumber(pointX / 914400.0 * 96, config.RoundingDigits) : 0;
+                                        pointLastY = geometryPathPoint.Y != null && geometryPathPoint.Y.HasValue && double.TryParse(geometryPathPoint.Y.Value, out double pointY) ? RoundNumber(pointY / 914400.0 * 96, config.RoundingDigits) : 0;
+                                        attribute += $"{pointLastX},{pointLastY} ";
+                                    }
+                                }
+                            }
+                        }
+                        elementStyles["clip-path"] = $"{attribute.TrimEnd()}')";
                     }
                 }
             }
             if (elementShapeStyle != null)
             {
-                if (!isFillHandled && elementShapeStyle.FillReference != null)
+                if (!isFillHandled && elementShapeStyle.FillReference != null && ColorReferenceToHtml(elementShapeStyle.FillReference, out string fillColor, themes, config))
                 {
-                    string fillColor = ColorReferenceToHtml(elementShapeStyle.FillReference, themes);
-                    if (!string.IsNullOrEmpty(fillColor))
-                    {
-                        elementStyles["background"] = fillColor;
-                    }
+                    elementStyles["background"] = fillColor;
                 }
-                if (!isOutlineHandled && elementShapeStyle.LineReference != null)
+                if (!isOutlineHandled && elementShapeStyle.LineReference != null && ColorReferenceToHtml(elementShapeStyle.LineReference, out string outlineColor, themes, config))
                 {
-                    string outlineColor = ColorReferenceToHtml(elementShapeStyle.LineReference, themes);
-                    if (!string.IsNullOrEmpty(outlineColor))
-                    {
-                        elementStyles["border"] = $"thin solid {outlineColor}";
-                    }
+                    elementStyles["border"] = $"thin solid {outlineColor}";
                 }
-                if (elementShapeStyle.FontReference != null)
+                if (!elementStyles.ContainsKey("color") && elementShapeStyle.FontReference != null && ColorReferenceToHtml(elementShapeStyle.FontReference, out string fontColor, themes, config))
                 {
-                    string fontColor = ColorReferenceToHtml(elementShapeStyle.FontReference, themes);
-                    if (!string.IsNullOrEmpty(fontColor))
-                    {
-                        elementStyles["color"] = fontColor;
-                    }
+                    elementStyles["color"] = fontColor;
                 }
             }
             if (elementNonVisualProperties != null && elementNonVisualProperties.Hidden != null && (!elementNonVisualProperties.Hidden.HasValue || elementNonVisualProperties.Hidden.Value))
@@ -2165,29 +2189,39 @@ namespace XlsxToHtmlConverter
             return element.Replace("{0}", $"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{GetHtmlAttributesString(elementStyles, true, -1)}");
         }
 
-        private static string ColorTypeToHtml(ColorType color, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
+        private static string GetFormattedColor(byte red, byte green, byte blue, int alpha, ConverterConfig config)
+        {
+            return config.UseHexColors ? $"#{red:X2}{green:X2}{blue:X2}{(alpha < 100 ? ((byte)(alpha / 100.0 * 255)).ToString("X2") : string.Empty)}" : $"{(alpha < 100 ? "rgba" : "rgb")}({red}, {green}, {blue}{(alpha < 100 ? $", {Math.Round(alpha / 100.0, 2)}" : string.Empty)})";
+        }
+
+        private static bool ColorTypeToHtml(ColorType color, out string result, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             if (color == null)
             {
-                return string.Empty;
+                result = string.Empty;
+                return false;
             }
 
-            double[] result = new double[4] { 0, 0, 0, 1 };
+            byte resultRed = 0;
+            byte resultGreen = 0;
+            byte resultBlue = 0;
+            int resultAlpha = 100;
             if (color.Auto != null && (!color.Auto.HasValue || color.Auto.Value))
             {
-                return "initial";
+                result = "initial";
+                return true;
             }
             else if (color.Rgb != null && color.Rgb.HasValue)
             {
-                HexToRgba(color.Rgb.Value, out result[0], out result[1], out result[2], out result[3]);
+                HexToRgba(color.Rgb.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
             }
             else if (color.Indexed != null && color.Indexed.HasValue)
             {
-                void actionUpdateColor(double red, double green, double blue)
+                void actionUpdateColor(byte red, byte green, byte blue)
                 {
-                    result[0] = red;
-                    result[1] = green;
-                    result[2] = blue;
+                    resultRed = red;
+                    resultGreen = green;
+                    resultBlue = blue;
                 };
                 switch (color.Indexed.Value)
                 {
@@ -2390,39 +2424,47 @@ namespace XlsxToHtmlConverter
                         actionUpdateColor(255, 255, 255);
                         break;
                     default:
-                        return string.Empty;
+                        result = string.Empty;
+                        return false;
                 }
             }
-            else if (color.Theme == null || !color.Theme.HasValue || themes == null || color.Theme.Value < 0 || color.Theme.Value >= themes.Length || !(themes[color.Theme.Value].FirstChild is OpenXmlElement themeColorElement) || !GetColorElement(themeColorElement, themeColorElement.ChildElements, ref result, themes))
+            else if (color.Theme == null || !color.Theme.HasValue || themes == null || color.Theme.Value < 0 || color.Theme.Value >= themes.Length || !(themes[color.Theme.Value].FirstChild is OpenXmlElement themeColorElement) || !GetColorElement(themeColorElement, themeColorElement.ChildElements, ref resultRed, ref resultGreen, ref resultBlue, ref resultAlpha, themes))
             {
-                return string.Empty;
+                result = string.Empty;
+                return false;
             }
-
             if (color.Tint != null && color.Tint.HasValue && color.Tint.Value != 0)
             {
-                RgbToHsl(result[0], result[1], result[2], out double hue, out double saturation, out double luminance);
-                HslToRgb(hue, saturation, color.Tint.Value < 0 ? luminance * (1 + color.Tint.Value) : luminance * (1 - color.Tint.Value) + color.Tint.Value, out result[0], out result[1], out result[2]);
+                RgbToHsl(resultRed, resultGreen, resultBlue, out double hue, out double saturation, out double luminance);
+                HslToRgb(hue, saturation, color.Tint.Value < 0 ? luminance * (1 + color.Tint.Value) : luminance * (1 - color.Tint.Value) + color.Tint.Value, out resultRed, out resultGreen, out resultBlue);
             }
-            return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Max(0, Math.Min(1, Math.Round(result[3], 2)))}" : string.Empty)})";
+            result = GetFormattedColor(resultRed, resultGreen, resultBlue, resultAlpha, config);
+            return true;
         }
 
-        private static string ColorReferenceToHtml(OpenXmlElement color, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
+        private static bool ColorReferenceToHtml(OpenXmlElement color, out string result, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             if (color == null)
             {
-                return string.Empty;
+                result = string.Empty;
+                return false;
             }
 
-            double[] result = new double[4] { 0, 0, 0, 1 };
+            byte resultRed = 0;
+            byte resultGreen = 0;
+            byte resultBlue = 0;
+            int resultAlpha = 100;
             OpenXmlElement colorElement = color.FirstChild;
-            if (colorElement == null || !GetColorElement(colorElement, colorElement.ChildElements, ref result, themes))
+            if (colorElement == null || !GetColorElement(colorElement, colorElement.ChildElements, ref resultRed, ref resultGreen, ref resultBlue, ref resultAlpha, themes))
             {
-                return string.Empty;
+                result = string.Empty;
+                return false;
             }
-            return $"{(result[3] < 1 ? "rgba" : "rgb")}({Math.Round(result[0])}, {Math.Round(result[1])}, {Math.Round(result[2])}{(result[3] < 1 ? $", {Math.Max(0, Math.Min(1, Math.Round(result[3], 2)))}" : string.Empty)})";
+            result = GetFormattedColor(resultRed, resultGreen, resultBlue, resultAlpha, config);
+            return true;
         }
 
-        private static bool GetColorElement(OpenXmlElement color, OpenXmlElementList effects, ref double[] result, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
+        private static bool GetColorElement(OpenXmlElement color, OpenXmlElementList effects, ref byte resultRed, ref byte resultGreen, ref byte resultBlue, ref int resultAlpha, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
         {
             if (color == null)
             {
@@ -2431,42 +2473,45 @@ namespace XlsxToHtmlConverter
 
             if (color is DocumentFormat.OpenXml.Drawing.RgbColorModelHex colorRgbHex && colorRgbHex.Val != null && colorRgbHex.Val.HasValue)
             {
-                HexToRgba(colorRgbHex.Val.Value, out result[0], out result[1], out result[2], out result[3]);
+                HexToRgba(colorRgbHex.Val.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
             }
             else if (color is DocumentFormat.OpenXml.Drawing.RgbColorModelPercentage colorRgbPercentage)
             {
-                result[0] = colorRgbPercentage.RedPortion != null && colorRgbPercentage.RedPortion.HasValue ? (int)(colorRgbPercentage.RedPortion.Value / 100000.0 * 255) : 0;
-                result[1] = colorRgbPercentage.GreenPortion != null && colorRgbPercentage.GreenPortion.HasValue ? (int)(colorRgbPercentage.GreenPortion.Value / 100000.0 * 255) : 0;
-                result[2] = colorRgbPercentage.BluePortion != null && colorRgbPercentage.BluePortion.HasValue ? (int)(colorRgbPercentage.BluePortion.Value / 100000.0 * 255) : 0;
+                resultRed = colorRgbPercentage.RedPortion != null && colorRgbPercentage.RedPortion.HasValue ? (byte)(colorRgbPercentage.RedPortion.Value / 100000.0 * 255) : (byte)0;
+                resultGreen = colorRgbPercentage.GreenPortion != null && colorRgbPercentage.GreenPortion.HasValue ? (byte)(colorRgbPercentage.GreenPortion.Value / 100000.0 * 255) : (byte)0;
+                resultBlue = colorRgbPercentage.BluePortion != null && colorRgbPercentage.BluePortion.HasValue ? (byte)(colorRgbPercentage.BluePortion.Value / 100000.0 * 255) : (byte)0;
             }
             else if (color is DocumentFormat.OpenXml.Drawing.HslColor colorHsl)
             {
                 double hue = colorHsl.HueValue != null && colorHsl.HueValue.HasValue ? colorHsl.HueValue.Value / 60000.0 : 0;
                 double saturation = colorHsl.SatValue != null && colorHsl.SatValue.HasValue ? colorHsl.SatValue.Value / 100000.0 : 0;
                 double luminance = colorHsl.LumValue != null && colorHsl.LumValue.HasValue ? colorHsl.LumValue.Value / 100000.0 : 0;
-                HslToRgb(hue, saturation, luminance, out result[0], out result[1], out result[2]);
+                HslToRgb(hue, saturation, luminance, out resultRed, out resultGreen, out resultBlue);
             }
             else if (color is DocumentFormat.OpenXml.Drawing.SystemColor colorSystem)
             {
                 if (colorSystem.Val != null && colorSystem.Val.HasValue && themeSystemColors.ContainsKey(colorSystem.Val.Value))
                 {
-                    double[] colorDictionary = themeSystemColors[colorSystem.Val.Value];
-                    result[0] = colorDictionary[0];
-                    result[1] = colorDictionary[1];
-                    result[2] = colorDictionary[2];
+                    byte[] colorDictionary = themeSystemColors[colorSystem.Val.Value];
+                    resultRed = colorDictionary[0];
+                    resultGreen = colorDictionary[1];
+                    resultBlue = colorDictionary[2];
                 }
-                else if (colorSystem.LastColor == null || !colorSystem.LastColor.HasValue)
+                else if (colorSystem.LastColor != null && colorSystem.LastColor.HasValue)
+                {
+                    HexToRgba(colorSystem.LastColor.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
+                }
+                else
                 {
                     return false;
                 }
-                HexToRgba(colorSystem.LastColor.Value, out result[0], out result[1], out result[2], out result[3]);
             }
             else if (color is DocumentFormat.OpenXml.Drawing.PresetColor colorPreset && colorPreset.Val != null && colorPreset.Val.HasValue && themePresetColors.ContainsKey(colorPreset.Val.Value))
             {
-                double[] colorDictionary = themePresetColors[colorPreset.Val.Value];
-                result[0] = colorDictionary[0];
-                result[1] = colorDictionary[1];
-                result[2] = colorDictionary[2];
+                byte[] colorDictionary = themePresetColors[colorPreset.Val.Value];
+                resultRed = colorDictionary[0];
+                resultGreen = colorDictionary[1];
+                resultBlue = colorDictionary[2];
             }
             else if (color is DocumentFormat.OpenXml.Drawing.SchemeColor colorScheme && colorScheme.Val != null && colorScheme.Val.HasValue)
             {
@@ -2519,7 +2564,7 @@ namespace XlsxToHtmlConverter
                 {
                     colorTheme = themes[11];
                 }
-                return colorTheme != null && GetColorElement(colorTheme.FirstChild, colorScheme.ChildElements, ref result, themes);
+                return colorTheme != null && GetColorElement(colorTheme.FirstChild, colorScheme.ChildElements, ref resultRed, ref resultGreen, ref resultBlue, ref resultAlpha, themes);
             }
             else
             {
@@ -2530,164 +2575,167 @@ namespace XlsxToHtmlConverter
                 if (effect is DocumentFormat.OpenXml.Drawing.Shade shade && shade.Val != null && shade.Val.HasValue)
                 {
                     double amount = shade.Val.Value / 100000.0;
-                    result[0] = result[0] * amount;
-                    result[1] = result[1] * amount;
-                    result[2] = result[2] * amount;
+                    resultRed = (byte)(resultRed * amount);
+                    resultGreen = (byte)(resultGreen * amount);
+                    resultBlue = (byte)(resultBlue * amount);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Tint tint && tint.Val != null && tint.Val.HasValue)
                 {
                     double amount = tint.Val.Value / 100000.0;
-                    result[0] = result[0] * amount + 255 * (1 - amount);
-                    result[1] = result[1] * amount + 255 * (1 - amount);
-                    result[2] = result[2] * amount + 255 * (1 - amount);
+                    resultRed = (byte)(resultRed * amount + 255 * (1 - amount));
+                    resultGreen = (byte)(resultGreen * amount + 255 * (1 - amount));
+                    resultBlue = (byte)(resultBlue * amount + 255 * (1 - amount));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Inverse)
                 {
-                    result[0] = 255 - result[0];
-                    result[1] = 255 - result[1];
-                    result[2] = 255 - result[2];
+                    resultRed = (byte)(255 - resultRed);
+                    resultGreen = (byte)(255 - resultGreen);
+                    resultBlue = (byte)(255 - resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Gray)
                 {
-                    double grayscale = result[0] * 0.3 + result[1] * 0.59 + result[2] * 0.11;
-                    result[0] = grayscale;
-                    result[1] = grayscale;
-                    result[2] = grayscale;
+                    byte grayscale = (byte)(resultRed * 0.3 + resultGreen * 0.59 + resultBlue * 0.11);
+                    resultRed = grayscale;
+                    resultGreen = grayscale;
+                    resultBlue = grayscale;
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Complement)
                 {
-                    double colorMax = Math.Max(result[0], Math.Max(result[1], result[2]));
-                    result[0] = colorMax - result[0];
-                    result[1] = colorMax - result[1];
-                    result[2] = colorMax - result[2];
+                    double colorMax = Math.Max(resultRed, Math.Max(resultGreen, resultBlue));
+                    resultRed = (byte)(colorMax - resultRed);
+                    resultGreen = (byte)(colorMax - resultGreen);
+                    resultBlue = (byte)(colorMax - resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Gamma)
                 {
-                    for (int i = 0; i < 3; i++)
-                    {
-                        result[i] /= 255;
-                        result[i] = (result[i] > 0.04045 ? Math.Pow((result[i] + 0.055) / 1.055, 2.4) : result[i] / 12.92) * 255;
-                    }
+                    double resultRedMapped = resultRed / 255.0;
+                    resultRed = (byte)((resultRedMapped > 0.04045 ? Math.Pow((resultRedMapped + 0.055) / 1.055, 2.4) : resultRedMapped / 12.92) * 255);
+                    double resultGreenMapped = resultGreen / 255.0;
+                    resultGreen = (byte)((resultGreenMapped > 0.04045 ? Math.Pow((resultGreenMapped + 0.055) / 1.055, 2.4) : resultGreenMapped / 12.92) * 255);
+                    double resultBlueMapped = resultBlue / 255.0;
+                    resultBlue = (byte)((resultBlueMapped > 0.04045 ? Math.Pow((resultBlueMapped + 0.055) / 1.055, 2.4) : resultBlueMapped / 12.92) * 255);
+
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.InverseGamma)
                 {
-                    for (int i = 0; i < 3; i++)
-                    {
-                        result[i] /= 255;
-                        result[i] = (result[i] > 0.0031308 ? 1.055 * Math.Pow(result[i], 1 / 2.4) - 0.055 : result[i] * 12.92) * 255;
-                    }
+                    double resultRedMapped = resultRed / 255.0;
+                    resultRed = (byte)((resultRedMapped > 0.0031308 ? 1.055 * Math.Pow(resultRedMapped, 1 / 2.4) - 0.055 : resultRedMapped * 12.92) * 255);
+                    double resultGreenMapped = resultGreen / 255.0;
+                    resultGreen = (byte)((resultGreenMapped > 0.0031308 ? 1.055 * Math.Pow(resultGreenMapped, 1 / 2.4) - 0.055 : resultGreenMapped * 12.92) * 255);
+                    double resultBlueMapped = resultBlue / 255.0;
+                    resultBlue = (byte)((resultBlueMapped > 0.0031308 ? 1.055 * Math.Pow(resultBlueMapped, 1 / 2.4) - 0.055 : resultBlueMapped * 12.92) * 255);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Red red && red.Val != null && red.Val.HasValue)
                 {
-                    result[0] = red.Val.Value / 100000.0 * 255;
+                    resultRed = (byte)(red.Val.Value / 100000.0 * 255);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.RedModulation redModulation && redModulation.Val != null && redModulation.Val.HasValue)
                 {
-                    result[0] = result[0] * (redModulation.Val.Value / 100000.0);
+                    resultRed = (byte)(resultRed * (redModulation.Val.Value / 100000.0));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.RedOffset redOffset && redOffset.Val != null && redOffset.Val.HasValue)
                 {
-                    result[0] = result[0] + (redOffset.Val.Value / 100000.0 * 255);
+                    resultRed = (byte)(resultRed + (redOffset.Val.Value / 100000.0 * 255));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Green green && green.Val != null && green.Val.HasValue)
                 {
-                    result[1] = green.Val.Value / 100000.0 * 255;
+                    resultGreen = (byte)(green.Val.Value / 100000.0 * 255);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.GreenModulation greenModulation && greenModulation.Val != null && greenModulation.Val.HasValue)
                 {
-                    result[1] = result[1] * (greenModulation.Val.Value / 100000.0);
+                    resultGreen = (byte)(resultGreen * (greenModulation.Val.Value / 100000.0));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.GreenOffset greenOffset && greenOffset.Val != null && greenOffset.Val.HasValue)
                 {
-                    result[1] = result[1] + (greenOffset.Val.Value / 100000.0 * 255);
+                    resultGreen = (byte)(resultGreen + (greenOffset.Val.Value / 100000.0 * 255));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Blue blue && blue.Val != null && blue.Val.HasValue)
                 {
-                    result[2] = blue.Val.Value / 100000.0 * 255;
+                    resultBlue = (byte)(blue.Val.Value / 100000.0 * 255);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.BlueModulation blueModulation && blueModulation.Val != null && blueModulation.Val.HasValue)
                 {
-                    result[2] = result[2] * (blueModulation.Val.Value / 100000.0);
+                    resultBlue = (byte)(resultBlue * (blueModulation.Val.Value / 100000.0));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.BlueOffset blueOffset && blueOffset.Val != null && blueOffset.Val.HasValue)
                 {
-                    result[2] = result[2] + (blueOffset.Val.Value / 100000.0 * 255);
+                    resultBlue = (byte)(resultBlue + (blueOffset.Val.Value / 100000.0 * 255));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Alpha alpha && alpha.Val != null && alpha.Val.HasValue)
                 {
-                    result[3] = alpha.Val.Value / 100000.0;
+                    resultAlpha = (int)(alpha.Val.Value / 100000.0 * 100);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.AlphaModulation alphaModulation && alphaModulation.Val != null && alphaModulation.Val.HasValue)
                 {
-                    result[3] = result[3] * (alphaModulation.Val.Value / 100000.0);
+                    resultAlpha = (int)(resultAlpha * (alphaModulation.Val.Value / 100000.0));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.AlphaOffset alphaOffset && alphaOffset.Val != null && alphaOffset.Val.HasValue)
                 {
-                    result[3] = result[3] + (alphaOffset.Val.Value / 100000.0);
+                    resultAlpha = (int)(resultAlpha + (alphaOffset.Val.Value / 100000.0 * 100));
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Hue hue && hue.Val != null && hue.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double _, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(hue.Val.Value / 60000.0, colorSaturation, colorLuminance, out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double _, out double colorSaturation, out double colorLuminance);
+                    HslToRgb(hue.Val.Value / 60000.0, colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.HueModulation hueModulation && hueModulation.Val != null && hueModulation.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue * (hueModulation.Val.Value / 100000.0), colorSaturation, colorLuminance, out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                    HslToRgb(colorHue * (hueModulation.Val.Value / 100000.0), colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.HueOffset hueOffset && hueOffset.Val != null && hueOffset.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue + hueOffset.Val.Value / 60000.0, colorSaturation, colorLuminance, out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                    HslToRgb(colorHue + hueOffset.Val.Value / 60000.0, colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Saturation saturation && saturation.Val != null && saturation.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double colorHue, out double _, out double colorLuminance);
-                    HslToRgb(colorHue, saturation.Val.Value / 100000.0, colorLuminance, out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double _, out double colorLuminance);
+                    HslToRgb(colorHue, saturation.Val.Value / 100000.0, colorLuminance, out resultRed, out resultGreen, out resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.SaturationModulation saturationModulation && saturationModulation.Val != null && saturationModulation.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue, colorSaturation * (saturationModulation.Val.Value / 100000.0), colorLuminance, out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                    HslToRgb(colorHue, colorSaturation * (saturationModulation.Val.Value / 100000.0), colorLuminance, out resultRed, out resultGreen, out resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.SaturationOffset saturationOffset && saturationOffset.Val != null && saturationOffset.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue, colorSaturation + saturationOffset.Val.Value / 100000.0, colorLuminance, out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                    HslToRgb(colorHue, colorSaturation + saturationOffset.Val.Value / 100000.0, colorLuminance, out resultRed, out resultGreen, out resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.Luminance luminance && luminance.Val != null && luminance.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double colorHue, out double colorSaturaion, out double _);
-                    HslToRgb(colorHue, colorSaturaion, luminance.Val.Value / 100000.0, out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturaion, out double _);
+                    HslToRgb(colorHue, colorSaturaion, luminance.Val.Value / 100000.0, out resultRed, out resultGreen, out resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.LuminanceModulation luminanceModulation && luminanceModulation.Val != null && luminanceModulation.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue, colorSaturation, colorLuminance * (luminanceModulation.Val.Value / 100000.0), out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                    HslToRgb(colorHue, colorSaturation, colorLuminance * (luminanceModulation.Val.Value / 100000.0), out resultRed, out resultGreen, out resultBlue);
                 }
                 else if (effect is DocumentFormat.OpenXml.Drawing.LuminanceOffset luminanceOffset && luminanceOffset.Val != null && luminanceOffset.Val.HasValue)
                 {
-                    RgbToHsl(result[0], result[1], result[2], out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue, colorSaturation, colorLuminance + luminanceOffset.Val.Value / 100000.0, out result[0], out result[1], out result[2]);
+                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                    HslToRgb(colorHue, colorSaturation, colorLuminance + luminanceOffset.Val.Value / 100000.0, out resultRed, out resultGreen, out resultBlue);
                 }
             }
             return true;
         }
 
-        private static void HexToRgba(string hex, out double red, out double green, out double blue, out double alpha)
+        private static void HexToRgba(string hex, out byte red, out byte green, out byte blue, out int alpha)
         {
             string hexTrimmed = hex.TrimStart('#');
-            red = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 2 : 0, 2), 16) : 0;
-            green = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 4 : 2, 2), 16) : 0;
-            blue = hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 6 : 4, 2), 16) : 0;
-            alpha = hexTrimmed.Length > 5 ? (hexTrimmed.Length > 7 ? Convert.ToInt32(hexTrimmed.Substring(0, 2), 16) / 255.0 : 1) : 1;
+            red = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 2 : 0, 2), 16) : 0);
+            green = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 4 : 2, 2), 16) : 0);
+            blue = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 6 : 4, 2), 16) : 0);
+            alpha = hexTrimmed.Length > 5 ? (hexTrimmed.Length > 7 ? (int)(Convert.ToInt32(hexTrimmed.Substring(0, 2), 16) / 255.0 * 100) : 100) : 100;
         }
 
-        private static void RgbToHsl(double red, double green, double blue, out double hue, out double saturation, out double luminance)
+        private static void RgbToHsl(byte red, byte green, byte blue, out double hue, out double saturation, out double luminance)
         {
-            double redMapped = red / 255;
-            double greenMapped = green / 255;
-            double blueMapped = blue / 255;
+            double redMapped = red / 255.0;
+            double greenMapped = green / 255.0;
+            double blueMapped = blue / 255.0;
 
             double max = Math.Max(redMapped, Math.Max(greenMapped, blueMapped));
             double min = Math.Min(redMapped, Math.Min(greenMapped, blueMapped));
@@ -2700,7 +2748,7 @@ namespace XlsxToHtmlConverter
             luminance = (max + min) / 2;
         }
 
-        private static void HslToRgb(double hue, double saturation, double luminance, out double red, out double green, out double blue)
+        private static void HslToRgb(double hue, double saturation, double luminance, out byte red, out byte green, out byte blue)
         {
             double value1 = luminance <= 0.5 ? luminance * (1 + saturation) : luminance + saturation - luminance * saturation;
             double value2 = 2 * luminance - value1;
@@ -2709,9 +2757,9 @@ namespace XlsxToHtmlConverter
                 hueShifted = (hueShifted % 360 + 360) % 360;
                 return hueShifted < 60 ? value2 + (value1 - value2) * hueShifted / 60 : (hueShifted < 180 ? value1 : (hueShifted < 240 ? value2 + (value1 - value2) * (240 - hueShifted) / 60 : value2));
             }
-            red = (saturation == 0 ? luminance : actionCalculateColor(hue + 120)) * 255.0;
-            green = (saturation == 0 ? luminance : actionCalculateColor(hue)) * 255.0;
-            blue = (saturation == 0 ? luminance : actionCalculateColor(hue - 120)) * 255.0;
+            red = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue + 120)) * 255);
+            green = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue)) * 255);
+            blue = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue - 120)) * 255);
         }
 
         #endregion
@@ -2723,232 +2771,232 @@ namespace XlsxToHtmlConverter
         private static readonly Regex regexNumbers = new Regex(@"\d+", RegexOptions.Compiled);
         private static readonly Regex regexLetters = new Regex("[A-Za-z]+", RegexOptions.Compiled);
 
-        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, double[]> themeSystemColors = new Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, double[]>()
+        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, byte[]> themeSystemColors = new Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, byte[]>()
         {
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder, new double [3] { 180, 180, 180 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption, new double [3] { 153, 180, 209 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ApplicationWorkspace, new double [3] { 171, 171, 171 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Background, new double [3] { 255, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonFace, new double [3] { 240, 240, 240 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonHighlight, new double [3] { 0, 120, 215 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonShadow, new double [3] { 160, 160, 160 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonText, new double [3] { 0, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.CaptionText, new double [3] { 0, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientActiveCaption, new double [3] { 185, 209, 234 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientInactiveCaption, new double [3] { 215, 228, 242 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GrayText, new double [3] { 109, 109, 109 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Highlight, new double [3] { 0, 120, 215 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.HighlightText, new double [3] { 255, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.HotLight, new double [3] { 255, 165, 0 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveBorder, new double [3] { 244, 247, 252 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaption, new double [3] { 191, 205, 219 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaptionText, new double [3] { 0, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoBack, new double [3] { 255, 255, 225 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoText, new double [3] { 0, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Menu, new double [3] { 240, 240, 240 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuBar, new double [3] { 240, 240, 240 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuHighlight, new double [3] { 0, 120, 215 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuText, new double [3] { 0, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ScrollBar, new double [3] { 200, 200, 200 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDDarkShadow, new double [3] { 160, 160, 160 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDLight, new double [3] { 227, 227, 227 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Window, new double [3] { 255, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowFrame, new double [3] { 100, 100, 100 } },
-            { DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText, new double [3] { 0, 0, 0 } }
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder, new byte[3] { 180, 180, 180 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption, new byte[3] { 153, 180, 209 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ApplicationWorkspace, new byte[3] { 171, 171, 171 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Background, new byte[3] { 255, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonFace, new byte[3] { 240, 240, 240 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonHighlight, new byte[3] { 0, 120, 215 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonShadow, new byte[3] { 160, 160, 160 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ButtonText, new byte[3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.CaptionText, new byte[3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientActiveCaption, new byte[3] { 185, 209, 234 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GradientInactiveCaption, new byte[3] { 215, 228, 242 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.GrayText, new byte[3] { 109, 109, 109 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Highlight, new byte[3] { 0, 120, 215 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.HighlightText, new byte[3] { 255, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.HotLight, new byte[3] { 255, 165, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveBorder, new byte[3] { 244, 247, 252 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaption, new byte[3] { 191, 205, 219 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InactiveCaptionText, new byte[3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoBack, new byte[3] { 255, 255, 225 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.InfoText, new byte[3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Menu, new byte[3] { 240, 240, 240 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuBar, new byte[3] { 240, 240, 240 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuHighlight, new byte[3] { 0, 120, 215 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.MenuText, new byte[3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ScrollBar, new byte[3] { 200, 200, 200 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDDarkShadow, new byte[3] { 160, 160, 160 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.ThreeDLight, new byte[3] { 227, 227, 227 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.Window, new byte[3] { 255, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowFrame, new byte[3] { 100, 100, 100 } },
+            { DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText, new byte[3] { 0, 0, 0 } }
         };
 
-        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, double[]> themePresetColors = new Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, double[]>()
+        private static readonly Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, byte[]> themePresetColors = new Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, byte[]>()
         {
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue, new double[3] { 240, 248, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite, new double[3] { 250, 235, 215 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Aqua, new double[3] { 0, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Aquamarine, new double[3] { 127, 255, 212 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Azure, new double[3] { 240, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Beige, new double[3] { 245, 245, 220 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Bisque, new double[3] { 255, 228, 196 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Black, new double[3] { 0, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BlanchedAlmond, new double[3] { 255, 235, 205 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Blue, new double[3] { 0, 0, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BlueViolet, new double[3] { 138, 43, 226 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Brown, new double[3] { 165, 42, 42 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BurlyWood, new double[3] { 222, 184, 135 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.CadetBlue, new double[3] { 95, 158, 160 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Chartreuse, new double[3] { 127, 255, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Chocolate, new double[3] { 210, 105, 30 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Coral, new double[3] { 255, 127, 80 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.CornflowerBlue, new double[3] { 100, 149, 237 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Cornsilk, new double[3] { 255, 248, 220 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Crimson, new double[3] { 220, 20, 60 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Cyan, new double[3] { 0, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue, new double[3] { 0, 0, 139 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan, new double[3] { 0, 139, 139 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod, new double[3] { 184, 134, 11 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray, new double[3] { 169, 169, 169 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen, new double[3] { 0, 100, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki, new double[3] { 189, 183, 107 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta, new double[3] { 139, 0, 139 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen, new double[3] { 85, 107, 47 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange, new double[3] { 255, 140, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid, new double[3] { 153, 50, 204 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed, new double[3] { 139, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon, new double[3] { 233, 150, 122 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen, new double[3] { 143, 188, 143 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue, new double[3] { 72, 61, 139 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray, new double[3] { 47, 79, 79 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise, new double[3] { 0, 206, 209 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet, new double[3] { 148, 0, 211 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepPink, new double[3] { 255, 20, 147 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepSkyBlue, new double[3] { 0, 191, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGray, new double[3] { 105, 105, 105 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DodgerBlue, new double[3] { 30, 144, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Firebrick, new double[3] { 178, 34, 34 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.FloralWhite, new double[3] { 255, 250, 240 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.ForestGreen, new double[3] { 34, 139, 34 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Fuchsia, new double[3] { 255, 0, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gainsboro, new double[3] { 220, 220, 220 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.GhostWhite, new double[3] { 248, 248, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gold, new double[3] { 255, 215, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Goldenrod, new double[3] { 218, 165, 32 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gray, new double[3] { 128, 128, 128 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Green, new double[3] { 0, 128, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.GreenYellow, new double[3] { 173, 255, 47 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Honeydew, new double[3] { 240, 255, 240 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.HotPink, new double[3] { 255, 105, 180 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.IndianRed, new double[3] { 205, 92, 92 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Indigo, new double[3] { 75, 0, 130 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Ivory, new double[3] { 255, 255, 240 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Khaki, new double[3] { 240, 230, 140 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Lavender, new double[3] { 230, 230, 250 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LavenderBlush, new double[3] { 255, 240, 245 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LawnGreen, new double[3] { 124, 252, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LemonChiffon, new double[3] { 255, 250, 205 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue, new double[3] { 173, 216, 230 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral, new double[3] { 240, 128, 128 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan, new double[3] { 224, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow, new double[3] { 250, 250, 210 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray, new double[3] { 211, 211, 211 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen, new double[3] { 144, 238, 144 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink, new double[3] { 255, 182, 193 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon, new double[3] { 255, 160, 122 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen, new double[3] { 32, 178, 170 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue, new double[3] { 135, 206, 250 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray, new double[3] { 119, 136, 153 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue, new double[3] { 176, 196, 222 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow, new double[3] { 255, 255, 224 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Lime, new double[3] { 0, 255, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LimeGreen, new double[3] { 50, 205, 50 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Linen, new double[3] { 250, 240, 230 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Magenta, new double[3] { 255, 0, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Maroon, new double[3] { 128, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MedAquamarine, new double[3] { 102, 205, 170 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue, new double[3] { 0, 0, 205 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid, new double[3] { 186, 85, 211 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple, new double[3] { 147, 112, 219 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen, new double[3] { 60, 179, 113 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue, new double[3] { 123, 104, 238 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen, new double[3] { 0, 250, 154 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise, new double[3] { 72, 209, 204 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed, new double[3] { 199, 21, 133 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MidnightBlue, new double[3] { 25, 25, 112 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MintCream, new double[3] { 245, 255, 250 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MistyRose, new double[3] { 255, 228, 225 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Moccasin, new double[3] { 255, 228, 181 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.NavajoWhite, new double[3] { 255, 222, 173 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Navy, new double[3] { 0, 0, 128 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OldLace, new double[3] { 253, 245, 230 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Olive, new double[3] { 128, 128, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OliveDrab, new double[3] { 107, 142, 35 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Orange, new double[3] { 255, 165, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OrangeRed, new double[3] { 255, 69, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Orchid, new double[3] { 218, 112, 214 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGoldenrod, new double[3] { 238, 232, 170 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGreen, new double[3] { 152, 251, 152 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleTurquoise, new double[3] { 175, 238, 238 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleVioletRed, new double[3] { 219, 112, 147 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PapayaWhip, new double[3] { 255, 239, 213 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PeachPuff, new double[3] { 255, 218, 185 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Peru, new double[3] { 205, 133, 63 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Pink, new double[3] { 255, 192, 203 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Plum, new double[3] { 221, 160, 221 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PowderBlue, new double[3] { 176, 224, 230 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Purple, new double[3] { 128, 0, 128 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Red, new double[3] { 255, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.RosyBrown, new double[3] { 188, 143, 143 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.RoyalBlue, new double[3] { 65, 105, 225 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SaddleBrown, new double[3] { 139, 69, 19 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Salmon, new double[3] { 250, 128, 114 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SandyBrown, new double[3] { 244, 164, 96 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaGreen, new double[3] { 46, 139, 87 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaShell, new double[3] { 255, 245, 238 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Sienna, new double[3] { 160, 82, 45 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Silver, new double[3] { 192, 192, 192 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SkyBlue, new double[3] { 135, 206, 235 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateBlue, new double[3] { 106, 90, 205 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGray, new double[3] { 112, 128, 144 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Snow, new double[3] { 255, 250, 250 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SpringGreen, new double[3] { 0, 255, 127 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SteelBlue, new double[3] { 70, 130, 180 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Tan, new double[3] { 210, 180, 140 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Teal, new double[3] { 0, 128, 128 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Thistle, new double[3] { 216, 191, 216 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Tomato, new double[3] { 255, 99, 71 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Turquoise, new double[3] { 64, 224, 208 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Violet, new double[3] { 238, 130, 238 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Wheat, new double[3] { 245, 222, 179 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.White, new double[3] { 255, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.WhiteSmoke, new double[3] { 245, 245, 245 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Yellow, new double[3] { 255, 255, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.YellowGreen, new double[3] { 154, 205, 50 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue2010, new double[3] { 0, 0, 139 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan2010, new double[3] { 0, 139, 139 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod2010, new double[3] { 184, 134, 11 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray2010, new double[3] { 169, 169, 169 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey2010, new double[3] { 169, 169, 169 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen2010, new double[3] { 0, 100, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki2010, new double[3] { 189, 183, 107 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta2010, new double[3] { 139, 0, 139 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen2010, new double[3] { 85, 107, 47 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange2010, new double[3] { 255, 140, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid2010, new double[3] { 153, 50, 204 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed2010, new double[3] { 139, 0, 0 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon2010, new double[3] { 233, 150, 122 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen2010, new double[3] { 143, 188, 143 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue2010, new double[3] { 72, 61, 139 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray2010, new double[3] { 47, 79, 79 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey2010, new double[3] { 47, 79, 79 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise2010, new double[3] { 0, 206, 209 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet2010, new double[3] { 148, 0, 211 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue2010, new double[3] { 173, 216, 230 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral2010, new double[3] { 240, 128, 128 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan2010, new double[3] { 224, 255, 255 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow2010, new double[3] { 250, 250, 210 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray2010, new double[3] { 211, 211, 211 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey2010, new double[3] { 211, 211, 211 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen2010, new double[3] { 144, 238, 144 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink2010, new double[3] { 255, 182, 193 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon2010, new double[3] { 255, 160, 122 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen2010, new double[3] { 32, 178, 170 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue2010, new double[3] { 135, 206, 250 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray2010, new double[3] { 119, 136, 153 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey2010, new double[3] { 119, 136, 153 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue2010, new double[3] { 176, 196, 222 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow2010, new double[3] { 255, 255, 224 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumAquamarine2010, new double[3] { 102, 205, 170 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue2010, new double[3] { 0, 0, 205 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid2010, new double[3] { 186, 85, 211 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple2010, new double[3] { 147, 112, 219 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen2010, new double[3] { 60, 179, 113 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue2010, new double[3] { 123, 104, 238 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen2010, new double[3] { 0, 250, 154 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise2010, new double[3] { 72, 209, 204 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed2010, new double[3] { 199, 21, 133 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey, new double[3] { 169, 169, 169 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGrey, new double[3] { 105, 105, 105 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey, new double[3] { 47, 79, 79 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Grey, new double[3] { 128, 128, 128 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey, new double[3] { 211, 211, 211 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey, new double[3] { 119, 136, 153 } },
-            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGrey, new double[3] { 112, 128, 144 } }
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue, new byte[3] { 240, 248, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite, new byte[3] { 250, 235, 215 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Aqua, new byte[3] { 0, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Aquamarine, new byte[3] { 127, 255, 212 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Azure, new byte[3] { 240, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Beige, new byte[3] { 245, 245, 220 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Bisque, new byte[3] { 255, 228, 196 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Black, new byte[3] { 0, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BlanchedAlmond, new byte[3] { 255, 235, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Blue, new byte[3] { 0, 0, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BlueViolet, new byte[3] { 138, 43, 226 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Brown, new byte[3] { 165, 42, 42 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.BurlyWood, new byte[3] { 222, 184, 135 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.CadetBlue, new byte[3] { 95, 158, 160 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Chartreuse, new byte[3] { 127, 255, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Chocolate, new byte[3] { 210, 105, 30 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Coral, new byte[3] { 255, 127, 80 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.CornflowerBlue, new byte[3] { 100, 149, 237 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Cornsilk, new byte[3] { 255, 248, 220 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Crimson, new byte[3] { 220, 20, 60 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Cyan, new byte[3] { 0, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue, new byte[3] { 0, 0, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan, new byte[3] { 0, 139, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod, new byte[3] { 184, 134, 11 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray, new byte[3] { 169, 169, 169 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen, new byte[3] { 0, 100, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki, new byte[3] { 189, 183, 107 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta, new byte[3] { 139, 0, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen, new byte[3] { 85, 107, 47 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange, new byte[3] { 255, 140, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid, new byte[3] { 153, 50, 204 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed, new byte[3] { 139, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon, new byte[3] { 233, 150, 122 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen, new byte[3] { 143, 188, 143 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue, new byte[3] { 72, 61, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray, new byte[3] { 47, 79, 79 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise, new byte[3] { 0, 206, 209 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet, new byte[3] { 148, 0, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepPink, new byte[3] { 255, 20, 147 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DeepSkyBlue, new byte[3] { 0, 191, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGray, new byte[3] { 105, 105, 105 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DodgerBlue, new byte[3] { 30, 144, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Firebrick, new byte[3] { 178, 34, 34 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.FloralWhite, new byte[3] { 255, 250, 240 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.ForestGreen, new byte[3] { 34, 139, 34 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Fuchsia, new byte[3] { 255, 0, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gainsboro, new byte[3] { 220, 220, 220 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.GhostWhite, new byte[3] { 248, 248, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gold, new byte[3] { 255, 215, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Goldenrod, new byte[3] { 218, 165, 32 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Gray, new byte[3] { 128, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Green, new byte[3] { 0, 128, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.GreenYellow, new byte[3] { 173, 255, 47 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Honeydew, new byte[3] { 240, 255, 240 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.HotPink, new byte[3] { 255, 105, 180 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.IndianRed, new byte[3] { 205, 92, 92 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Indigo, new byte[3] { 75, 0, 130 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Ivory, new byte[3] { 255, 255, 240 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Khaki, new byte[3] { 240, 230, 140 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Lavender, new byte[3] { 230, 230, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LavenderBlush, new byte[3] { 255, 240, 245 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LawnGreen, new byte[3] { 124, 252, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LemonChiffon, new byte[3] { 255, 250, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue, new byte[3] { 173, 216, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral, new byte[3] { 240, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan, new byte[3] { 224, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow, new byte[3] { 250, 250, 210 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray, new byte[3] { 211, 211, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen, new byte[3] { 144, 238, 144 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink, new byte[3] { 255, 182, 193 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon, new byte[3] { 255, 160, 122 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen, new byte[3] { 32, 178, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue, new byte[3] { 135, 206, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray, new byte[3] { 119, 136, 153 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue, new byte[3] { 176, 196, 222 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow, new byte[3] { 255, 255, 224 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Lime, new byte[3] { 0, 255, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LimeGreen, new byte[3] { 50, 205, 50 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Linen, new byte[3] { 250, 240, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Magenta, new byte[3] { 255, 0, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Maroon, new byte[3] { 128, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MedAquamarine, new byte[3] { 102, 205, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue, new byte[3] { 0, 0, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid, new byte[3] { 186, 85, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple, new byte[3] { 147, 112, 219 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen, new byte[3] { 60, 179, 113 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue, new byte[3] { 123, 104, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen, new byte[3] { 0, 250, 154 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise, new byte[3] { 72, 209, 204 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed, new byte[3] { 199, 21, 133 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MidnightBlue, new byte[3] { 25, 25, 112 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MintCream, new byte[3] { 245, 255, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MistyRose, new byte[3] { 255, 228, 225 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Moccasin, new byte[3] { 255, 228, 181 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.NavajoWhite, new byte[3] { 255, 222, 173 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Navy, new byte[3] { 0, 0, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OldLace, new byte[3] { 253, 245, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Olive, new byte[3] { 128, 128, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OliveDrab, new byte[3] { 107, 142, 35 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Orange, new byte[3] { 255, 165, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.OrangeRed, new byte[3] { 255, 69, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Orchid, new byte[3] { 218, 112, 214 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGoldenrod, new byte[3] { 238, 232, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleGreen, new byte[3] { 152, 251, 152 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleTurquoise, new byte[3] { 175, 238, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PaleVioletRed, new byte[3] { 219, 112, 147 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PapayaWhip, new byte[3] { 255, 239, 213 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PeachPuff, new byte[3] { 255, 218, 185 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Peru, new byte[3] { 205, 133, 63 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Pink, new byte[3] { 255, 192, 203 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Plum, new byte[3] { 221, 160, 221 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.PowderBlue, new byte[3] { 176, 224, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Purple, new byte[3] { 128, 0, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Red, new byte[3] { 255, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.RosyBrown, new byte[3] { 188, 143, 143 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.RoyalBlue, new byte[3] { 65, 105, 225 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SaddleBrown, new byte[3] { 139, 69, 19 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Salmon, new byte[3] { 250, 128, 114 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SandyBrown, new byte[3] { 244, 164, 96 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaGreen, new byte[3] { 46, 139, 87 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SeaShell, new byte[3] { 255, 245, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Sienna, new byte[3] { 160, 82, 45 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Silver, new byte[3] { 192, 192, 192 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SkyBlue, new byte[3] { 135, 206, 235 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateBlue, new byte[3] { 106, 90, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGray, new byte[3] { 112, 128, 144 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Snow, new byte[3] { 255, 250, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SpringGreen, new byte[3] { 0, 255, 127 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SteelBlue, new byte[3] { 70, 130, 180 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Tan, new byte[3] { 210, 180, 140 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Teal, new byte[3] { 0, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Thistle, new byte[3] { 216, 191, 216 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Tomato, new byte[3] { 255, 99, 71 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Turquoise, new byte[3] { 64, 224, 208 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Violet, new byte[3] { 238, 130, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Wheat, new byte[3] { 245, 222, 179 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.White, new byte[3] { 255, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.WhiteSmoke, new byte[3] { 245, 245, 245 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Yellow, new byte[3] { 255, 255, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.YellowGreen, new byte[3] { 154, 205, 50 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkBlue2010, new byte[3] { 0, 0, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkCyan2010, new byte[3] { 0, 139, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGoldenrod2010, new byte[3] { 184, 134, 11 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGray2010, new byte[3] { 169, 169, 169 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey2010, new byte[3] { 169, 169, 169 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGreen2010, new byte[3] { 0, 100, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkKhaki2010, new byte[3] { 189, 183, 107 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkMagenta2010, new byte[3] { 139, 0, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOliveGreen2010, new byte[3] { 85, 107, 47 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrange2010, new byte[3] { 255, 140, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkOrchid2010, new byte[3] { 153, 50, 204 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkRed2010, new byte[3] { 139, 0, 0 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSalmon2010, new byte[3] { 233, 150, 122 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSeaGreen2010, new byte[3] { 143, 188, 143 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateBlue2010, new byte[3] { 72, 61, 139 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGray2010, new byte[3] { 47, 79, 79 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey2010, new byte[3] { 47, 79, 79 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkTurquoise2010, new byte[3] { 0, 206, 209 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkViolet2010, new byte[3] { 148, 0, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightBlue2010, new byte[3] { 173, 216, 230 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCoral2010, new byte[3] { 240, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightCyan2010, new byte[3] { 224, 255, 255 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGoldenrodYellow2010, new byte[3] { 250, 250, 210 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGray2010, new byte[3] { 211, 211, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey2010, new byte[3] { 211, 211, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGreen2010, new byte[3] { 144, 238, 144 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightPink2010, new byte[3] { 255, 182, 193 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSalmon2010, new byte[3] { 255, 160, 122 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSeaGreen2010, new byte[3] { 32, 178, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSkyBlue2010, new byte[3] { 135, 206, 250 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGray2010, new byte[3] { 119, 136, 153 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey2010, new byte[3] { 119, 136, 153 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSteelBlue2010, new byte[3] { 176, 196, 222 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightYellow2010, new byte[3] { 255, 255, 224 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumAquamarine2010, new byte[3] { 102, 205, 170 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumBlue2010, new byte[3] { 0, 0, 205 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumOrchid2010, new byte[3] { 186, 85, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumPurple2010, new byte[3] { 147, 112, 219 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSeaGreen2010, new byte[3] { 60, 179, 113 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSlateBlue2010, new byte[3] { 123, 104, 238 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumSpringGreen2010, new byte[3] { 0, 250, 154 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumTurquoise2010, new byte[3] { 72, 209, 204 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.MediumVioletRed2010, new byte[3] { 199, 21, 133 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkGrey, new byte[3] { 169, 169, 169 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DimGrey, new byte[3] { 105, 105, 105 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.DarkSlateGrey, new byte[3] { 47, 79, 79 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.Grey, new byte[3] { 128, 128, 128 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightGrey, new byte[3] { 211, 211, 211 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.LightSlateGrey, new byte[3] { 119, 136, 153 } },
+            { DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGrey, new byte[3] { 112, 128, 144 } }
         };
 
         #endregion
@@ -2959,7 +3007,7 @@ namespace XlsxToHtmlConverter
     /// </summary>
     public class ConverterConfig
     {
-        public const string DefaultErrorMessage = "Error, unable to convert XLSX file. The file is either already open in another program (please close it first) or contains corrupted data.";
+        public const string DefaultErrorMessage = "Error! Unable to convert XLSX file! The file is either already open in another program (please close it first) or contains corrupted data.";
         public const string DefaultPresetStyles = @"
 body {
     margin: 0;
@@ -3015,6 +3063,7 @@ td {
             this.ConvertFirstSheetOnly = false;
             this.ConvertHtmlBodyOnly = false;
             this.UseHtmlStyleClasses = true;
+            this.UseHexColors = true;
             this.RoundingDigits = 2;
         }
 
@@ -3101,6 +3150,11 @@ td {
         public bool UseHtmlStyleClasses { get; set; }
 
         /// <summary>
+        /// Gets or sets whether to use the hexadecimal representations of colors.
+        /// </summary>
+        public bool UseHexColors { get; set; }
+
+        /// <summary>
         /// Gets or sets the number of digits to round the numbers to, or to not use rounding if the value is negative.
         /// </summary>
         public int RoundingDigits { get; set; }
@@ -3132,6 +3186,7 @@ td {
                 ConvertFirstSheetOnly = this.ConvertFirstSheetOnly,
                 ConvertHtmlBodyOnly = this.ConvertHtmlBodyOnly,
                 UseHtmlStyleClasses = this.UseHtmlStyleClasses,
+                UseHexColors = this.UseHexColors,
                 RoundingDigits = this.RoundingDigits
             };
         }
