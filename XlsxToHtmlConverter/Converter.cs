@@ -180,7 +180,7 @@ namespace XlsxToHtmlConverter
                             Font font = (cellFormat.ApplyFont == null || !cellFormat.ApplyFont.HasValue || cellFormat.ApplyFont.Value) && cellFormat.FontId != null && cellFormat.FontId.HasValue && stylesheet.Fonts != null && cellFormat.FontId.Value < stylesheet.Fonts.ChildElements.Count ? (Font)stylesheet.Fonts.ChildElements[(int)cellFormat.FontId.Value] : null;
                             Border border = (cellFormat.ApplyBorder == null || !cellFormat.ApplyBorder.HasValue || cellFormat.ApplyBorder.Value) && cellFormat.BorderId != null && cellFormat.BorderId.HasValue && stylesheet.Borders != null && cellFormat.BorderId.Value < stylesheet.Borders.ChildElements.Count ? (Border)stylesheet.Borders.ChildElements[(int)cellFormat.BorderId.Value] : null;
                             string valueContainer = "{0}";
-                            stylesheetCellFormats[stylesheetFormatIndex] = (CellFormatToHtml(fill, font, border, cellFormat.ApplyAlignment == null || !cellFormat.ApplyAlignment.HasValue || cellFormat.ApplyAlignment.Value ? cellFormat.Alignment : null, ref valueContainer, themes, configClone), valueContainer, cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || !cellFormat.ApplyNumberFormat.HasValue || cellFormat.ApplyNumberFormat.Value) ? cellFormat.NumberFormatId.Value : 0);
+                            stylesheetCellFormats[stylesheetFormatIndex] = (GetCellFormat(fill, font, border, cellFormat.ApplyAlignment == null || !cellFormat.ApplyAlignment.HasValue || cellFormat.ApplyAlignment.Value ? cellFormat.Alignment : null, ref valueContainer, themes, configClone), valueContainer, cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || !cellFormat.ApplyNumberFormat.HasValue || cellFormat.ApplyNumberFormat.Value) ? cellFormat.NumberFormatId.Value : 0);
                         }
                     }
                     (Dictionary<string, string>, string)[] stylesheetDifferentialFormats = new (Dictionary<string, string>, string)[stylesheet != null && stylesheet.DifferentialFormats != null ? stylesheet.DifferentialFormats.ChildElements.Count : 0];
@@ -189,7 +189,7 @@ namespace XlsxToHtmlConverter
                         if (stylesheet.DifferentialFormats.ChildElements[stylesheetDifferentialFormatIndex] is DifferentialFormat differentialFormat)
                         {
                             string valueContainer = "{0}";
-                            stylesheetDifferentialFormats[stylesheetDifferentialFormatIndex] = (CellFormatToHtml(differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, ref valueContainer, themes, configClone), valueContainer);
+                            stylesheetDifferentialFormats[stylesheetDifferentialFormatIndex] = (GetCellFormat(differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, ref valueContainer, themes, configClone), valueContainer);
                         }
                     }
                     Dictionary<uint, string[]> stylesheetNumberingFormats = new Dictionary<uint, string[]>();
@@ -245,9 +245,9 @@ namespace XlsxToHtmlConverter
                                         Dictionary<string, string> runStyles = null;
                                         if (run.RunProperties is RunProperties runProperties)
                                         {
-                                            FontToHtml(runProperties, ref runStyles, ref runValueContainer, themes, configClone);
+                                            GetFont(runProperties, ref runStyles, ref runValueContainer, themes, configClone);
                                         }
-                                        sharedStringValue += $"<span{(runStyles != null && runStyles.Count > 0 ? $" style=\"{GetHtmlAttributesString(runStyles, false, -1)}\"" : string.Empty)}>{runValueContainer.Replace("{0}", GetEscapedString(run.Text.Text))}</span>";
+                                        sharedStringValue += $"<span{(runStyles != null && runStyles.Count > 0 ? $" style=\"{GetAttributesString(runStyles, false, -1)}\"" : string.Empty)}>{runValueContainer.Replace("{0}", GetEscapedString(run.Text.Text))}</span>";
                                         sharedStringValueRaw += run.Text.Text;
                                     }
                                 }
@@ -340,7 +340,7 @@ namespace XlsxToHtmlConverter
                             }
                             else if (worksheetElement is SheetProperties worksheetProperties && configClone.ConvertSheetTitles && worksheetProperties.TabColor != null)
                             {
-                                ColorTypeToHtml(worksheetProperties.TabColor, out sheetTabColor, themes, configClone);
+                                GetColor(worksheetProperties.TabColor, out sheetTabColor, themes, configClone);
                             }
                             else if (worksheetElement is SheetFormatProperties worksheetFormatProperties)
                             {
@@ -534,7 +534,7 @@ namespace XlsxToHtmlConverter
                                 string cellValueContainer = "{0}";
                                 if (configClone.ConvertStyles && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length)
                                 {
-                                    cellStyles = !configClone.UseHtmlStyleClasses && stylesheetCellFormats[styleIndex].Item1 != null ? JoinHtmlAttributes(cellStyles, stylesheetCellFormats[styleIndex].Item1) : cellStyles;
+                                    cellStyles = !configClone.UseHtmlStyleClasses && stylesheetCellFormats[styleIndex].Item1 != null ? GetJoinedAttributes(cellStyles, stylesheetCellFormats[styleIndex].Item1) : cellStyles;
                                     cellValueContainer = !string.IsNullOrEmpty(stylesheetCellFormats[styleIndex].Item2) ? cellValueContainer.Replace("{0}", stylesheetCellFormats[styleIndex].Item2) : cellValueContainer;
                                 }
 
@@ -876,27 +876,27 @@ namespace XlsxToHtmlConverter
                                                 }
                                                 else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.GreaterThan)
                                                 {
-                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 1, x => x[0] > x[1]);
+                                                    isConditionMet = GetFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 1, x => x[0] > x[1]);
                                                 }
                                                 else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.GreaterThanOrEqual)
                                                 {
-                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 1, x => x[0] >= x[1]);
+                                                    isConditionMet = GetFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 1, x => x[0] >= x[1]);
                                                 }
                                                 else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.LessThan)
                                                 {
-                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 1, x => x[0] < x[1]);
+                                                    isConditionMet = GetFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 1, x => x[0] < x[1]);
                                                 }
                                                 else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.LessThanOrEqual)
                                                 {
-                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 1, x => x[0] <= x[1]);
+                                                    isConditionMet = GetFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 1, x => x[0] <= x[1]);
                                                 }
                                                 else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.Between)
                                                 {
-                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 2, x => x[0] >= Math.Min(x[1], x[2]) && x[0] <= Math.Max(x[1], x[2]));
+                                                    isConditionMet = GetFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 2, x => x[0] >= Math.Min(x[1], x[2]) && x[0] <= Math.Max(x[1], x[2]));
                                                 }
                                                 else if (formattingRule.Operator.Value == ConditionalFormattingOperatorValues.NotBetween)
                                                 {
-                                                    isConditionMet = GetNumberFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 2, x => x[0] < Math.Min(x[1], x[2]) || x[0] > Math.Max(x[1], x[2]));
+                                                    isConditionMet = GetFormulaCondition(cellValueRaw, formattingRule.Elements<Formula>(), 2, x => x[0] < Math.Min(x[1], x[2]) || x[0] > Math.Max(x[1], x[2]));
                                                 }
                                             }
                                             else if (formattingRule.Type.Value == ConditionalFormatValues.BeginsWith && formattingRule.Text != null && formattingRule.Text.HasValue)
@@ -929,12 +929,12 @@ namespace XlsxToHtmlConverter
                                     }
                                     if (differentialStyleIndex >= 0 && differentialStyleIndex < stylesheetDifferentialFormats.Length)
                                     {
-                                        cellStyles = JoinHtmlAttributes(cellStyles, stylesheetDifferentialFormats[differentialStyleIndex].Item1);
+                                        cellStyles = GetJoinedAttributes(cellStyles, stylesheetDifferentialFormats[differentialStyleIndex].Item1);
                                         cellValueContainer = cellValueContainer.Replace("{0}", stylesheetDifferentialFormats[differentialStyleIndex].Item2);
                                     }
                                 }
 
-                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned > 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned > 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)}{(configClone.UseHtmlStyleClasses && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length ? $" class=\"format-{styleIndex}\"" : string.Empty)} style=\"width: {(!double.IsNaN(cellWidthActual) && columnSpanned <= 1 ? $"{cellWidthActual}%" : "auto")}; height: {(!double.IsNaN(cellHeightActual) && rowSpanned <= 1 ? $"{cellHeightActual}px" : "auto")};{GetHtmlAttributesString(cellStyles, true, -1)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
+                                writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned > 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned > 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)}{(configClone.UseHtmlStyleClasses && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length ? $" class=\"format-{styleIndex}\"" : string.Empty)} style=\"width: {(!double.IsNaN(cellWidthActual) && columnSpanned <= 1 ? $"{cellWidthActual}%" : "auto")}; height: {(!double.IsNaN(cellHeightActual) && rowSpanned <= 1 ? $"{cellHeightActual}px" : "auto")};{GetAttributesString(cellStyles, true, -1)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
                             }
 
                             writer.Write($"\n{new string(' ', 12)}</tr>");
@@ -955,7 +955,7 @@ namespace XlsxToHtmlConverter
                                     string top = anchorAbsolute.Position != null && anchorAbsolute.Position.Y != null && anchorAbsolute.Position.Y.HasValue ? $"{RoundNumber(anchorAbsolute.Position.Y.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "0";
                                     string width = anchorAbsolute.Extent != null && anchorAbsolute.Extent.Cx != null && anchorAbsolute.Extent.Cx.HasValue ? $"{RoundNumber(anchorAbsolute.Extent.Cx.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "auto";
                                     string height = anchorAbsolute.Extent != null && anchorAbsolute.Extent.Cy != null && anchorAbsolute.Extent.Cy.HasValue ? $"{RoundNumber(anchorAbsolute.Extent.Cy.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "auto";
-                                    drawing = DrawingsToHtml(anchorAbsolute, left, top, width, height, worksheetPart.DrawingsPart, themes, configClone);
+                                    drawing = GetDrawing(anchorAbsolute, left, top, width, height, worksheetPart.DrawingsPart, themes, configClone);
                                 }
                                 else if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor anchorOneCell)
                                 {
@@ -965,7 +965,7 @@ namespace XlsxToHtmlConverter
                                     double topOffset = anchorOneCell.FromMarker.RowOffset != null && int.TryParse(anchorOneCell.FromMarker.RowOffset.Text, out int rowOffset) ? RoundNumber(rowOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
                                     string width = anchorOneCell.Extent != null && anchorOneCell.Extent.Cx != null && anchorOneCell.Extent.Cx.HasValue ? $"{RoundNumber(anchorOneCell.Extent.Cx.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "auto";
                                     string height = anchorOneCell.Extent != null && anchorOneCell.Extent.Cy != null && anchorOneCell.Extent.Cy.HasValue ? $"{RoundNumber(anchorOneCell.Extent.Cy.Value / 914400.0 * 96, configClone.RoundingDigits)}px" : "auto";
-                                    drawing = DrawingsToHtml(anchorOneCell, !double.IsNaN(left) ? $"calc({left}% + {leftOffset}px)" : "0", !double.IsNaN(top) ? $"{RoundNumber(top + topOffset, configClone.RoundingDigits)}px" : "0", width, height, worksheetPart.DrawingsPart, themes, configClone);
+                                    drawing = GetDrawing(anchorOneCell, !double.IsNaN(left) ? $"calc({left}% + {leftOffset}px)" : "0", !double.IsNaN(top) ? $"{RoundNumber(top + topOffset, configClone.RoundingDigits)}px" : "0", width, height, worksheetPart.DrawingsPart, themes, configClone);
                                 }
                                 else if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor anchorTwoCell)
                                 {
@@ -977,7 +977,7 @@ namespace XlsxToHtmlConverter
                                     double rightOffset = anchorTwoCell.ToMarker.ColumnOffset != null && int.TryParse(anchorTwoCell.ToMarker.ColumnOffset.Text, out int toMarkerColumnOffset) ? RoundNumber(toMarkerColumnOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
                                     double bottom = configClone.ConvertSizes && anchorTwoCell.ToMarker != null && anchorTwoCell.ToMarker.RowId != null && int.TryParse(anchorTwoCell.ToMarker.RowId.Text, out int toRowId) && drawingRowMarkers.ContainsKey(toRowId) ? drawingRowMarkers[toRowId] : double.NaN;
                                     double bottomOffset = anchorTwoCell.ToMarker.RowOffset != null && int.TryParse(anchorTwoCell.ToMarker.RowOffset.Text, out int toMarkerRowOffset) ? RoundNumber(toMarkerRowOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
-                                    drawing = DrawingsToHtml(anchorTwoCell, !double.IsNaN(left) ? $"calc({left}% + {leftOffset}px)" : "0", !double.IsNaN(top) ? $"{RoundNumber(top + topOffset, configClone.RoundingDigits)}px" : "0", !double.IsNaN(left) && !double.IsNaN(right) ? $"calc({RoundNumber(right - left, configClone.RoundingDigits)}% + {RoundNumber(rightOffset - leftOffset, configClone.RoundingDigits)}px)" : "auto", !double.IsNaN(top) && !double.IsNaN(bottom) ? $"{RoundNumber(bottom + bottomOffset - top - topOffset, configClone.RoundingDigits)}px" : "auto", worksheetPart.DrawingsPart, themes, configClone);
+                                    drawing = GetDrawing(anchorTwoCell, !double.IsNaN(left) ? $"calc({left}% + {leftOffset}px)" : "0", !double.IsNaN(top) ? $"{RoundNumber(top + topOffset, configClone.RoundingDigits)}px" : "0", !double.IsNaN(left) && !double.IsNaN(right) ? $"calc({RoundNumber(right - left, configClone.RoundingDigits)}% + {RoundNumber(rightOffset - leftOffset, configClone.RoundingDigits)}px)" : "auto", !double.IsNaN(top) && !double.IsNaN(bottom) ? $"{RoundNumber(bottom + bottomOffset - top - topOffset, configClone.RoundingDigits)}px" : "auto", worksheetPart.DrawingsPart, themes, configClone);
                                 }
                                 if (!string.IsNullOrEmpty(drawing))
                                 {
@@ -997,7 +997,7 @@ namespace XlsxToHtmlConverter
                             if (stylesheetCellFormats[stylesheetFormatIndex].Item1 != null)
                             {
                                 writer.Write($"\n{new string(' ', 8)}.format-{stylesheetFormatIndex} {{");
-                                writer.Write($"\n{new string(' ', 12)}{GetHtmlAttributesString(stylesheetCellFormats[stylesheetFormatIndex].Item1, false, 12)}");
+                                writer.Write($"\n{new string(' ', 12)}{GetAttributesString(stylesheetCellFormats[stylesheetFormatIndex].Item1, false, 12)}");
                                 writer.Write($"\n{new string(' ', 8)}}}{(stylesheetFormatIndex < stylesheetCellFormats.Length - 1 ? $"\n{new string(' ', 8)}" : string.Empty)}");
                             }
                         }
@@ -1035,7 +1035,7 @@ namespace XlsxToHtmlConverter
             return System.Web.HttpUtility.HtmlEncode(value).Replace(" ", "&nbsp;");
         }
 
-        private static Dictionary<string, string> JoinHtmlAttributes(Dictionary<string, string> original, Dictionary<string, string> joining)
+        private static Dictionary<string, string> GetJoinedAttributes(Dictionary<string, string> original, Dictionary<string, string> joining)
         {
             if (joining == null)
             {
@@ -1049,7 +1049,7 @@ namespace XlsxToHtmlConverter
             return original;
         }
 
-        private static string GetHtmlAttributesString(Dictionary<string, string> attributes, bool isAdditional, int indent)
+        private static string GetAttributesString(Dictionary<string, string> attributes, bool isAdditional, int indent)
         {
             if (attributes == null)
             {
@@ -1066,25 +1066,23 @@ namespace XlsxToHtmlConverter
 
         private static int GetColumnIndex(string cell)
         {
-            int index = -1;
+            int index = 0;
             Match match = regexLetters.Match(cell);
             if (match.Success)
             {
-                int mulitplier = 1;
                 string value = match.Value.ToUpper();
-                for (int i = value.Length - 1; i >= 0; i--)
+                for (int i = value.Length - 1, mulitplier = 1; i >= 0; i--, mulitplier *= 26)
                 {
                     index += mulitplier * (value[i] - 64);
-                    mulitplier *= 26;
                 }
             }
-            return Math.Max(1, index + 1);
+            return Math.Max(1, index);
         }
 
         private static int GetRowIndex(string cell)
         {
             Match match = regexNumbers.Match(cell);
-            return match.Success && int.TryParse(match.Value, out int index) ? index : 1;
+            return match.Success && int.TryParse(match.Value, out int index) ? Math.Max(1, index) : 1;
         }
 
         private static void GetReferenceRange(string range, out int fromColumn, out int fromRow, out int toColumn, out int toRow)
@@ -1100,7 +1098,7 @@ namespace XlsxToHtmlConverter
             toRow = Math.Max(firstRow, secondRow);
         }
 
-        private static bool GetNumberFormulaCondition(string value, IEnumerable<Formula> formulas, int formulasCount, Func<double[], bool> actionEvaluation)
+        private static bool GetFormulaCondition(string value, IEnumerable<Formula> formulas, int formulasCount, Func<double[], bool> actionEvaluation)
         {
             if (!double.TryParse(value, out double valueDouble))
             {
@@ -1511,7 +1509,173 @@ namespace XlsxToHtmlConverter
             return result;
         }
 
-        private static Dictionary<string, string> CellFormatToHtml(Fill fill, Font font, Border border, Alignment alignment, ref string valueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
+        private static void GetFont(OpenXmlElement font, ref Dictionary<string, string> styles, ref string valueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
+        {
+            styles = styles ?? new Dictionary<string, string>();
+            if (font == null)
+            {
+                return;
+            }
+
+            bool isTextDecoraionSet = false;
+            string stylesTextDecoraion = string.Empty;
+            if (font is DocumentFormat.OpenXml.Drawing.TextCharacterPropertiesType fontPropertiesType)
+            {
+                if (fontPropertiesType.FontSize != null && fontPropertiesType.FontSize.HasValue)
+                {
+                    styles["font-size"] = $"{RoundNumber(fontPropertiesType.FontSize.Value / 7200.0 * 96, config.RoundingDigits)}px";
+                }
+                if (fontPropertiesType.Bold != null)
+                {
+                    styles["font-weight"] = !fontPropertiesType.Bold.HasValue || fontPropertiesType.Bold.Value ? "bold" : "normal";
+                }
+                if (fontPropertiesType.Italic != null)
+                {
+                    styles["font-style"] = !fontPropertiesType.Italic.HasValue || fontPropertiesType.Italic.Value ? "italic" : "normal";
+                }
+                if (fontPropertiesType.Strike != null)
+                {
+                    if (!fontPropertiesType.Strike.HasValue || fontPropertiesType.Strike.Value == DocumentFormat.OpenXml.Drawing.TextStrikeValues.SingleStrike)
+                    {
+                        stylesTextDecoraion += " line-through";
+                    }
+                    else if (fontPropertiesType.Strike.Value == DocumentFormat.OpenXml.Drawing.TextStrikeValues.DoubleStrike)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: line-through double;\">{{0}}</span>");
+                    }
+                    isTextDecoraionSet = true;
+                }
+                if (fontPropertiesType.Underline != null)
+                {
+                    if (!fontPropertiesType.Underline.HasValue || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Single || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Words)
+                    {
+                        stylesTextDecoraion += " underline";
+                    }
+                    else if (fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Heavy)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline 4px;\">{{0}}</span>");
+                    }
+                    else if (fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Double)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline double;\">{{0}}</span>");
+                    }
+                    else if (fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Dash || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashLong || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDash)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dashed;\">{{0}}</span>");
+                    }
+                    else if (fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashHeavy || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashLongHeavy || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDashHeavy)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dashed 4px;\">{{0}}</span>");
+                    }
+                    else if (fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Dotted || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDotDash)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dotted;\">{{0}}</span>");
+                    }
+                    else if (fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.HeavyDotted || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDotDashHeavy)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dotted 4px;\">{{0}}</span>");
+                    }
+                    else if (fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Wavy)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline wavy;\">{{0}}</span>");
+                    }
+                    else if (fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.WavyDouble || fontPropertiesType.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.WavyHeavy)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline wavy 4px;\">{{0}}</span>");
+                    }
+                    isTextDecoraionSet = true;
+                }
+                if (fontPropertiesType.Spacing != null && fontPropertiesType.Spacing.HasValue)
+                {
+                    styles["letter-spacing"] = $"{RoundNumber(fontPropertiesType.Spacing.Value / 7200.0 * 96, config.RoundingDigits)}px";
+                }
+                if (fontPropertiesType.Capital != null)
+                {
+                    styles["text-transform"] = !fontPropertiesType.Capital.HasValue || fontPropertiesType.Capital.Value == DocumentFormat.OpenXml.Drawing.TextCapsValues.All ? "uppercase" : (fontPropertiesType.Capital.Value == DocumentFormat.OpenXml.Drawing.TextCapsValues.Small ? "lowercase" : "none");
+                }
+            }
+            foreach (OpenXmlElement fontElement in font.Elements())
+            {
+                if (fontElement is RunFont fontNameRun && fontNameRun.Val != null && fontNameRun.Val.HasValue)
+                {
+                    styles["font-family"] = fontNameRun.Val.Value;
+                }
+                else if (fontElement is FontName fontName && fontName.Val != null && fontName.Val.HasValue)
+                {
+                    styles["font-family"] = fontName.Val.Value;
+                }
+                else if (fontElement is Color fontFill && GetColor(fontFill, out string fontColor, themes, config))
+                {
+                    styles["color"] = fontColor;
+                }
+                else if (fontElement is FontSize fontSize && fontSize.Val != null && fontSize.Val.HasValue)
+                {
+                    styles["font-size"] = $"{RoundNumber(fontSize.Val.Value / 72 * 96, config.RoundingDigits)}px";
+                }
+                else if (fontElement is Bold fontBold)
+                {
+                    styles["font-weight"] = fontBold.Val == null || !fontBold.Val.HasValue || fontBold.Val.Value ? "bold" : "normal";
+                }
+                else if (fontElement is Italic fontItalic)
+                {
+                    styles["font-style"] = fontItalic.Val == null || !fontItalic.Val.HasValue || fontItalic.Val.Value ? "italic" : "normal";
+                }
+                else if (fontElement is Strike fontStrike)
+                {
+                    if (fontStrike.Val == null || !fontStrike.Val.HasValue || fontStrike.Val.Value)
+                    {
+                        stylesTextDecoraion += " line-through";
+                    }
+                    isTextDecoraionSet = true;
+                }
+                else if (fontElement is Underline underline)
+                {
+                    if (underline.Val == null || !underline.Val.HasValue || underline.Val.Value == UnderlineValues.Single || underline.Val.Value == UnderlineValues.SingleAccounting)
+                    {
+                        stylesTextDecoraion += " underline";
+                    }
+                    else if (underline.Val.Value != UnderlineValues.None)
+                    {
+                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline double;\">{{0}}</span>");
+                    }
+                    isTextDecoraionSet = true;
+                }
+                else if (fontElement is VerticalTextAlignment fontVerticalAlignment && fontVerticalAlignment.Val != null)
+                {
+                    styles["vertical-align"] = fontVerticalAlignment.Val.Value == VerticalAlignmentRunValues.Subscript ? "sub" : (fontVerticalAlignment.Val.Value == VerticalAlignmentRunValues.Superscript ? "super" : "baseline");
+                }
+                else if (fontElement is Extend fontExtend)
+                {
+                    styles["font-stretch"] = fontExtend.Val == null || !fontExtend.Val.HasValue || fontExtend.Val.Value ? "expanded" : "normal";
+                }
+                else if (fontElement is Condense fontCondense)
+                {
+                    styles["font-stretch"] = fontCondense.Val == null || !fontCondense.Val.HasValue || fontCondense.Val.Value ? "condensed" : "normal";
+                }
+                else if (fontElement is DocumentFormat.OpenXml.Drawing.NoFill)
+                {
+                    styles["color"] = "transparent";
+                }
+                else if (fontElement is DocumentFormat.OpenXml.Drawing.SolidFill fontDrawingFill && GetColor(fontDrawingFill, out string fontDrawingColor, themes, config))
+                {
+                    styles["color"] = fontDrawingColor;
+                }
+                else if (fontElement is DocumentFormat.OpenXml.Drawing.TextFontType fontDrawingName && fontDrawingName.Typeface != null && fontDrawingName.Typeface.HasValue)
+                {
+                    styles["font-family"] = fontDrawingName.Typeface.Value;
+                }
+                else if (fontElement is DocumentFormat.OpenXml.Drawing.RightToLeft fontDrawingRightToLeft)
+                {
+                    styles["direction"] = fontDrawingRightToLeft.Val == null || !fontDrawingRightToLeft.Val.HasValue || fontDrawingRightToLeft.Val.Value ? "rtl" : "ltr";
+                }
+            }
+            if (isTextDecoraionSet)
+            {
+                styles["text-decoration"] = !string.IsNullOrEmpty(stylesTextDecoraion) ? stylesTextDecoraion.TrimStart() : "none";
+            }
+        }
+
+        private static Dictionary<string, string> GetCellFormat(Fill fill, Font font, Border border, Alignment alignment, ref string valueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             Dictionary<string, string> styles = new Dictionary<string, string>();
             if (fill != null)
@@ -1519,10 +1683,13 @@ namespace XlsxToHtmlConverter
                 if (fill.PatternFill != null && (fill.PatternFill.PatternType == null || !fill.PatternFill.PatternType.HasValue || fill.PatternFill.PatternType.Value != PatternValues.None))
                 {
                     //TODO: pattern fills
-                    string fillColor = string.Empty;
-                    if ((fill.PatternFill.ForegroundColor != null && ColorTypeToHtml(fill.PatternFill.ForegroundColor, out fillColor, themes, config)) || fill.PatternFill.BackgroundColor != null && ColorTypeToHtml(fill.PatternFill.BackgroundColor, out fillColor, themes, config))
+                    if (fill.PatternFill.ForegroundColor != null && GetColor(fill.PatternFill.ForegroundColor, out string fillColorForeground, themes, config))
                     {
-                        styles["background"] = fillColor;
+                        styles["background"] = fillColorForeground;
+                    }
+                    else if (fill.PatternFill.BackgroundColor != null && GetColor(fill.PatternFill.BackgroundColor, out string fillColorBackground, themes, config))
+                    {
+                        styles["background"] = fillColorBackground;
                     }
                 }
                 else if (fill.GradientFill != null)
@@ -1532,7 +1699,7 @@ namespace XlsxToHtmlConverter
                         string fillColor = $"linear-gradient({(fill.GradientFill.Degree != null && fill.GradientFill.Degree.HasValue ? RoundNumber(((fill.GradientFill.Degree.Value + 90) % 360 + 360) % 360, config.RoundingDigits) : 90)}deg";
                         foreach (GradientStop gradient in fill.GradientFill.Elements<GradientStop>())
                         {
-                            if (gradient.Color != null && ColorTypeToHtml(gradient.Color, out string gradientColor, themes, config))
+                            if (gradient.Color != null && GetColor(gradient.Color, out string gradientColor, themes, config))
                             {
                                 fillColor += $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber(gradient.Position.Value * 100, config.RoundingDigits)}%" : string.Empty)}";
                             }
@@ -1549,7 +1716,7 @@ namespace XlsxToHtmlConverter
                         string fillColor = $"radial-gradient(circle at {RoundNumber((gradientLeft + gradientRight) / 2 * 100, config.RoundingDigits)}% {RoundNumber((gradientTop + gradientBottom) / 2 * 100, config.RoundingDigits)}%";
                         foreach (GradientStop gradient in fill.GradientFill.Elements<GradientStop>())
                         {
-                            if (gradient.Color != null && ColorTypeToHtml(gradient.Color, out string gradientColor, themes, config))
+                            if (gradient.Color != null && GetColor(gradient.Color, out string gradientColor, themes, config))
                             {
                                 fillColor += $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber((gradientRadius + gradient.Position.Value * (1 - gradientRadius)) * 100, config.RoundingDigits)}%" : string.Empty)}";
                             }
@@ -1560,7 +1727,7 @@ namespace XlsxToHtmlConverter
             }
             if (font != null)
             {
-                FontToHtml(font, ref styles, ref valueContainer, themes, config);
+                GetFont(font, ref styles, ref valueContainer, themes, config);
             }
             if (border != null)
             {
@@ -1613,7 +1780,7 @@ namespace XlsxToHtmlConverter
                             result += " thin dotted";
                         }
                     }
-                    if (borderProperties.Color != null && ColorTypeToHtml(borderProperties.Color, out string borderColor, themes, config))
+                    if (borderProperties.Color != null && GetColor(borderProperties.Color, out string borderColor, themes, config))
                     {
                         result += $" {borderColor}";
                     }
@@ -1661,189 +1828,7 @@ namespace XlsxToHtmlConverter
             return styles.Count > 0 ? styles : null;
         }
 
-        private static void FontToHtml(OpenXmlElement font, ref Dictionary<string, string> styles, ref string valueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
-        {
-            styles = styles ?? new Dictionary<string, string>();
-            if (font == null)
-            {
-                return;
-            }
-
-            bool isTextDecoraionSet = false;
-            string stylesTextDecoraion = string.Empty;
-            foreach (OpenXmlElement fontElement in font.Elements())
-            {
-                if (fontElement is RunFont fontNameRun && fontNameRun.Val != null && fontNameRun.Val.HasValue)
-                {
-                    styles["font-family"] = fontNameRun.Val.Value;
-                }
-                else if (fontElement is FontName fontName && fontName.Val != null && fontName.Val.HasValue)
-                {
-                    styles["font-family"] = fontName.Val.Value;
-                }
-                else if (fontElement is Color fontColor && ColorTypeToHtml(fontColor, out string textColor, themes, config))
-                {
-                    styles["color"] = textColor;
-                }
-                else if (fontElement is FontSize fontSize && fontSize.Val != null && fontSize.Val.HasValue)
-                {
-                    styles["font-size"] = $"{RoundNumber(fontSize.Val.Value / 72 * 96, config.RoundingDigits)}px";
-                }
-                else if (fontElement is Bold fontBold)
-                {
-                    styles["font-weight"] = fontBold.Val == null || !fontBold.Val.HasValue || fontBold.Val.Value ? "bold" : "normal";
-                }
-                else if (fontElement is Italic fontItalic)
-                {
-                    styles["font-style"] = fontItalic.Val == null || !fontItalic.Val.HasValue || fontItalic.Val.Value ? "italic" : "normal";
-                }
-                else if (fontElement is Strike fontStrike)
-                {
-                    if (fontStrike.Val == null || !fontStrike.Val.HasValue || fontStrike.Val.Value)
-                    {
-                        stylesTextDecoraion += " line-through";
-                    }
-                    isTextDecoraionSet = true;
-                }
-                else if (fontElement is Underline underline)
-                {
-                    if (underline.Val == null || !underline.Val.HasValue || underline.Val.Value == UnderlineValues.Single || underline.Val.Value == UnderlineValues.SingleAccounting)
-                    {
-                        stylesTextDecoraion += " underline";
-                    }
-                    else if (underline.Val.Value != UnderlineValues.None)
-                    {
-                        valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline double;\">{{0}}</span>");
-                    }
-                    isTextDecoraionSet = true;
-                }
-                else if (fontElement is VerticalTextAlignment fontVerticalAlignment && fontVerticalAlignment.Val != null)
-                {
-                    styles["vertical-align"] = fontVerticalAlignment.Val.Value == VerticalAlignmentRunValues.Subscript ? "sub" : (fontVerticalAlignment.Val.Value == VerticalAlignmentRunValues.Superscript ? "super" : "baseline");
-                }
-                else if (fontElement is Extend fontExtend)
-                {
-                    styles["font-stretch"] = fontExtend.Val == null || !fontExtend.Val.HasValue || fontExtend.Val.Value ? "expanded" : "normal";
-                }
-                else if (fontElement is Condense fontCondense)
-                {
-                    styles["font-stretch"] = fontCondense.Val == null || !fontCondense.Val.HasValue || fontCondense.Val.Value ? "condensed" : "normal";
-                }
-            }
-            if (isTextDecoraionSet)
-            {
-                styles["text-decoration"] = !string.IsNullOrEmpty(stylesTextDecoraion) ? stylesTextDecoraion.TrimStart() : "none";
-            }
-        }
-
-        private static void FontPropertiesToHtml(DocumentFormat.OpenXml.Drawing.TextCharacterPropertiesType font, ref Dictionary<string, string> styles, ref string valueContainer, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
-        {
-            styles = styles ?? new Dictionary<string, string>();
-            if (font == null)
-            {
-                return;
-            }
-
-            bool isTextDecoraionSet = false;
-            string stylesTextDecoraion = string.Empty;
-            if (font.FontSize != null && font.FontSize.HasValue)
-            {
-                styles["font-size"] = $"{RoundNumber(font.FontSize.Value / 7200.0 * 96, config.RoundingDigits)}px";
-            }
-            if (font.Bold != null)
-            {
-                styles["font-weight"] = !font.Bold.HasValue || font.Bold.Value ? "bold" : "normal";
-            }
-            if (font.Italic != null)
-            {
-                styles["font-style"] = !font.Italic.HasValue || font.Italic.Value ? "italic" : "normal";
-            }
-            if (font.Strike != null)
-            {
-                if (!font.Strike.HasValue || font.Strike.Value == DocumentFormat.OpenXml.Drawing.TextStrikeValues.SingleStrike)
-                {
-                    stylesTextDecoraion += " line-through";
-                }
-                else if (font.Strike.Value == DocumentFormat.OpenXml.Drawing.TextStrikeValues.DoubleStrike)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: line-through double;\">{{0}}</span>");
-                }
-                isTextDecoraionSet = true;
-            }
-            if (font.Underline != null)
-            {
-                if (!font.Underline.HasValue || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Single || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Words)
-                {
-                    stylesTextDecoraion += " underline";
-                }
-                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Heavy)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline 4px;\">{{0}}</span>");
-                }
-                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Double)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline double;\">{{0}}</span>");
-                }
-                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Dash || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashLong || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDash)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dashed;\">{{0}}</span>");
-                }
-                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashHeavy || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DashLongHeavy || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDashHeavy)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dashed 4px;\">{{0}}</span>");
-                }
-                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Dotted || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDotDash)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dotted;\">{{0}}</span>");
-                }
-                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.HeavyDotted || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.DotDotDashHeavy)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline dotted 4px;\">{{0}}</span>");
-                }
-                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Wavy)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline wavy;\">{{0}}</span>");
-                }
-                else if (font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.WavyDouble || font.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.WavyHeavy)
-                {
-                    valueContainer = valueContainer.Replace("{0}", $"<span style=\"text-decoration: underline wavy 4px;\">{{0}}</span>");
-                }
-                isTextDecoraionSet = true;
-            }
-            if (font.Spacing != null && font.Spacing.HasValue)
-            {
-                styles["letter-spacing"] = $"{RoundNumber(font.Spacing.Value / 7200.0 * 96, config.RoundingDigits)}px";
-            }
-            if (font.Capital != null)
-            {
-                styles["text-transform"] = !font.Capital.HasValue || font.Capital.Value == DocumentFormat.OpenXml.Drawing.TextCapsValues.All ? "uppercase" : (font.Capital.Value == DocumentFormat.OpenXml.Drawing.TextCapsValues.Small ? "lowercase" : "none");
-            }
-            foreach (OpenXmlElement fontElement in font.Elements())
-            {
-                if (fontElement is DocumentFormat.OpenXml.Drawing.NoFill)
-                {
-                    styles["color"] = "transparent";
-                }
-                else if (fontElement is DocumentFormat.OpenXml.Drawing.SolidFill fontFillSolid && ColorReferenceToHtml(fontFillSolid, out string fontColor, themes, config))
-                {
-                    styles["color"] = fontColor;
-                }
-                else if (fontElement is DocumentFormat.OpenXml.Drawing.TextFontType fontName && fontName.Typeface != null && fontName.Typeface.HasValue)
-                {
-                    styles["font-family"] = fontName.Typeface.Value;
-                }
-                else if (fontElement is DocumentFormat.OpenXml.Drawing.RightToLeft fontRightToLeft)
-                {
-                    styles["direction"] = fontRightToLeft.Val == null || !fontRightToLeft.Val.HasValue || fontRightToLeft.Val.Value ? "rtl" : "ltr";
-                }
-            }
-            if (isTextDecoraionSet)
-            {
-                styles["text-decoration"] = !string.IsNullOrEmpty(stylesTextDecoraion) ? stylesTextDecoraion.TrimStart() : "none";
-            }
-        }
-
-        private static string DrawingsToHtml(OpenXmlElement drawing, string left, string top, string width, string height, DrawingsPart drawingsPart, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
+        private static string GetDrawing(OpenXmlElement drawing, string left, string top, string width, string height, DrawingsPart drawingsPart, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             if (drawing == null)
             {
@@ -1910,9 +1895,9 @@ namespace XlsxToHtmlConverter
                                         Dictionary<string, string> runStyles = null;
                                         if (run.RunProperties is DocumentFormat.OpenXml.Drawing.RunProperties runProperties)
                                         {
-                                            FontPropertiesToHtml(runProperties, ref runStyles, ref runValueContainer, themes, config);
+                                            GetFont(runProperties, ref runStyles, ref runValueContainer, themes, config);
                                         }
-                                        paragraphValue += $"<span{(runStyles != null && runStyles.Count > 0 ? $" style=\"{GetHtmlAttributesString(runStyles, false, -1)}\"" : string.Empty)}>{runValueContainer.Replace("{0}", GetEscapedString(run.Text.Text))}</span>";
+                                        paragraphValue += $"<span{(runStyles != null && runStyles.Count > 0 ? $" style=\"{GetAttributesString(runStyles, false, -1)}\"" : string.Empty)}>{runValueContainer.Replace("{0}", GetEscapedString(run.Text.Text))}</span>";
                                     }
                                     else if (paragraphElement is DocumentFormat.OpenXml.Drawing.ParagraphProperties paragraphProperties)
                                     {
@@ -1945,7 +1930,7 @@ namespace XlsxToHtmlConverter
                                             if (propertiesElement is DocumentFormat.OpenXml.Drawing.DefaultRunProperties paragraphRunProperties)
                                             {
                                                 string valueContainer = "{0}";
-                                                FontPropertiesToHtml(paragraphRunProperties, ref paragraphStyles, ref valueContainer, themes, config);
+                                                GetFont(paragraphRunProperties, ref paragraphStyles, ref valueContainer, themes, config);
                                                 paragraphValueContainer = valueContainer.Replace("{0}", paragraphValueContainer);
                                             }
                                             else if (propertiesElement is DocumentFormat.OpenXml.Drawing.LineSpacing paragraphLineSpacing)
@@ -1964,11 +1949,11 @@ namespace XlsxToHtmlConverter
                                     else if (paragraphElement is DocumentFormat.OpenXml.Drawing.EndParagraphRunProperties endParagraphRunProperties)
                                     {
                                         string valueContainer = "{0}";
-                                        FontPropertiesToHtml(endParagraphRunProperties, ref elementStyles, ref valueContainer, themes, config);
+                                        GetFont(endParagraphRunProperties, ref elementStyles, ref valueContainer, themes, config);
                                         paragraphValueContainer = valueContainer.Replace("{0}", paragraphValueContainer);
                                     }
                                 }
-                                shapeValue += $"<div style=\"{GetHtmlAttributesString(paragraphStyles, false, -1)}\">{paragraphValue}</div>";
+                                shapeValue += $"<div style=\"{GetAttributesString(paragraphStyles, false, -1)}\">{paragraphValue}</div>";
                             }
                             else if (textBodyElement is DocumentFormat.OpenXml.Drawing.BodyProperties bodyProperties)
                             {
@@ -2081,7 +2066,7 @@ namespace XlsxToHtmlConverter
                     {
                         isFillHandled = true;
                     }
-                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.SolidFill propertiesFillSolid && ColorReferenceToHtml(propertiesFillSolid, out string fillColor, themes, config))
+                    else if (propertiesElement is DocumentFormat.OpenXml.Drawing.SolidFill propertiesFillSolid && GetColor(propertiesFillSolid, out string fillColor, themes, config))
                     {
                         elementStyles["background"] = fillColor;
                         isFillHandled = true;
@@ -2103,7 +2088,7 @@ namespace XlsxToHtmlConverter
                             }
                             else if (outlineElement is DocumentFormat.OpenXml.Drawing.SolidFill outlineFillSolid)
                             {
-                                ColorReferenceToHtml(outlineFillSolid, out outlineColor, themes, config);
+                                GetColor(outlineFillSolid, out outlineColor, themes, config);
                             }
                         }
                         elementStyles["border"] = $"{outlineWidth} {outlineStyle}{(!string.IsNullOrEmpty(outlineColor) ? $" {outlineColor}" : string.Empty)}";
@@ -2118,48 +2103,45 @@ namespace XlsxToHtmlConverter
                         string attribute = $"path('";
                         double pointLastX = 0;
                         double pointLastY = 0;
-                        foreach (DocumentFormat.OpenXml.Drawing.Path geometryPath in geometryCustom.PathList.Elements<DocumentFormat.OpenXml.Drawing.Path>())
+                        foreach (OpenXmlElement geometryPathElement in geometryCustom.PathList.Elements<DocumentFormat.OpenXml.Drawing.Path>().SelectMany(x => x.Elements()))
                         {
-                            foreach (OpenXmlElement geometryPathElement in geometryPath.Elements())
+                            if (geometryPathElement is DocumentFormat.OpenXml.Drawing.ArcTo geometryPathArcTo)
                             {
-                                if (geometryPathElement is DocumentFormat.OpenXml.Drawing.ArcTo geometryPathArcTo)
+                                double arcRadiusX = geometryPathArcTo.WidthRadius != null && geometryPathArcTo.WidthRadius.HasValue && double.TryParse(geometryPathArcTo.WidthRadius.Value, out double radiusWidth) ? radiusWidth / 914400.0 * 96 : 0;
+                                double arcRadiusY = geometryPathArcTo.HeightRadius != null && geometryPathArcTo.HeightRadius.HasValue && double.TryParse(geometryPathArcTo.HeightRadius.Value, out double radiusHeight) ? radiusHeight / 914400.0 * 96 : 0;
+                                double arcAngleStart = geometryPathArcTo.StartAngle != null && geometryPathArcTo.StartAngle.HasValue && double.TryParse(geometryPathArcTo.StartAngle.Value, out double angleStart) ? angleStart / 60000.0 * Math.PI / 180 : 0;
+                                double arcAngleEnd = geometryPathArcTo.SwingAngle != null && geometryPathArcTo.SwingAngle.HasValue && double.TryParse(geometryPathArcTo.SwingAngle.Value, out double angleSwing) ? arcAngleStart + angleSwing / 60000.0 * Math.PI / 180 : arcAngleStart;
+                                pointLastX = RoundNumber(pointLastX - arcRadiusX * Math.Cos(arcAngleStart) + arcRadiusX * Math.Cos(arcAngleEnd), config.RoundingDigits);
+                                pointLastY = RoundNumber(pointLastY - arcRadiusY * Math.Sin(arcAngleStart) + arcRadiusY * Math.Sin(arcAngleEnd), config.RoundingDigits);
+                                attribute += $"A {RoundNumber(arcRadiusX, config.RoundingDigits)} {RoundNumber(arcRadiusY, config.RoundingDigits)} 0 1 1 {pointLastX},{pointLastY} ";
+                            }
+                            else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.CloseShapePath)
+                            {
+                                attribute += "Z ";
+                            }
+                            else
+                            {
+                                if (geometryPathElement is DocumentFormat.OpenXml.Drawing.MoveTo)
                                 {
-                                    double arcRadiusX = geometryPathArcTo.WidthRadius != null && geometryPathArcTo.WidthRadius.HasValue && double.TryParse(geometryPathArcTo.WidthRadius.Value, out double radiusWidth) ? radiusWidth / 914400.0 * 96 : 0;
-                                    double arcRadiusY = geometryPathArcTo.HeightRadius != null && geometryPathArcTo.HeightRadius.HasValue && double.TryParse(geometryPathArcTo.HeightRadius.Value, out double radiusHeight) ? radiusHeight / 914400.0 * 96 : 0;
-                                    double arcAngleStart = geometryPathArcTo.StartAngle != null && geometryPathArcTo.StartAngle.HasValue && double.TryParse(geometryPathArcTo.StartAngle.Value, out double angleStart) ? angleStart / 60000.0 * Math.PI / 180 : 0;
-                                    double arcAngleEnd = geometryPathArcTo.SwingAngle != null && geometryPathArcTo.SwingAngle.HasValue && double.TryParse(geometryPathArcTo.SwingAngle.Value, out double angleSwing) ? arcAngleStart + angleSwing / 60000.0 * Math.PI / 180 : arcAngleStart;
-                                    pointLastX = RoundNumber(pointLastX - arcRadiusX * Math.Cos(arcAngleStart) + arcRadiusX * Math.Cos(arcAngleEnd), config.RoundingDigits);
-                                    pointLastY = RoundNumber(pointLastY - arcRadiusY * Math.Sin(arcAngleStart) + arcRadiusY * Math.Sin(arcAngleEnd), config.RoundingDigits);
-                                    attribute += $"A {RoundNumber(arcRadiusX, config.RoundingDigits)} {RoundNumber(arcRadiusY, config.RoundingDigits)} 0 1 1 {pointLastX},{pointLastY} ";
+                                    attribute += "M ";
                                 }
-                                else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.CloseShapePath)
+                                else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.LineTo)
                                 {
-                                    attribute += "Z ";
+                                    attribute += "L ";
                                 }
-                                else
+                                else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.CubicBezierCurveTo)
                                 {
-                                    if (geometryPathElement is DocumentFormat.OpenXml.Drawing.MoveTo)
-                                    {
-                                        attribute += "M ";
-                                    }
-                                    else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.LineTo)
-                                    {
-                                        attribute += "L ";
-                                    }
-                                    else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.CubicBezierCurveTo)
-                                    {
-                                        attribute += "C ";
-                                    }
-                                    else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.QuadraticBezierCurveTo)
-                                    {
-                                        attribute += "Q ";
-                                    }
-                                    foreach (DocumentFormat.OpenXml.Drawing.Point geometryPathPoint in geometryPathElement.Elements<DocumentFormat.OpenXml.Drawing.Point>())
-                                    {
-                                        pointLastX = geometryPathPoint.X != null && geometryPathPoint.X.HasValue && double.TryParse(geometryPathPoint.X.Value, out double pointX) ? RoundNumber(pointX / 914400.0 * 96, config.RoundingDigits) : 0;
-                                        pointLastY = geometryPathPoint.Y != null && geometryPathPoint.Y.HasValue && double.TryParse(geometryPathPoint.Y.Value, out double pointY) ? RoundNumber(pointY / 914400.0 * 96, config.RoundingDigits) : 0;
-                                        attribute += $"{pointLastX},{pointLastY} ";
-                                    }
+                                    attribute += "C ";
+                                }
+                                else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.QuadraticBezierCurveTo)
+                                {
+                                    attribute += "Q ";
+                                }
+                                foreach (DocumentFormat.OpenXml.Drawing.Point geometryPathPoint in geometryPathElement.Elements<DocumentFormat.OpenXml.Drawing.Point>())
+                                {
+                                    pointLastX = geometryPathPoint.X != null && geometryPathPoint.X.HasValue && double.TryParse(geometryPathPoint.X.Value, out double pointX) ? RoundNumber(pointX / 914400.0 * 96, config.RoundingDigits) : 0;
+                                    pointLastY = geometryPathPoint.Y != null && geometryPathPoint.Y.HasValue && double.TryParse(geometryPathPoint.Y.Value, out double pointY) ? RoundNumber(pointY / 914400.0 * 96, config.RoundingDigits) : 0;
+                                    attribute += $"{pointLastX},{pointLastY} ";
                                 }
                             }
                         }
@@ -2169,15 +2151,15 @@ namespace XlsxToHtmlConverter
             }
             if (elementShapeStyle != null)
             {
-                if (!isFillHandled && elementShapeStyle.FillReference != null && ColorReferenceToHtml(elementShapeStyle.FillReference, out string fillColor, themes, config))
+                if (!isFillHandled && elementShapeStyle.FillReference != null && GetColor(elementShapeStyle.FillReference, out string fillColor, themes, config))
                 {
                     elementStyles["background"] = fillColor;
                 }
-                if (!isOutlineHandled && elementShapeStyle.LineReference != null && ColorReferenceToHtml(elementShapeStyle.LineReference, out string outlineColor, themes, config))
+                if (!isOutlineHandled && elementShapeStyle.LineReference != null && GetColor(elementShapeStyle.LineReference, out string outlineColor, themes, config))
                 {
                     elementStyles["border"] = $"thin solid {outlineColor}";
                 }
-                if (!elementStyles.ContainsKey("color") && elementShapeStyle.FontReference != null && ColorReferenceToHtml(elementShapeStyle.FontReference, out string fontColor, themes, config))
+                if (!elementStyles.ContainsKey("color") && elementShapeStyle.FontReference != null && GetColor(elementShapeStyle.FontReference, out string fontColor, themes, config))
                 {
                     elementStyles["color"] = fontColor;
                 }
@@ -2186,15 +2168,10 @@ namespace XlsxToHtmlConverter
             {
                 elementStyles["visibility"] = "hidden";
             }
-            return element.Replace("{0}", $"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{GetHtmlAttributesString(elementStyles, true, -1)}");
+            return element.Replace("{0}", $"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{GetAttributesString(elementStyles, true, -1)}");
         }
 
-        private static string GetFormattedColor(byte red, byte green, byte blue, int alpha, ConverterConfig config)
-        {
-            return config.UseHexColors ? $"#{red:X2}{green:X2}{blue:X2}{(alpha < 100 ? ((byte)(alpha / 100.0 * 255)).ToString("X2") : string.Empty)}" : $"{(alpha < 100 ? "rgba" : "rgb")}({red}, {green}, {blue}{(alpha < 100 ? $", {Math.Round(alpha / 100.0, 2)}" : string.Empty)})";
-        }
-
-        private static bool ColorTypeToHtml(ColorType color, out string result, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
+        private static bool GetColor(OpenXmlElement color, out string result, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
         {
             if (color == null)
             {
@@ -2202,564 +2179,548 @@ namespace XlsxToHtmlConverter
                 return false;
             }
 
-            byte resultRed = 0;
-            byte resultGreen = 0;
-            byte resultBlue = 0;
-            int resultAlpha = 100;
-            if (color.Auto != null && (!color.Auto.HasValue || color.Auto.Value))
+            void actionConvertHexToRgba(string hex, out byte red, out byte green, out byte blue, out int alpha)
             {
-                result = "initial";
-                return true;
+                string hexTrimmed = hex.TrimStart('#');
+                red = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 2 : 0, 2), 16) : 0);
+                green = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 4 : 2, 2), 16) : 0);
+                blue = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 6 : 4, 2), 16) : 0);
+                alpha = hexTrimmed.Length > 7 ? (int)(Convert.ToInt32(hexTrimmed.Substring(0, 2), 16) / 255.0 * 100) : 100;
             }
-            else if (color.Rgb != null && color.Rgb.HasValue)
+            void actionConvertRgbToHsl(byte red, byte green, byte blue, out double hue, out double saturation, out double luminance)
             {
-                HexToRgba(color.Rgb.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
+                double redMapped = red / 255.0;
+                double greenMapped = green / 255.0;
+                double blueMapped = blue / 255.0;
+
+                double max = Math.Max(redMapped, Math.Max(greenMapped, blueMapped));
+                double min = Math.Min(redMapped, Math.Min(greenMapped, blueMapped));
+                double chroma = max - min;
+                double distanceRed = (max - redMapped) / chroma;
+                double distanceGreen = (max - greenMapped) / chroma;
+                double distanceBlue = (max - blueMapped) / chroma;
+                hue = max != min ? ((redMapped == max ? distanceBlue - distanceGreen : (greenMapped == max ? 2 + distanceRed - distanceBlue : 4 + distanceGreen - distanceRed)) * 60 % 360 + 360) % 360 : 0;
+                saturation = max != min ? (chroma / (max + min > 1 ? 2 - max - min : max + min)) : 0;
+                luminance = (max + min) / 2;
             }
-            else if (color.Indexed != null && color.Indexed.HasValue)
+            void actionConvertHslToRgb(double hue, double saturation, double luminance, out byte red, out byte green, out byte blue)
             {
-                void actionUpdateColor(byte red, byte green, byte blue)
+                double value1 = luminance <= 0.5 ? luminance * (1 + saturation) : luminance + saturation - luminance * saturation;
+                double value2 = 2 * luminance - value1;
+                double actionCalculateColor(double hueShifted)
                 {
-                    resultRed = red;
-                    resultGreen = green;
-                    resultBlue = blue;
-                };
-                switch (color.Indexed.Value)
-                {
-                    case 0:
-                        actionUpdateColor(0, 0, 0);
-                        break;
-                    case 1:
-                        actionUpdateColor(255, 255, 255);
-                        break;
-                    case 2:
-                        actionUpdateColor(255, 0, 0);
-                        break;
-                    case 3:
-                        actionUpdateColor(0, 255, 0);
-                        break;
-                    case 4:
-                        actionUpdateColor(0, 0, 255);
-                        break;
-                    case 5:
-                        actionUpdateColor(255, 255, 0);
-                        break;
-                    case 6:
-                        actionUpdateColor(255, 0, 255);
-                        break;
-                    case 7:
-                        actionUpdateColor(0, 255, 255);
-                        break;
-                    case 8:
-                        actionUpdateColor(0, 0, 0);
-                        break;
-                    case 9:
-                        actionUpdateColor(255, 255, 255);
-                        break;
-                    case 10:
-                        actionUpdateColor(255, 0, 0);
-                        break;
-                    case 11:
-                        actionUpdateColor(0, 255, 0);
-                        break;
-                    case 12:
-                        actionUpdateColor(0, 0, 255);
-                        break;
-                    case 13:
-                        actionUpdateColor(255, 255, 0);
-                        break;
-                    case 14:
-                        actionUpdateColor(255, 0, 255);
-                        break;
-                    case 15:
-                        actionUpdateColor(0, 255, 255);
-                        break;
-                    case 16:
-                        actionUpdateColor(128, 0, 0);
-                        break;
-                    case 17:
-                        actionUpdateColor(0, 128, 0);
-                        break;
-                    case 18:
-                        actionUpdateColor(0, 0, 128);
-                        break;
-                    case 19:
-                        actionUpdateColor(128, 128, 0);
-                        break;
-                    case 20:
-                        actionUpdateColor(128, 0, 128);
-                        break;
-                    case 21:
-                        actionUpdateColor(0, 128, 128);
-                        break;
-                    case 22:
-                        actionUpdateColor(192, 192, 192);
-                        break;
-                    case 23:
-                        actionUpdateColor(128, 128, 128);
-                        break;
-                    case 24:
-                        actionUpdateColor(153, 153, 255);
-                        break;
-                    case 25:
-                        actionUpdateColor(153, 51, 102);
-                        break;
-                    case 26:
-                        actionUpdateColor(255, 255, 204);
-                        break;
-                    case 27:
-                        actionUpdateColor(204, 255, 255);
-                        break;
-                    case 28:
-                        actionUpdateColor(102, 0, 102);
-                        break;
-                    case 29:
-                        actionUpdateColor(255, 128, 128);
-                        break;
-                    case 30:
-                        actionUpdateColor(0, 102, 204);
-                        break;
-                    case 31:
-                        actionUpdateColor(204, 204, 255);
-                        break;
-                    case 32:
-                        actionUpdateColor(0, 0, 128);
-                        break;
-                    case 33:
-                        actionUpdateColor(255, 0, 255);
-                        break;
-                    case 34:
-                        actionUpdateColor(255, 255, 0);
-                        break;
-                    case 35:
-                        actionUpdateColor(0, 255, 255);
-                        break;
-                    case 36:
-                        actionUpdateColor(128, 0, 128);
-                        break;
-                    case 37:
-                        actionUpdateColor(128, 0, 0);
-                        break;
-                    case 38:
-                        actionUpdateColor(0, 128, 128);
-                        break;
-                    case 39:
-                        actionUpdateColor(0, 0, 255);
-                        break;
-                    case 40:
-                        actionUpdateColor(0, 204, 255);
-                        break;
-                    case 41:
-                        actionUpdateColor(204, 255, 255);
-                        break;
-                    case 42:
-                        actionUpdateColor(204, 255, 204);
-                        break;
-                    case 43:
-                        actionUpdateColor(255, 255, 153);
-                        break;
-                    case 44:
-                        actionUpdateColor(153, 204, 255);
-                        break;
-                    case 45:
-                        actionUpdateColor(255, 153, 204);
-                        break;
-                    case 46:
-                        actionUpdateColor(204, 153, 255);
-                        break;
-                    case 47:
-                        actionUpdateColor(255, 204, 153);
-                        break;
-                    case 48:
-                        actionUpdateColor(51, 102, 255);
-                        break;
-                    case 49:
-                        actionUpdateColor(51, 204, 204);
-                        break;
-                    case 50:
-                        actionUpdateColor(153, 204, 0);
-                        break;
-                    case 51:
-                        actionUpdateColor(255, 204, 0);
-                        break;
-                    case 52:
-                        actionUpdateColor(255, 153, 0);
-                        break;
-                    case 53:
-                        actionUpdateColor(255, 102, 0);
-                        break;
-                    case 54:
-                        actionUpdateColor(102, 102, 153);
-                        break;
-                    case 55:
-                        actionUpdateColor(150, 150, 150);
-                        break;
-                    case 56:
-                        actionUpdateColor(0, 51, 102);
-                        break;
-                    case 57:
-                        actionUpdateColor(51, 153, 102);
-                        break;
-                    case 58:
-                        actionUpdateColor(0, 51, 0);
-                        break;
-                    case 59:
-                        actionUpdateColor(51, 51, 0);
-                        break;
-                    case 60:
-                        actionUpdateColor(153, 51, 0);
-                        break;
-                    case 61:
-                        actionUpdateColor(153, 51, 102);
-                        break;
-                    case 62:
-                        actionUpdateColor(51, 51, 153);
-                        break;
-                    case 63:
-                        actionUpdateColor(51, 51, 51);
-                        break;
-                    case 64:
-                        actionUpdateColor(128, 128, 128);
-                        break;
-                    case 65:
-                        actionUpdateColor(255, 255, 255);
-                        break;
-                    default:
-                        result = string.Empty;
-                        return false;
+                    hueShifted = (hueShifted % 360 + 360) % 360;
+                    return hueShifted < 60 ? value2 + (value1 - value2) * hueShifted / 60 : (hueShifted < 180 ? value1 : (hueShifted < 240 ? value2 + (value1 - value2) * (240 - hueShifted) / 60 : value2));
                 }
-            }
-            else if (color.Theme == null || !color.Theme.HasValue || themes == null || color.Theme.Value < 0 || color.Theme.Value >= themes.Length || !(themes[color.Theme.Value].FirstChild is OpenXmlElement themeColorElement) || !GetColorElement(themeColorElement, themeColorElement.ChildElements, ref resultRed, ref resultGreen, ref resultBlue, ref resultAlpha, themes))
-            {
-                result = string.Empty;
-                return false;
-            }
-            if (color.Tint != null && color.Tint.HasValue && color.Tint.Value != 0)
-            {
-                RgbToHsl(resultRed, resultGreen, resultBlue, out double hue, out double saturation, out double luminance);
-                HslToRgb(hue, saturation, color.Tint.Value < 0 ? luminance * (1 + color.Tint.Value) : luminance * (1 - color.Tint.Value) + color.Tint.Value, out resultRed, out resultGreen, out resultBlue);
-            }
-            result = GetFormattedColor(resultRed, resultGreen, resultBlue, resultAlpha, config);
-            return true;
-        }
-
-        private static bool ColorReferenceToHtml(OpenXmlElement color, out string result, DocumentFormat.OpenXml.Drawing.Color2Type[] themes, ConverterConfig config)
-        {
-            if (color == null)
-            {
-                result = string.Empty;
-                return false;
+                red = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue + 120)) * 255);
+                green = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue)) * 255);
+                blue = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue - 120)) * 255);
             }
 
             byte resultRed = 0;
             byte resultGreen = 0;
             byte resultBlue = 0;
             int resultAlpha = 100;
-            OpenXmlElement colorElement = color.FirstChild;
-            if (colorElement == null || !GetColorElement(colorElement, colorElement.ChildElements, ref resultRed, ref resultGreen, ref resultBlue, ref resultAlpha, themes))
+            bool actionGetColorElement(OpenXmlElement colorElement, OpenXmlElementList effects)
             {
-                result = string.Empty;
-                return false;
-            }
-            result = GetFormattedColor(resultRed, resultGreen, resultBlue, resultAlpha, config);
-            return true;
-        }
-
-        private static bool GetColorElement(OpenXmlElement color, OpenXmlElementList effects, ref byte resultRed, ref byte resultGreen, ref byte resultBlue, ref int resultAlpha, DocumentFormat.OpenXml.Drawing.Color2Type[] themes)
-        {
-            if (color == null)
-            {
-                return false;
-            }
-
-            if (color is DocumentFormat.OpenXml.Drawing.RgbColorModelHex colorRgbHex && colorRgbHex.Val != null && colorRgbHex.Val.HasValue)
-            {
-                HexToRgba(colorRgbHex.Val.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
-            }
-            else if (color is DocumentFormat.OpenXml.Drawing.RgbColorModelPercentage colorRgbPercentage)
-            {
-                resultRed = colorRgbPercentage.RedPortion != null && colorRgbPercentage.RedPortion.HasValue ? (byte)(colorRgbPercentage.RedPortion.Value / 100000.0 * 255) : (byte)0;
-                resultGreen = colorRgbPercentage.GreenPortion != null && colorRgbPercentage.GreenPortion.HasValue ? (byte)(colorRgbPercentage.GreenPortion.Value / 100000.0 * 255) : (byte)0;
-                resultBlue = colorRgbPercentage.BluePortion != null && colorRgbPercentage.BluePortion.HasValue ? (byte)(colorRgbPercentage.BluePortion.Value / 100000.0 * 255) : (byte)0;
-            }
-            else if (color is DocumentFormat.OpenXml.Drawing.HslColor colorHsl)
-            {
-                double hue = colorHsl.HueValue != null && colorHsl.HueValue.HasValue ? colorHsl.HueValue.Value / 60000.0 : 0;
-                double saturation = colorHsl.SatValue != null && colorHsl.SatValue.HasValue ? colorHsl.SatValue.Value / 100000.0 : 0;
-                double luminance = colorHsl.LumValue != null && colorHsl.LumValue.HasValue ? colorHsl.LumValue.Value / 100000.0 : 0;
-                HslToRgb(hue, saturation, luminance, out resultRed, out resultGreen, out resultBlue);
-            }
-            else if (color is DocumentFormat.OpenXml.Drawing.SystemColor colorSystem)
-            {
-                if (colorSystem.Val != null && colorSystem.Val.HasValue && themeSystemColors.ContainsKey(colorSystem.Val.Value))
+                if (colorElement == null)
                 {
-                    byte[] colorDictionary = themeSystemColors[colorSystem.Val.Value];
+                    return false;
+                }
+
+                if (colorElement is DocumentFormat.OpenXml.Drawing.RgbColorModelHex colorRgbHex && colorRgbHex.Val != null && colorRgbHex.Val.HasValue)
+                {
+                    actionConvertHexToRgba(colorRgbHex.Val.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
+                }
+                else if (colorElement is DocumentFormat.OpenXml.Drawing.RgbColorModelPercentage colorRgbPercentage)
+                {
+                    resultRed = (byte)(colorRgbPercentage.RedPortion != null && colorRgbPercentage.RedPortion.HasValue ? colorRgbPercentage.RedPortion.Value / 100000.0 * 255 : 0);
+                    resultGreen = (byte)(colorRgbPercentage.GreenPortion != null && colorRgbPercentage.GreenPortion.HasValue ? colorRgbPercentage.GreenPortion.Value / 100000.0 * 255 : 0);
+                    resultBlue = (byte)(colorRgbPercentage.BluePortion != null && colorRgbPercentage.BluePortion.HasValue ? colorRgbPercentage.BluePortion.Value / 100000.0 * 255 : 0);
+                }
+                else if (colorElement is DocumentFormat.OpenXml.Drawing.HslColor colorHsl)
+                {
+                    double hue = colorHsl.HueValue != null && colorHsl.HueValue.HasValue ? colorHsl.HueValue.Value / 60000.0 : 0;
+                    double saturation = colorHsl.SatValue != null && colorHsl.SatValue.HasValue ? colorHsl.SatValue.Value / 100000.0 : 0;
+                    double luminance = colorHsl.LumValue != null && colorHsl.LumValue.HasValue ? colorHsl.LumValue.Value / 100000.0 : 0;
+                    actionConvertHslToRgb(hue, saturation, luminance, out resultRed, out resultGreen, out resultBlue);
+                }
+                else if (colorElement is DocumentFormat.OpenXml.Drawing.SystemColor colorSystem)
+                {
+                    if (colorSystem.Val != null && colorSystem.Val.HasValue && themeSystemColors.ContainsKey(colorSystem.Val.Value))
+                    {
+                        byte[] colorDictionary = themeSystemColors[colorSystem.Val.Value];
+                        resultRed = colorDictionary[0];
+                        resultGreen = colorDictionary[1];
+                        resultBlue = colorDictionary[2];
+                    }
+                    else if (colorSystem.LastColor != null && colorSystem.LastColor.HasValue)
+                    {
+                        actionConvertHexToRgba(colorSystem.LastColor.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else if (colorElement is DocumentFormat.OpenXml.Drawing.PresetColor colorPreset && colorPreset.Val != null && colorPreset.Val.HasValue && themePresetColors.ContainsKey(colorPreset.Val.Value))
+                {
+                    byte[] colorDictionary = themePresetColors[colorPreset.Val.Value];
                     resultRed = colorDictionary[0];
                     resultGreen = colorDictionary[1];
                     resultBlue = colorDictionary[2];
                 }
-                else if (colorSystem.LastColor != null && colorSystem.LastColor.HasValue)
+                else if (colorElement is DocumentFormat.OpenXml.Drawing.SchemeColor colorScheme && colorScheme.Val != null && colorScheme.Val.HasValue)
                 {
-                    HexToRgba(colorSystem.LastColor.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
+                    DocumentFormat.OpenXml.Drawing.Color2Type colorTheme = null;
+                    if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Light1)
+                    {
+                        colorTheme = themes[0];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Dark1)
+                    {
+                        colorTheme = themes[1];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Light2)
+                    {
+                        colorTheme = themes[2];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Dark2)
+                    {
+                        colorTheme = themes[3];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent1)
+                    {
+                        colorTheme = themes[4];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent2)
+                    {
+                        colorTheme = themes[5];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent3)
+                    {
+                        colorTheme = themes[6];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent4)
+                    {
+                        colorTheme = themes[7];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent5)
+                    {
+                        colorTheme = themes[8];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent6)
+                    {
+                        colorTheme = themes[9];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Hyperlink)
+                    {
+                        colorTheme = themes[10];
+                    }
+                    else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.FollowedHyperlink)
+                    {
+                        colorTheme = themes[11];
+                    }
+                    return colorTheme != null && colorTheme.FirstChild is OpenXmlElement colorThemeChildElement && actionGetColorElement(colorThemeChildElement, colorScheme.ChildElements);
                 }
                 else
                 {
                     return false;
                 }
+                foreach (OpenXmlElement effect in effects)
+                {
+                    if (effect is DocumentFormat.OpenXml.Drawing.Shade shade && shade.Val != null && shade.Val.HasValue)
+                    {
+                        double amount = shade.Val.Value / 100000.0;
+                        resultRed = (byte)(resultRed * amount);
+                        resultGreen = (byte)(resultGreen * amount);
+                        resultBlue = (byte)(resultBlue * amount);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Tint tint && tint.Val != null && tint.Val.HasValue)
+                    {
+                        double amount = tint.Val.Value / 100000.0;
+                        resultRed = (byte)(resultRed * amount + 255 * (1 - amount));
+                        resultGreen = (byte)(resultGreen * amount + 255 * (1 - amount));
+                        resultBlue = (byte)(resultBlue * amount + 255 * (1 - amount));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Inverse)
+                    {
+                        resultRed = (byte)(255 - resultRed);
+                        resultGreen = (byte)(255 - resultGreen);
+                        resultBlue = (byte)(255 - resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Gray)
+                    {
+                        byte grayscale = (byte)(resultRed * 0.3 + resultGreen * 0.59 + resultBlue * 0.11);
+                        resultRed = grayscale;
+                        resultGreen = grayscale;
+                        resultBlue = grayscale;
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Complement)
+                    {
+                        double colorMax = Math.Max(resultRed, Math.Max(resultGreen, resultBlue));
+                        resultRed = (byte)(colorMax - resultRed);
+                        resultGreen = (byte)(colorMax - resultGreen);
+                        resultBlue = (byte)(colorMax - resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Gamma)
+                    {
+                        double resultRedMapped = resultRed / 255.0;
+                        resultRed = (byte)((resultRedMapped > 0.04045 ? Math.Pow((resultRedMapped + 0.055) / 1.055, 2.4) : resultRedMapped / 12.92) * 255);
+                        double resultGreenMapped = resultGreen / 255.0;
+                        resultGreen = (byte)((resultGreenMapped > 0.04045 ? Math.Pow((resultGreenMapped + 0.055) / 1.055, 2.4) : resultGreenMapped / 12.92) * 255);
+                        double resultBlueMapped = resultBlue / 255.0;
+                        resultBlue = (byte)((resultBlueMapped > 0.04045 ? Math.Pow((resultBlueMapped + 0.055) / 1.055, 2.4) : resultBlueMapped / 12.92) * 255);
+
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.InverseGamma)
+                    {
+                        double resultRedMapped = resultRed / 255.0;
+                        resultRed = (byte)((resultRedMapped > 0.0031308 ? 1.055 * Math.Pow(resultRedMapped, 1 / 2.4) - 0.055 : resultRedMapped * 12.92) * 255);
+                        double resultGreenMapped = resultGreen / 255.0;
+                        resultGreen = (byte)((resultGreenMapped > 0.0031308 ? 1.055 * Math.Pow(resultGreenMapped, 1 / 2.4) - 0.055 : resultGreenMapped * 12.92) * 255);
+                        double resultBlueMapped = resultBlue / 255.0;
+                        resultBlue = (byte)((resultBlueMapped > 0.0031308 ? 1.055 * Math.Pow(resultBlueMapped, 1 / 2.4) - 0.055 : resultBlueMapped * 12.92) * 255);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Red red && red.Val != null && red.Val.HasValue)
+                    {
+                        resultRed = (byte)(red.Val.Value / 100000.0 * 255);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.RedModulation redModulation && redModulation.Val != null && redModulation.Val.HasValue)
+                    {
+                        resultRed = (byte)(resultRed * (redModulation.Val.Value / 100000.0));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.RedOffset redOffset && redOffset.Val != null && redOffset.Val.HasValue)
+                    {
+                        resultRed = (byte)(resultRed + (redOffset.Val.Value / 100000.0 * 255));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Green green && green.Val != null && green.Val.HasValue)
+                    {
+                        resultGreen = (byte)(green.Val.Value / 100000.0 * 255);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.GreenModulation greenModulation && greenModulation.Val != null && greenModulation.Val.HasValue)
+                    {
+                        resultGreen = (byte)(resultGreen * (greenModulation.Val.Value / 100000.0));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.GreenOffset greenOffset && greenOffset.Val != null && greenOffset.Val.HasValue)
+                    {
+                        resultGreen = (byte)(resultGreen + (greenOffset.Val.Value / 100000.0 * 255));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Blue blue && blue.Val != null && blue.Val.HasValue)
+                    {
+                        resultBlue = (byte)(blue.Val.Value / 100000.0 * 255);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.BlueModulation blueModulation && blueModulation.Val != null && blueModulation.Val.HasValue)
+                    {
+                        resultBlue = (byte)(resultBlue * (blueModulation.Val.Value / 100000.0));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.BlueOffset blueOffset && blueOffset.Val != null && blueOffset.Val.HasValue)
+                    {
+                        resultBlue = (byte)(resultBlue + (blueOffset.Val.Value / 100000.0 * 255));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Alpha alpha && alpha.Val != null && alpha.Val.HasValue)
+                    {
+                        resultAlpha = (int)(alpha.Val.Value / 100000.0 * 100);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.AlphaModulation alphaModulation && alphaModulation.Val != null && alphaModulation.Val.HasValue)
+                    {
+                        resultAlpha = (int)(resultAlpha * (alphaModulation.Val.Value / 100000.0));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.AlphaOffset alphaOffset && alphaOffset.Val != null && alphaOffset.Val.HasValue)
+                    {
+                        resultAlpha = (int)(resultAlpha + (alphaOffset.Val.Value / 100000.0 * 100));
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Hue hue && hue.Val != null && hue.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double _, out double colorSaturation, out double colorLuminance);
+                        actionConvertHslToRgb(hue.Val.Value / 60000.0, colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.HueModulation hueModulation && hueModulation.Val != null && hueModulation.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                        actionConvertHslToRgb(colorHue * (hueModulation.Val.Value / 100000.0), colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.HueOffset hueOffset && hueOffset.Val != null && hueOffset.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                        actionConvertHslToRgb(colorHue + hueOffset.Val.Value / 60000.0, colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Saturation saturation && saturation.Val != null && saturation.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double _, out double colorLuminance);
+                        actionConvertHslToRgb(colorHue, saturation.Val.Value / 100000.0, colorLuminance, out resultRed, out resultGreen, out resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.SaturationModulation saturationModulation && saturationModulation.Val != null && saturationModulation.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                        actionConvertHslToRgb(colorHue, colorSaturation * (saturationModulation.Val.Value / 100000.0), colorLuminance, out resultRed, out resultGreen, out resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.SaturationOffset saturationOffset && saturationOffset.Val != null && saturationOffset.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                        actionConvertHslToRgb(colorHue, colorSaturation + saturationOffset.Val.Value / 100000.0, colorLuminance, out resultRed, out resultGreen, out resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.Luminance luminance && luminance.Val != null && luminance.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturaion, out double _);
+                        actionConvertHslToRgb(colorHue, colorSaturaion, luminance.Val.Value / 100000.0, out resultRed, out resultGreen, out resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.LuminanceModulation luminanceModulation && luminanceModulation.Val != null && luminanceModulation.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                        actionConvertHslToRgb(colorHue, colorSaturation, colorLuminance * (luminanceModulation.Val.Value / 100000.0), out resultRed, out resultGreen, out resultBlue);
+                    }
+                    else if (effect is DocumentFormat.OpenXml.Drawing.LuminanceOffset luminanceOffset && luminanceOffset.Val != null && luminanceOffset.Val.HasValue)
+                    {
+                        actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
+                        actionConvertHslToRgb(colorHue, colorSaturation, colorLuminance + luminanceOffset.Val.Value / 100000.0, out resultRed, out resultGreen, out resultBlue);
+                    }
+                }
+                return true;
             }
-            else if (color is DocumentFormat.OpenXml.Drawing.PresetColor colorPreset && colorPreset.Val != null && colorPreset.Val.HasValue && themePresetColors.ContainsKey(colorPreset.Val.Value))
+
+            if (color is ColorType colorType)
             {
-                byte[] colorDictionary = themePresetColors[colorPreset.Val.Value];
-                resultRed = colorDictionary[0];
-                resultGreen = colorDictionary[1];
-                resultBlue = colorDictionary[2];
+                if (colorType.Auto != null && (!colorType.Auto.HasValue || colorType.Auto.Value))
+                {
+                    result = "initial";
+                    return true;
+                }
+                else if (colorType.Rgb != null && colorType.Rgb.HasValue)
+                {
+                    actionConvertHexToRgba(colorType.Rgb.Value, out resultRed, out resultGreen, out resultBlue, out resultAlpha);
+                }
+                else if (colorType.Indexed != null && colorType.Indexed.HasValue)
+                {
+                    void actionUpdateColor(byte red, byte green, byte blue)
+                    {
+                        resultRed = red;
+                        resultGreen = green;
+                        resultBlue = blue;
+                    };
+                    switch (colorType.Indexed.Value)
+                    {
+                        case 0:
+                            actionUpdateColor(0, 0, 0);
+                            break;
+                        case 1:
+                            actionUpdateColor(255, 255, 255);
+                            break;
+                        case 2:
+                            actionUpdateColor(255, 0, 0);
+                            break;
+                        case 3:
+                            actionUpdateColor(0, 255, 0);
+                            break;
+                        case 4:
+                            actionUpdateColor(0, 0, 255);
+                            break;
+                        case 5:
+                            actionUpdateColor(255, 255, 0);
+                            break;
+                        case 6:
+                            actionUpdateColor(255, 0, 255);
+                            break;
+                        case 7:
+                            actionUpdateColor(0, 255, 255);
+                            break;
+                        case 8:
+                            actionUpdateColor(0, 0, 0);
+                            break;
+                        case 9:
+                            actionUpdateColor(255, 255, 255);
+                            break;
+                        case 10:
+                            actionUpdateColor(255, 0, 0);
+                            break;
+                        case 11:
+                            actionUpdateColor(0, 255, 0);
+                            break;
+                        case 12:
+                            actionUpdateColor(0, 0, 255);
+                            break;
+                        case 13:
+                            actionUpdateColor(255, 255, 0);
+                            break;
+                        case 14:
+                            actionUpdateColor(255, 0, 255);
+                            break;
+                        case 15:
+                            actionUpdateColor(0, 255, 255);
+                            break;
+                        case 16:
+                            actionUpdateColor(128, 0, 0);
+                            break;
+                        case 17:
+                            actionUpdateColor(0, 128, 0);
+                            break;
+                        case 18:
+                            actionUpdateColor(0, 0, 128);
+                            break;
+                        case 19:
+                            actionUpdateColor(128, 128, 0);
+                            break;
+                        case 20:
+                            actionUpdateColor(128, 0, 128);
+                            break;
+                        case 21:
+                            actionUpdateColor(0, 128, 128);
+                            break;
+                        case 22:
+                            actionUpdateColor(192, 192, 192);
+                            break;
+                        case 23:
+                            actionUpdateColor(128, 128, 128);
+                            break;
+                        case 24:
+                            actionUpdateColor(153, 153, 255);
+                            break;
+                        case 25:
+                            actionUpdateColor(153, 51, 102);
+                            break;
+                        case 26:
+                            actionUpdateColor(255, 255, 204);
+                            break;
+                        case 27:
+                            actionUpdateColor(204, 255, 255);
+                            break;
+                        case 28:
+                            actionUpdateColor(102, 0, 102);
+                            break;
+                        case 29:
+                            actionUpdateColor(255, 128, 128);
+                            break;
+                        case 30:
+                            actionUpdateColor(0, 102, 204);
+                            break;
+                        case 31:
+                            actionUpdateColor(204, 204, 255);
+                            break;
+                        case 32:
+                            actionUpdateColor(0, 0, 128);
+                            break;
+                        case 33:
+                            actionUpdateColor(255, 0, 255);
+                            break;
+                        case 34:
+                            actionUpdateColor(255, 255, 0);
+                            break;
+                        case 35:
+                            actionUpdateColor(0, 255, 255);
+                            break;
+                        case 36:
+                            actionUpdateColor(128, 0, 128);
+                            break;
+                        case 37:
+                            actionUpdateColor(128, 0, 0);
+                            break;
+                        case 38:
+                            actionUpdateColor(0, 128, 128);
+                            break;
+                        case 39:
+                            actionUpdateColor(0, 0, 255);
+                            break;
+                        case 40:
+                            actionUpdateColor(0, 204, 255);
+                            break;
+                        case 41:
+                            actionUpdateColor(204, 255, 255);
+                            break;
+                        case 42:
+                            actionUpdateColor(204, 255, 204);
+                            break;
+                        case 43:
+                            actionUpdateColor(255, 255, 153);
+                            break;
+                        case 44:
+                            actionUpdateColor(153, 204, 255);
+                            break;
+                        case 45:
+                            actionUpdateColor(255, 153, 204);
+                            break;
+                        case 46:
+                            actionUpdateColor(204, 153, 255);
+                            break;
+                        case 47:
+                            actionUpdateColor(255, 204, 153);
+                            break;
+                        case 48:
+                            actionUpdateColor(51, 102, 255);
+                            break;
+                        case 49:
+                            actionUpdateColor(51, 204, 204);
+                            break;
+                        case 50:
+                            actionUpdateColor(153, 204, 0);
+                            break;
+                        case 51:
+                            actionUpdateColor(255, 204, 0);
+                            break;
+                        case 52:
+                            actionUpdateColor(255, 153, 0);
+                            break;
+                        case 53:
+                            actionUpdateColor(255, 102, 0);
+                            break;
+                        case 54:
+                            actionUpdateColor(102, 102, 153);
+                            break;
+                        case 55:
+                            actionUpdateColor(150, 150, 150);
+                            break;
+                        case 56:
+                            actionUpdateColor(0, 51, 102);
+                            break;
+                        case 57:
+                            actionUpdateColor(51, 153, 102);
+                            break;
+                        case 58:
+                            actionUpdateColor(0, 51, 0);
+                            break;
+                        case 59:
+                            actionUpdateColor(51, 51, 0);
+                            break;
+                        case 60:
+                            actionUpdateColor(153, 51, 0);
+                            break;
+                        case 61:
+                            actionUpdateColor(153, 51, 102);
+                            break;
+                        case 62:
+                            actionUpdateColor(51, 51, 153);
+                            break;
+                        case 63:
+                            actionUpdateColor(51, 51, 51);
+                            break;
+                        case 64:
+                            actionUpdateColor(128, 128, 128);
+                            break;
+                        case 65:
+                            actionUpdateColor(255, 255, 255);
+                            break;
+                        default:
+                            result = string.Empty;
+                            return false;
+                    }
+                }
+                else if (colorType.Theme == null || !colorType.Theme.HasValue || themes == null || colorType.Theme.Value < 0 || colorType.Theme.Value >= themes.Length || !(themes[colorType.Theme.Value].FirstChild is OpenXmlElement themeColorElement) || !actionGetColorElement(themeColorElement, themeColorElement.ChildElements))
+                {
+                    result = string.Empty;
+                    return false;
+                }
+                if (colorType.Tint != null && colorType.Tint.HasValue && colorType.Tint.Value != 0)
+                {
+                    actionConvertRgbToHsl(resultRed, resultGreen, resultBlue, out double hue, out double saturation, out double luminance);
+                    actionConvertHslToRgb(hue, saturation, colorType.Tint.Value < 0 ? luminance * (1 + colorType.Tint.Value) : luminance * (1 - colorType.Tint.Value) + colorType.Tint.Value, out resultRed, out resultGreen, out resultBlue);
+                }
             }
-            else if (color is DocumentFormat.OpenXml.Drawing.SchemeColor colorScheme && colorScheme.Val != null && colorScheme.Val.HasValue)
+            else if (!(color.FirstChild is OpenXmlElement colorElement) || !actionGetColorElement(colorElement, colorElement.ChildElements))
             {
-                DocumentFormat.OpenXml.Drawing.Color2Type colorTheme = null;
-                if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Light1)
-                {
-                    colorTheme = themes[0];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Dark1)
-                {
-                    colorTheme = themes[1];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Light2)
-                {
-                    colorTheme = themes[2];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Dark2)
-                {
-                    colorTheme = themes[3];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent1)
-                {
-                    colorTheme = themes[4];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent2)
-                {
-                    colorTheme = themes[5];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent3)
-                {
-                    colorTheme = themes[6];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent4)
-                {
-                    colorTheme = themes[7];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent5)
-                {
-                    colorTheme = themes[8];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Accent6)
-                {
-                    colorTheme = themes[9];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Hyperlink)
-                {
-                    colorTheme = themes[10];
-                }
-                else if (colorScheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.FollowedHyperlink)
-                {
-                    colorTheme = themes[11];
-                }
-                return colorTheme != null && GetColorElement(colorTheme.FirstChild, colorScheme.ChildElements, ref resultRed, ref resultGreen, ref resultBlue, ref resultAlpha, themes);
-            }
-            else
-            {
+                result = string.Empty;
                 return false;
             }
-            foreach (OpenXmlElement effect in effects)
-            {
-                if (effect is DocumentFormat.OpenXml.Drawing.Shade shade && shade.Val != null && shade.Val.HasValue)
-                {
-                    double amount = shade.Val.Value / 100000.0;
-                    resultRed = (byte)(resultRed * amount);
-                    resultGreen = (byte)(resultGreen * amount);
-                    resultBlue = (byte)(resultBlue * amount);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Tint tint && tint.Val != null && tint.Val.HasValue)
-                {
-                    double amount = tint.Val.Value / 100000.0;
-                    resultRed = (byte)(resultRed * amount + 255 * (1 - amount));
-                    resultGreen = (byte)(resultGreen * amount + 255 * (1 - amount));
-                    resultBlue = (byte)(resultBlue * amount + 255 * (1 - amount));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Inverse)
-                {
-                    resultRed = (byte)(255 - resultRed);
-                    resultGreen = (byte)(255 - resultGreen);
-                    resultBlue = (byte)(255 - resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Gray)
-                {
-                    byte grayscale = (byte)(resultRed * 0.3 + resultGreen * 0.59 + resultBlue * 0.11);
-                    resultRed = grayscale;
-                    resultGreen = grayscale;
-                    resultBlue = grayscale;
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Complement)
-                {
-                    double colorMax = Math.Max(resultRed, Math.Max(resultGreen, resultBlue));
-                    resultRed = (byte)(colorMax - resultRed);
-                    resultGreen = (byte)(colorMax - resultGreen);
-                    resultBlue = (byte)(colorMax - resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Gamma)
-                {
-                    double resultRedMapped = resultRed / 255.0;
-                    resultRed = (byte)((resultRedMapped > 0.04045 ? Math.Pow((resultRedMapped + 0.055) / 1.055, 2.4) : resultRedMapped / 12.92) * 255);
-                    double resultGreenMapped = resultGreen / 255.0;
-                    resultGreen = (byte)((resultGreenMapped > 0.04045 ? Math.Pow((resultGreenMapped + 0.055) / 1.055, 2.4) : resultGreenMapped / 12.92) * 255);
-                    double resultBlueMapped = resultBlue / 255.0;
-                    resultBlue = (byte)((resultBlueMapped > 0.04045 ? Math.Pow((resultBlueMapped + 0.055) / 1.055, 2.4) : resultBlueMapped / 12.92) * 255);
-
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.InverseGamma)
-                {
-                    double resultRedMapped = resultRed / 255.0;
-                    resultRed = (byte)((resultRedMapped > 0.0031308 ? 1.055 * Math.Pow(resultRedMapped, 1 / 2.4) - 0.055 : resultRedMapped * 12.92) * 255);
-                    double resultGreenMapped = resultGreen / 255.0;
-                    resultGreen = (byte)((resultGreenMapped > 0.0031308 ? 1.055 * Math.Pow(resultGreenMapped, 1 / 2.4) - 0.055 : resultGreenMapped * 12.92) * 255);
-                    double resultBlueMapped = resultBlue / 255.0;
-                    resultBlue = (byte)((resultBlueMapped > 0.0031308 ? 1.055 * Math.Pow(resultBlueMapped, 1 / 2.4) - 0.055 : resultBlueMapped * 12.92) * 255);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Red red && red.Val != null && red.Val.HasValue)
-                {
-                    resultRed = (byte)(red.Val.Value / 100000.0 * 255);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.RedModulation redModulation && redModulation.Val != null && redModulation.Val.HasValue)
-                {
-                    resultRed = (byte)(resultRed * (redModulation.Val.Value / 100000.0));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.RedOffset redOffset && redOffset.Val != null && redOffset.Val.HasValue)
-                {
-                    resultRed = (byte)(resultRed + (redOffset.Val.Value / 100000.0 * 255));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Green green && green.Val != null && green.Val.HasValue)
-                {
-                    resultGreen = (byte)(green.Val.Value / 100000.0 * 255);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.GreenModulation greenModulation && greenModulation.Val != null && greenModulation.Val.HasValue)
-                {
-                    resultGreen = (byte)(resultGreen * (greenModulation.Val.Value / 100000.0));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.GreenOffset greenOffset && greenOffset.Val != null && greenOffset.Val.HasValue)
-                {
-                    resultGreen = (byte)(resultGreen + (greenOffset.Val.Value / 100000.0 * 255));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Blue blue && blue.Val != null && blue.Val.HasValue)
-                {
-                    resultBlue = (byte)(blue.Val.Value / 100000.0 * 255);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.BlueModulation blueModulation && blueModulation.Val != null && blueModulation.Val.HasValue)
-                {
-                    resultBlue = (byte)(resultBlue * (blueModulation.Val.Value / 100000.0));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.BlueOffset blueOffset && blueOffset.Val != null && blueOffset.Val.HasValue)
-                {
-                    resultBlue = (byte)(resultBlue + (blueOffset.Val.Value / 100000.0 * 255));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Alpha alpha && alpha.Val != null && alpha.Val.HasValue)
-                {
-                    resultAlpha = (int)(alpha.Val.Value / 100000.0 * 100);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.AlphaModulation alphaModulation && alphaModulation.Val != null && alphaModulation.Val.HasValue)
-                {
-                    resultAlpha = (int)(resultAlpha * (alphaModulation.Val.Value / 100000.0));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.AlphaOffset alphaOffset && alphaOffset.Val != null && alphaOffset.Val.HasValue)
-                {
-                    resultAlpha = (int)(resultAlpha + (alphaOffset.Val.Value / 100000.0 * 100));
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Hue hue && hue.Val != null && hue.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double _, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(hue.Val.Value / 60000.0, colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.HueModulation hueModulation && hueModulation.Val != null && hueModulation.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue * (hueModulation.Val.Value / 100000.0), colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.HueOffset hueOffset && hueOffset.Val != null && hueOffset.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue + hueOffset.Val.Value / 60000.0, colorSaturation, colorLuminance, out resultRed, out resultGreen, out resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Saturation saturation && saturation.Val != null && saturation.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double _, out double colorLuminance);
-                    HslToRgb(colorHue, saturation.Val.Value / 100000.0, colorLuminance, out resultRed, out resultGreen, out resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.SaturationModulation saturationModulation && saturationModulation.Val != null && saturationModulation.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue, colorSaturation * (saturationModulation.Val.Value / 100000.0), colorLuminance, out resultRed, out resultGreen, out resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.SaturationOffset saturationOffset && saturationOffset.Val != null && saturationOffset.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue, colorSaturation + saturationOffset.Val.Value / 100000.0, colorLuminance, out resultRed, out resultGreen, out resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.Luminance luminance && luminance.Val != null && luminance.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturaion, out double _);
-                    HslToRgb(colorHue, colorSaturaion, luminance.Val.Value / 100000.0, out resultRed, out resultGreen, out resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.LuminanceModulation luminanceModulation && luminanceModulation.Val != null && luminanceModulation.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue, colorSaturation, colorLuminance * (luminanceModulation.Val.Value / 100000.0), out resultRed, out resultGreen, out resultBlue);
-                }
-                else if (effect is DocumentFormat.OpenXml.Drawing.LuminanceOffset luminanceOffset && luminanceOffset.Val != null && luminanceOffset.Val.HasValue)
-                {
-                    RgbToHsl(resultRed, resultGreen, resultBlue, out double colorHue, out double colorSaturation, out double colorLuminance);
-                    HslToRgb(colorHue, colorSaturation, colorLuminance + luminanceOffset.Val.Value / 100000.0, out resultRed, out resultGreen, out resultBlue);
-                }
-            }
+            result = config.UseHexColors ? $"#{resultRed:X2}{resultGreen:X2}{resultBlue:X2}{(resultAlpha < 100 ? ((byte)(resultAlpha / 100.0 * 255)).ToString("X2") : string.Empty)}" : $"{(resultAlpha < 100 ? "rgba" : "rgb")}({resultRed}, {resultGreen}, {resultBlue}{(resultAlpha < 100 ? $", {Math.Round(resultAlpha / 100.0, 2)}" : string.Empty)})";
             return true;
-        }
-
-        private static void HexToRgba(string hex, out byte red, out byte green, out byte blue, out int alpha)
-        {
-            string hexTrimmed = hex.TrimStart('#');
-            red = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 2 : 0, 2), 16) : 0);
-            green = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 4 : 2, 2), 16) : 0);
-            blue = (byte)(hexTrimmed.Length > 5 ? Convert.ToInt32(hexTrimmed.Substring(hexTrimmed.Length > 7 ? 6 : 4, 2), 16) : 0);
-            alpha = hexTrimmed.Length > 5 ? (hexTrimmed.Length > 7 ? (int)(Convert.ToInt32(hexTrimmed.Substring(0, 2), 16) / 255.0 * 100) : 100) : 100;
-        }
-
-        private static void RgbToHsl(byte red, byte green, byte blue, out double hue, out double saturation, out double luminance)
-        {
-            double redMapped = red / 255.0;
-            double greenMapped = green / 255.0;
-            double blueMapped = blue / 255.0;
-
-            double max = Math.Max(redMapped, Math.Max(greenMapped, blueMapped));
-            double min = Math.Min(redMapped, Math.Min(greenMapped, blueMapped));
-            double chroma = max - min;
-            double distanceRed = (max - redMapped) / chroma;
-            double distanceGreen = (max - greenMapped) / chroma;
-            double distanceBlue = (max - blueMapped) / chroma;
-            hue = max != min ? ((redMapped == max ? distanceBlue - distanceGreen : (greenMapped == max ? 2 + distanceRed - distanceBlue : 4 + distanceGreen - distanceRed)) * 60 % 360 + 360) % 360 : 0;
-            saturation = max != min ? (chroma / (max + min > 1 ? 2 - max - min : max + min)) : 0;
-            luminance = (max + min) / 2;
-        }
-
-        private static void HslToRgb(double hue, double saturation, double luminance, out byte red, out byte green, out byte blue)
-        {
-            double value1 = luminance <= 0.5 ? luminance * (1 + saturation) : luminance + saturation - luminance * saturation;
-            double value2 = 2 * luminance - value1;
-            double actionCalculateColor(double hueShifted)
-            {
-                hueShifted = (hueShifted % 360 + 360) % 360;
-                return hueShifted < 60 ? value2 + (value1 - value2) * hueShifted / 60 : (hueShifted < 180 ? value1 : (hueShifted < 240 ? value2 + (value1 - value2) * (240 - hueShifted) / 60 : value2));
-            }
-            red = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue + 120)) * 255);
-            green = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue)) * 255);
-            blue = (byte)((saturation == 0 ? luminance : actionCalculateColor(hue - 120)) * 255);
         }
 
         #endregion
