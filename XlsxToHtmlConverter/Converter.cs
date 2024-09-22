@@ -277,6 +277,12 @@ namespace XlsxToHtmlConverter
                         foreach (TableDefinitionPart tableDefinitionPart in worksheetPart.TableDefinitionParts ?? Enumerable.Empty<TableDefinitionPart>())
                         {
                             //TODO: tables
+                            if (tableDefinitionPart.Table == null || tableDefinitionPart.Table.Reference == null || !tableDefinitionPart.Table.Reference.HasValue)
+                            {
+                                continue;
+                            }
+
+                            GetReferenceRange(tableDefinitionPart.Table.Reference.Value, out int tableFromColumn, out int tableFromRow, out int tableToColumn, out int tableToRow);
                         }
 
                         Dictionary<int, double> drawingColumnMarkers = new Dictionary<int, double>();
