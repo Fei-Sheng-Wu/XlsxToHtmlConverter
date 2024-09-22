@@ -2,27 +2,18 @@
 
   <PropertyGroup>
     <TargetFrameworks>net6.0;netstandard2.0</TargetFrameworks>
+    <Title>XlsxToHtmlConverter</Title>
     <Version>1.2.20</Version>
     <Authors>FeiShengWu</Authors>
-    <Company></Company>
     <Description>A fast Xlsx to Html file converter. Support cell fills, fonts, borders, alignments, and other styles. Support different cell sizes and merged cells. Support custom number formats and basic conditions. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.</Description>
     <Copyright>Copyright © 2024 FeiShengWu</Copyright>
     <PackageProjectUrl>https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter</PackageProjectUrl>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Title>$(AssemblyName)</Title>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>C#;Excel;Xlsx;Html;Webpage;Converter;Exporter;Parser;Data;Spreadsheet;OpenXml</PackageTags>
-    <PackageLicenseFile>MIT License.txt</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="[3.0.0,)" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="MIT License.txt">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
   </ItemGroup>
 
 </Project>
