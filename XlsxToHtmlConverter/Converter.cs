@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
+using System.Globalization;
 
 namespace XlsxToHtmlConverter
 {
@@ -132,13 +133,13 @@ namespace XlsxToHtmlConverter
         }
 
         /// <summary>
-        /// Converts a stream Xlsx file to Html string with specific configurations and progress callback event.
+        /// Converts a <see cref="SpreadsheetDocument"/> Xlsx file to Html string with specific configurations and progress callback event.
         /// </summary>
-        /// <param name="inputXlsx">The input SpreadsheetDocument object.</param>
+        /// <param name="inputDocument">The input <see cref="SpreadsheetDocument"/> object of the Xlsx file.</param>
         /// <param name="outputHtml">The output stream of the Html file.</param>
         /// <param name="config">The conversion configurations.</param>
         /// <param name="progressCallback">The progress callback event.</param>
-        public static void ConvertXlsx(SpreadsheetDocument document, Stream outputHtml, ConverterConfig config, EventHandler<ConverterProgressCallbackEventArgs> progressCallback)
+        public static void ConvertXlsx(SpreadsheetDocument inputDocument, Stream outputHtml, ConverterConfig config, EventHandler<ConverterProgressCallbackEventArgs> progressCallback)
         {
             ConverterConfig configClone = config == null ? ConverterConfig.DefaultSettings : config.Clone();
 
@@ -162,7 +163,7 @@ namespace XlsxToHtmlConverter
 </head>
 <body>" : $"<style>\n{configClone.PresetStyles}\n</style>");
 
-                WorkbookPart workbook = document.WorkbookPart;
+                WorkbookPart workbook = inputDocument.WorkbookPart;
 
                 DocumentFormat.OpenXml.Drawing.Color2Type[] themes = null;
                 if (workbook.ThemePart != null && workbook.ThemePart.Theme != null && workbook.ThemePart.Theme.ThemeElements != null && workbook.ThemePart.Theme.ThemeElements.ColorScheme != null)
@@ -484,7 +485,7 @@ namespace XlsxToHtmlConverter
                             {
                                 if (configClone.ConvertSizes)
                                 {
-                                    rowHeightsAccumulation += rowHeightDefault + 0.8;
+                                    rowHeightsAccumulation += rowHeightDefault;
                                     if (drawingRowMarkers.ContainsKey(additionalRowIndex))
                                     {
                                         drawingRowMarkers[additionalRowIndex] = RoundNumber(rowHeightsAccumulation, configClone.RoundingDigits);
@@ -494,7 +495,7 @@ namespace XlsxToHtmlConverter
                                 writer.Write($"\n{new string(' ', 12)}<tr>");
                                 for (int additionalColumnIndex = 0; additionalColumnIndex < columnWidths.Length; additionalColumnIndex++)
                                 {
-                                    writer.Write($"\n{new string(' ', 16)}<td style=\"width: {(configClone.ConvertSizes ? $"{columnWidths[additionalColumnIndex].ToInvariant()}%" : "auto")}; height: {(configClone.ConvertSizes ? $"{rowHeightDefault.ToInvariant()}px" : "auto")};\"></td>");
+                                    writer.Write($"\n{new string(' ', 16)}<td style=\"width: {(configClone.ConvertSizes ? $"{GetInvariantNumber(columnWidths[additionalColumnIndex])}%" : "auto")}; height: {(configClone.ConvertSizes ? $"{GetInvariantNumber(rowHeightDefault)}px" : "auto")};\"></td>");
                                 }
                                 writer.Write($"\n{new string(' ', 12)}</tr>");
                             }
@@ -503,7 +504,7 @@ namespace XlsxToHtmlConverter
                         double cellHeightActual = (row.CustomHeight == null || !row.CustomHeight.HasValue || row.CustomHeight.Value) && row.Height != null && row.Height.HasValue ? RoundNumber(row.Height.Value / 72 * 96, configClone.RoundingDigits) : rowHeightDefault;
                         if (configClone.ConvertSizes)
                         {
-                            rowHeightsAccumulation += cellHeightActual + 0.8;
+                            rowHeightsAccumulation += cellHeightActual;
                             if (drawingRowMarkers.ContainsKey(rowIndex))
                             {
                                 drawingRowMarkers[rowIndex] = RoundNumber(rowHeightsAccumulation, configClone.RoundingDigits);
@@ -961,12 +962,12 @@ namespace XlsxToHtmlConverter
                                 }
                             }
 
-                            writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned > 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned > 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)}{(configClone.UseHtmlStyleClasses && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length ? $" class=\"format-{styleIndex}\"" : string.Empty)} style=\"width: {(configClone.ConvertSizes && columnSpanned <= 1 ? $"{cellWidthActual.ToInvariant()}%" : "auto")}; height: {(configClone.ConvertSizes && rowSpanned <= 1 ? $"{cellHeightActual.ToInvariant()}px" : "auto")};{GetAttributesString(cellStyles, true, -1)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
+                            writer.Write($"\n{new string(' ', 16)}<td{(columnSpanned > 1 ? $" colspan=\"{columnSpanned}\"" : string.Empty)}{(rowSpanned > 1 ? $" rowspan=\"{rowSpanned}\"" : string.Empty)}{(configClone.UseHtmlStyleClasses && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length ? $" class=\"format-{styleIndex}\"" : string.Empty)} style=\"width: {(configClone.ConvertSizes && columnSpanned <= 1 ? $"{GetInvariantNumber(cellWidthActual)}%" : "auto")}; height: {(configClone.ConvertSizes && rowSpanned <= 1 ? $"{GetInvariantNumber(cellHeightActual)}px" : "auto")};{GetAttributesString(cellStyles, true, -1)}\">{cellValueContainer.Replace("{0}", cellValue)}</td>");
                         }
 
                         writer.Write($"\n{new string(' ', 12)}</tr>");
 
-                        progressCallback?.Invoke(document, new ConverterProgressCallbackEventArgs(sheetIndex, sheetsCount, rowIndex - sheetDimensionFromRow + 1, sheetDimensionToRow - sheetDimensionFromRow + 1));
+                        progressCallback?.Invoke(inputDocument, new ConverterProgressCallbackEventArgs(sheetIndex, sheetsCount, rowIndex - sheetDimensionFromRow + 1, sheetDimensionToRow - sheetDimensionFromRow + 1));
                     }
 
                     writer.Write($"\n{new string(' ', 8)}</table>");
@@ -978,10 +979,10 @@ namespace XlsxToHtmlConverter
                             string drawing = string.Empty;
                             if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor anchorAbsolute)
                             {
-                                string left = anchorAbsolute.Position != null && anchorAbsolute.Position.X != null && anchorAbsolute.Position.X.HasValue ? $"{RoundNumber(anchorAbsolute.Position.X.Value / 914400.0 * 96, configClone.RoundingDigits).ToInvariant()}px" : "0";
-                                string top = anchorAbsolute.Position != null && anchorAbsolute.Position.Y != null && anchorAbsolute.Position.Y.HasValue ? $"{RoundNumber(anchorAbsolute.Position.Y.Value / 914400.0 * 96, configClone.RoundingDigits).ToInvariant()}px" : "0";
-                                string width = anchorAbsolute.Extent != null && anchorAbsolute.Extent.Cx != null && anchorAbsolute.Extent.Cx.HasValue ? $"{RoundNumber(anchorAbsolute.Extent.Cx.Value / 914400.0 * 96, configClone.RoundingDigits).ToInvariant()}px" : "auto";
-                                string height = anchorAbsolute.Extent != null && anchorAbsolute.Extent.Cy != null && anchorAbsolute.Extent.Cy.HasValue ? $"{RoundNumber(anchorAbsolute.Extent.Cy.Value / 914400.0 * 96, configClone.RoundingDigits).ToInvariant()}px" : "auto";
+                                string left = anchorAbsolute.Position != null && anchorAbsolute.Position.X != null && anchorAbsolute.Position.X.HasValue ? $"{GetInvariantNumber(RoundNumber(anchorAbsolute.Position.X.Value / 914400.0 * 96, configClone.RoundingDigits))}px" : "0";
+                                string top = anchorAbsolute.Position != null && anchorAbsolute.Position.Y != null && anchorAbsolute.Position.Y.HasValue ? $"{GetInvariantNumber(RoundNumber(anchorAbsolute.Position.Y.Value / 914400.0 * 96, configClone.RoundingDigits))}px" : "0";
+                                string width = anchorAbsolute.Extent != null && anchorAbsolute.Extent.Cx != null && anchorAbsolute.Extent.Cx.HasValue ? $"{GetInvariantNumber(RoundNumber(anchorAbsolute.Extent.Cx.Value / 914400.0 * 96, configClone.RoundingDigits))}px" : "auto";
+                                string height = anchorAbsolute.Extent != null && anchorAbsolute.Extent.Cy != null && anchorAbsolute.Extent.Cy.HasValue ? $"{GetInvariantNumber(RoundNumber(anchorAbsolute.Extent.Cy.Value / 914400.0 * 96, configClone.RoundingDigits))}px" : "auto";
                                 drawing = GetDrawing(anchorAbsolute, left, top, width, height, worksheetPart.DrawingsPart, themes, configClone);
                             }
                             else if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor anchorOneCell)
@@ -990,9 +991,9 @@ namespace XlsxToHtmlConverter
                                 double leftOffset = anchorOneCell.FromMarker.ColumnOffset != null && int.TryParse(anchorOneCell.FromMarker.ColumnOffset.Text, out int columnOffset) ? RoundNumber(columnOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
                                 double top = configClone.ConvertSizes && anchorOneCell.FromMarker != null && anchorOneCell.FromMarker.RowId != null && int.TryParse(anchorOneCell.FromMarker.RowId.Text, out int rowId) && drawingRowMarkers.ContainsKey(rowId) ? drawingRowMarkers[rowId] : double.NaN;
                                 double topOffset = anchorOneCell.FromMarker.RowOffset != null && int.TryParse(anchorOneCell.FromMarker.RowOffset.Text, out int rowOffset) ? RoundNumber(rowOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
-                                string width = anchorOneCell.Extent != null && anchorOneCell.Extent.Cx != null && anchorOneCell.Extent.Cx.HasValue ? $"{RoundNumber(anchorOneCell.Extent.Cx.Value / 914400.0 * 96, configClone.RoundingDigits).ToInvariant()}px" : "auto";
-                                string height = anchorOneCell.Extent != null && anchorOneCell.Extent.Cy != null && anchorOneCell.Extent.Cy.HasValue ? $"{RoundNumber(anchorOneCell.Extent.Cy.Value / 914400.0 * 96, configClone.RoundingDigits).ToInvariant()}px" : "auto";
-                                drawing = GetDrawing(anchorOneCell, !double.IsNaN(left) ? $"calc({left.ToInvariant()}% + {leftOffset.ToInvariant()}px)" : "0", !double.IsNaN(top) ? $"{RoundNumber(top + topOffset, configClone.RoundingDigits).ToInvariant()}px" : "0", width, height, worksheetPart.DrawingsPart, themes, configClone);
+                                string width = anchorOneCell.Extent != null && anchorOneCell.Extent.Cx != null && anchorOneCell.Extent.Cx.HasValue ? $"{GetInvariantNumber(RoundNumber(anchorOneCell.Extent.Cx.Value / 914400.0 * 96, configClone.RoundingDigits))}px" : "auto";
+                                string height = anchorOneCell.Extent != null && anchorOneCell.Extent.Cy != null && anchorOneCell.Extent.Cy.HasValue ? $"{GetInvariantNumber(RoundNumber(anchorOneCell.Extent.Cy.Value / 914400.0 * 96, configClone.RoundingDigits))}px" : "auto";
+                                drawing = GetDrawing(anchorOneCell, !double.IsNaN(left) ? $"calc({GetInvariantNumber(left)}% + {GetInvariantNumber(leftOffset)}px)" : "0", !double.IsNaN(top) ? $"{GetInvariantNumber(RoundNumber(top + topOffset, configClone.RoundingDigits))}px" : "0", width, height, worksheetPart.DrawingsPart, themes, configClone);
                             }
                             else if (drawingElement is DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor anchorTwoCell)
                             {
@@ -1004,7 +1005,7 @@ namespace XlsxToHtmlConverter
                                 double rightOffset = anchorTwoCell.ToMarker.ColumnOffset != null && int.TryParse(anchorTwoCell.ToMarker.ColumnOffset.Text, out int toMarkerColumnOffset) ? RoundNumber(toMarkerColumnOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
                                 double bottom = configClone.ConvertSizes && anchorTwoCell.ToMarker != null && anchorTwoCell.ToMarker.RowId != null && int.TryParse(anchorTwoCell.ToMarker.RowId.Text, out int toRowId) && drawingRowMarkers.ContainsKey(toRowId) ? drawingRowMarkers[toRowId] : double.NaN;
                                 double bottomOffset = anchorTwoCell.ToMarker.RowOffset != null && int.TryParse(anchorTwoCell.ToMarker.RowOffset.Text, out int toMarkerRowOffset) ? RoundNumber(toMarkerRowOffset / 914400.0 * 96, configClone.RoundingDigits) : 0;
-                                drawing = GetDrawing(anchorTwoCell, !double.IsNaN(left) ? $"calc({left.ToInvariant()}% + {leftOffset.ToInvariant()}px)" : "0", !double.IsNaN(top) ? $"{RoundNumber(top + topOffset, configClone.RoundingDigits).ToInvariant()}px" : "0", !double.IsNaN(left) && !double.IsNaN(right) ? $"calc({RoundNumber(right - left, configClone.RoundingDigits).ToInvariant()}% + {RoundNumber(rightOffset - leftOffset, configClone.RoundingDigits).ToInvariant()}px)" : "auto", !double.IsNaN(top) && !double.IsNaN(bottom) ? $"{RoundNumber(bottom + bottomOffset - top - topOffset, configClone.RoundingDigits).ToInvariant()}px" : "auto", worksheetPart.DrawingsPart, themes, configClone);
+                                drawing = GetDrawing(anchorTwoCell, !double.IsNaN(left) ? $"calc({GetInvariantNumber(left)}% + {GetInvariantNumber(leftOffset)}px)" : "0", !double.IsNaN(top) ? $"{GetInvariantNumber(RoundNumber(top + topOffset, configClone.RoundingDigits))}px" : "0", !double.IsNaN(left) && !double.IsNaN(right) ? $"calc({GetInvariantNumber(RoundNumber(right - left, configClone.RoundingDigits))}% + {GetInvariantNumber(RoundNumber(rightOffset - leftOffset, configClone.RoundingDigits))}px)" : "auto", !double.IsNaN(top) && !double.IsNaN(bottom) ? $"{GetInvariantNumber(RoundNumber(bottom + bottomOffset - top - topOffset, configClone.RoundingDigits))}px" : "auto", worksheetPart.DrawingsPart, themes, configClone);
                             }
                             if (!string.IsNullOrEmpty(drawing))
                             {
@@ -1054,6 +1055,11 @@ namespace XlsxToHtmlConverter
         private static double RoundNumber(double number, int digits)
         {
             return digits < 0 ? number : Math.Round(number, digits);
+        }
+
+        private static string GetInvariantNumber(double number)
+        {
+            return number.ToString(CultureInfo.InvariantCulture);
         }
 
         private static string GetEscapedString(string value)
@@ -1544,7 +1550,7 @@ namespace XlsxToHtmlConverter
             {
                 if (fontPropertiesType.FontSize != null && fontPropertiesType.FontSize.HasValue)
                 {
-                    styles["font-size"] = $"{RoundNumber(fontPropertiesType.FontSize.Value / 7200.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                    styles["font-size"] = $"{GetInvariantNumber(RoundNumber(fontPropertiesType.FontSize.Value / 7200.0 * 96, config.RoundingDigits))}px";
                 }
                 if (fontPropertiesType.Bold != null)
                 {
@@ -1608,7 +1614,7 @@ namespace XlsxToHtmlConverter
                 }
                 if (fontPropertiesType.Spacing != null && fontPropertiesType.Spacing.HasValue)
                 {
-                    styles["letter-spacing"] = $"{RoundNumber(fontPropertiesType.Spacing.Value / 7200.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                    styles["letter-spacing"] = $"{GetInvariantNumber(RoundNumber(fontPropertiesType.Spacing.Value / 7200.0 * 96, config.RoundingDigits))}px";
                 }
                 if (fontPropertiesType.Capital != null)
                 {
@@ -1631,7 +1637,7 @@ namespace XlsxToHtmlConverter
                 }
                 else if (fontElement is FontSize fontSize && fontSize.Val != null && fontSize.Val.HasValue)
                 {
-                    styles["font-size"] = $"{RoundNumber(fontSize.Val.Value / 72 * 96, config.RoundingDigits).ToInvariant()}px";
+                    styles["font-size"] = $"{GetInvariantNumber(RoundNumber(fontSize.Val.Value / 72 * 96, config.RoundingDigits))}px";
                 }
                 else if (fontElement is Bold fontBold)
                 {
@@ -1717,12 +1723,12 @@ namespace XlsxToHtmlConverter
                 {
                     if (fill.GradientFill.Type == null || !fill.GradientFill.Type.HasValue || fill.GradientFill.Type.Value == GradientValues.Linear)
                     {
-                        string fillColor = $"linear-gradient({(fill.GradientFill.Degree != null && fill.GradientFill.Degree.HasValue ? RoundNumber(((fill.GradientFill.Degree.Value + 90) % 360 + 360) % 360, config.RoundingDigits).ToInvariant() : "90")}deg";
+                        string fillColor = $"linear-gradient({(fill.GradientFill.Degree != null && fill.GradientFill.Degree.HasValue ? GetInvariantNumber(RoundNumber(((fill.GradientFill.Degree.Value + 90) % 360 + 360) % 360, config.RoundingDigits)) : "90")}deg";
                         foreach (GradientStop gradient in fill.GradientFill.Elements<GradientStop>())
                         {
                             if (gradient.Color != null && GetColor(gradient.Color, out string gradientColor, themes, config))
                             {
-                                fillColor += $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber(gradient.Position.Value * 100, config.RoundingDigits).ToInvariant()}%" : string.Empty)}";
+                                fillColor += $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {GetInvariantNumber(RoundNumber(gradient.Position.Value * 100, config.RoundingDigits))}%" : string.Empty)}";
                             }
                         }
                         styles["background"] = $"{fillColor})";
@@ -1734,12 +1740,12 @@ namespace XlsxToHtmlConverter
                         double gradientRight = fill.GradientFill.Right != null && fill.GradientFill.Right.HasValue ? fill.GradientFill.Right.Value : 0;
                         double gradientBottom = fill.GradientFill.Bottom != null && fill.GradientFill.Bottom.HasValue ? fill.GradientFill.Bottom.Value : 0;
                         double gradientRadius = ((gradientLeft + gradientRight) / 2 + (gradientTop + gradientBottom) / 2 - gradientLeft - gradientTop) / 2;
-                        string fillColor = $"radial-gradient(circle at {RoundNumber((gradientLeft + gradientRight) / 2 * 100, config.RoundingDigits).ToInvariant()}% {RoundNumber((gradientTop + gradientBottom) / 2 * 100, config.RoundingDigits).ToInvariant()}%";
+                        string fillColor = $"radial-gradient(circle at {GetInvariantNumber(RoundNumber((gradientLeft + gradientRight) / 2 * 100, config.RoundingDigits))}% {GetInvariantNumber(RoundNumber((gradientTop + gradientBottom) / 2 * 100, config.RoundingDigits))}%";
                         foreach (GradientStop gradient in fill.GradientFill.Elements<GradientStop>())
                         {
                             if (gradient.Color != null && GetColor(gradient.Color, out string gradientColor, themes, config))
                             {
-                                fillColor += $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {RoundNumber((gradientRadius + gradient.Position.Value * (1 - gradientRadius)) * 100, config.RoundingDigits).ToInvariant()}%" : string.Empty)}";
+                                fillColor += $", {gradientColor}{(gradient.Position != null && gradient.Position.HasValue ? $" {GetInvariantNumber(RoundNumber((gradientRadius + gradient.Position.Value * (1 - gradientRadius)) * 100, config.RoundingDigits))}%" : string.Empty)}";
                             }
                         }
                         styles["background"] = $"{fillColor})";
@@ -1843,7 +1849,7 @@ namespace XlsxToHtmlConverter
                 }
                 if (alignment.TextRotation != null && alignment.TextRotation.HasValue && alignment.TextRotation.Value != 0)
                 {
-                    valueContainer = valueContainer.Replace("{0}", $"<div style=\"width: fit-content; transform: rotate(-{RoundNumber(alignment.TextRotation.Value, config.RoundingDigits).ToInvariant()}deg);\">{{0}}</div>");
+                    valueContainer = valueContainer.Replace("{0}", $"<div style=\"width: fit-content; transform: rotate(-{GetInvariantNumber(RoundNumber(alignment.TextRotation.Value, config.RoundingDigits))}deg);\">{{0}}</div>");
                 }
             }
             return styles.Count > 0 ? styles : null;
@@ -1932,19 +1938,19 @@ namespace XlsxToHtmlConverter
                                         }
                                         if (paragraphProperties.LeftMargin != null && paragraphProperties.LeftMargin.HasValue && paragraphProperties.LeftMargin.Value != 0)
                                         {
-                                            paragraphStyles["margin-left"] = $"{RoundNumber(paragraphProperties.LeftMargin.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                                            paragraphStyles["margin-left"] = $"{GetInvariantNumber(RoundNumber(paragraphProperties.LeftMargin.Value / 914400.0 * 96, config.RoundingDigits))}px";
                                         }
                                         if (paragraphProperties.RightMargin != null && paragraphProperties.RightMargin.HasValue && paragraphProperties.RightMargin.Value != 0)
                                         {
-                                            paragraphStyles["margin-right"] = $"{RoundNumber(paragraphProperties.RightMargin.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                                            paragraphStyles["margin-right"] = $"{GetInvariantNumber(RoundNumber(paragraphProperties.RightMargin.Value / 914400.0 * 96, config.RoundingDigits))}px";
                                         }
                                         if (paragraphProperties.Indent != null && paragraphProperties.Indent.HasValue && paragraphProperties.Indent.Value != 0)
                                         {
-                                            paragraphStyles["text-indent"] = $"{RoundNumber(paragraphProperties.Indent.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                                            paragraphStyles["text-indent"] = $"{GetInvariantNumber(RoundNumber(paragraphProperties.Indent.Value / 914400.0 * 96, config.RoundingDigits))}px";
                                         }
                                         if (paragraphProperties.DefaultTabSize != null && paragraphProperties.DefaultTabSize.HasValue)
                                         {
-                                            paragraphStyles["tab-size"] = $"{RoundNumber(paragraphProperties.DefaultTabSize.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                                            paragraphStyles["tab-size"] = $"{GetInvariantNumber(RoundNumber(paragraphProperties.DefaultTabSize.Value / 914400.0 * 96, config.RoundingDigits))}px";
                                         }
                                         if (paragraphProperties.RightToLeft != null && paragraphProperties.RightToLeft.HasValue && paragraphProperties.RightToLeft.Value)
                                         {
@@ -1962,11 +1968,11 @@ namespace XlsxToHtmlConverter
                                             {
                                                 if (paragraphLineSpacing.SpacingPercent != null && paragraphLineSpacing.SpacingPercent.Val != null && paragraphLineSpacing.SpacingPercent.Val.HasValue)
                                                 {
-                                                    paragraphStyles["line-height"] = RoundNumber(paragraphLineSpacing.SpacingPercent.Val.Value / 100000.0, config.RoundingDigits).ToInvariant();
+                                                    paragraphStyles["line-height"] = GetInvariantNumber(RoundNumber(paragraphLineSpacing.SpacingPercent.Val.Value / 100000.0, config.RoundingDigits));
                                                 }
                                                 else if (paragraphLineSpacing.SpacingPoints != null && paragraphLineSpacing.SpacingPoints.Val != null && paragraphLineSpacing.SpacingPoints.Val.HasValue)
                                                 {
-                                                    paragraphStyles["line-height"] = $"{RoundNumber(paragraphLineSpacing.SpacingPoints.Val.Value / 7200.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                                                    paragraphStyles["line-height"] = $"{GetInvariantNumber(RoundNumber(paragraphLineSpacing.SpacingPoints.Val.Value / 7200.0 * 96, config.RoundingDigits))}px";
                                                 }
                                             }
                                         }
@@ -2020,7 +2026,7 @@ namespace XlsxToHtmlConverter
                                 }
                                 if (bodyProperties.Rotation != null && bodyProperties.Rotation.HasValue)
                                 {
-                                    shapeValue = $"<div style=\"width: fit-content; transform: rotate({RoundNumber(bodyProperties.Rotation.Value / 60000.0, config.RoundingDigits).ToInvariant()}deg);\">{shapeValue}</div>";
+                                    shapeValue = $"<div style=\"width: fit-content; transform: rotate({GetInvariantNumber(RoundNumber(bodyProperties.Rotation.Value / 60000.0, config.RoundingDigits))}deg);\">{shapeValue}</div>";
                                 }
                             }
                         }
@@ -2051,27 +2057,27 @@ namespace XlsxToHtmlConverter
                         {
                             if (left == "0" && propertiesTransform.Offset.X != null && propertiesTransform.Offset.X.HasValue && propertiesTransform.Offset.X.Value != 0)
                             {
-                                elementStylesTransforms += $" translateX({RoundNumber(propertiesTransform.Offset.X.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px)";
+                                elementStylesTransforms += $" translateX({GetInvariantNumber(RoundNumber(propertiesTransform.Offset.X.Value / 914400.0 * 96, config.RoundingDigits))}px)";
                             }
                             if (top == "0" && propertiesTransform.Offset.Y != null && propertiesTransform.Offset.Y.HasValue && propertiesTransform.Offset.Y.Value != 0)
                             {
-                                elementStylesTransforms += $" translateY({RoundNumber(propertiesTransform.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px)";
+                                elementStylesTransforms += $" translateY({GetInvariantNumber(RoundNumber(propertiesTransform.Offset.Y.Value / 914400.0 * 96, config.RoundingDigits))}px)";
                             }
                         }
                         if (propertiesTransform.Extents != null)
                         {
                             if (widthActual == "auto" && propertiesTransform.Extents.Cx != null && propertiesTransform.Extents.Cx.HasValue)
                             {
-                                widthActual = $"{RoundNumber(propertiesTransform.Extents.Cx.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                                widthActual = $"{GetInvariantNumber(RoundNumber(propertiesTransform.Extents.Cx.Value / 914400.0 * 96, config.RoundingDigits))}px";
                             }
                             if (heightActual == "auto" && propertiesTransform.Extents.Cy != null && propertiesTransform.Extents.Cy.HasValue)
                             {
-                                heightActual = $"{RoundNumber(propertiesTransform.Extents.Cy.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px";
+                                heightActual = $"{GetInvariantNumber(RoundNumber(propertiesTransform.Extents.Cy.Value / 914400.0 * 96, config.RoundingDigits))}px";
                             }
                         }
                         if (propertiesTransform.Rotation != null && propertiesTransform.Rotation.HasValue && propertiesTransform.Rotation.Value != 0)
                         {
-                            elementStylesTransforms += $" rotate({RoundNumber(propertiesTransform.Rotation.Value / 60000.0, config.RoundingDigits).ToInvariant()}deg)";
+                            elementStylesTransforms += $" rotate({GetInvariantNumber(RoundNumber(propertiesTransform.Rotation.Value / 60000.0, config.RoundingDigits))}deg)";
                         }
                         if (propertiesTransform.HorizontalFlip != null && (!propertiesTransform.HorizontalFlip.HasValue || propertiesTransform.HorizontalFlip.Value))
                         {
@@ -2097,7 +2103,7 @@ namespace XlsxToHtmlConverter
                     }
                     else if (propertiesElement is DocumentFormat.OpenXml.Drawing.Outline propertiesOutline)
                     {
-                        string outlineWidth = propertiesOutline.Width != null && propertiesOutline.Width.HasValue ? $"{RoundNumber(propertiesOutline.Width.Value / 914400.0 * 96, config.RoundingDigits).ToInvariant()}px" : "thin";
+                        string outlineWidth = propertiesOutline.Width != null && propertiesOutline.Width.HasValue ? $"{GetInvariantNumber(RoundNumber(propertiesOutline.Width.Value / 914400.0 * 96, config.RoundingDigits))}px" : "thin";
                         string outlineStyle = propertiesOutline.CompoundLineType != null && propertiesOutline.CompoundLineType.HasValue && propertiesOutline.CompoundLineType.Value != DocumentFormat.OpenXml.Drawing.CompoundLineValues.Single ? "double" : "solid";
                         string outlineColor = string.Empty;
                         foreach (OpenXmlElement outlineElement in propertiesOutline.Elements())
@@ -2144,7 +2150,7 @@ namespace XlsxToHtmlConverter
                                 double arcAngleEnd = geometryPathArcTo.SwingAngle != null && geometryPathArcTo.SwingAngle.HasValue && double.TryParse(geometryPathArcTo.SwingAngle.Value, out double angleSwing) ? arcAngleStart + angleSwing / 60000.0 * Math.PI / 180 : arcAngleStart;
                                 pointLastX = RoundNumber(pointLastX - arcRadiusX * Math.Cos(arcAngleStart) + arcRadiusX * Math.Cos(arcAngleEnd), config.RoundingDigits);
                                 pointLastY = RoundNumber(pointLastY - arcRadiusY * Math.Sin(arcAngleStart) + arcRadiusY * Math.Sin(arcAngleEnd), config.RoundingDigits);
-                                attribute += $"A {RoundNumber(arcRadiusX, config.RoundingDigits).ToInvariant()} {RoundNumber(arcRadiusY, config.RoundingDigits).ToInvariant()} 0 1 1 {pointLastX.ToInvariant()},{pointLastY.ToInvariant()} ";
+                                attribute += $"A {GetInvariantNumber(RoundNumber(arcRadiusX, config.RoundingDigits))} {GetInvariantNumber(RoundNumber(arcRadiusY, config.RoundingDigits))} 0 1 1 {GetInvariantNumber(pointLastX)},{GetInvariantNumber(pointLastY)} ";
                             }
                             else if (geometryPathElement is DocumentFormat.OpenXml.Drawing.CloseShapePath)
                             {
@@ -2172,7 +2178,7 @@ namespace XlsxToHtmlConverter
                                 {
                                     pointLastX = geometryPathPoint.X != null && geometryPathPoint.X.HasValue && double.TryParse(geometryPathPoint.X.Value, out double pointX) ? RoundNumber(pointX / 914400.0 * 96, config.RoundingDigits) : 0;
                                     pointLastY = geometryPathPoint.Y != null && geometryPathPoint.Y.HasValue && double.TryParse(geometryPathPoint.Y.Value, out double pointY) ? RoundNumber(pointY / 914400.0 * 96, config.RoundingDigits) : 0;
-                                    attribute += $"{pointLastX.ToInvariant()},{pointLastY.ToInvariant()} ";
+                                    attribute += $"{GetInvariantNumber(pointLastX)},{GetInvariantNumber(pointLastY)} ";
                                 }
                             }
                         }
@@ -2201,7 +2207,7 @@ namespace XlsxToHtmlConverter
             }
             if (elementPaddingTop != 0 || elementPaddingRight != 0 || elementPaddingBottom != 0 || elementPaddingLeft != 0)
             {
-                elementStyles["padding"] = $"{RoundNumber(elementPaddingTop, config.RoundingDigits).ToInvariant()}px {RoundNumber(elementPaddingRight, config.RoundingDigits).ToInvariant()}px {RoundNumber(elementPaddingBottom, config.RoundingDigits).ToInvariant()}px {RoundNumber(elementPaddingLeft, config.RoundingDigits).ToInvariant()}px";
+                elementStyles["padding"] = $"{GetInvariantNumber(RoundNumber(elementPaddingTop, config.RoundingDigits))}px {GetInvariantNumber(RoundNumber(elementPaddingRight, config.RoundingDigits))}px {GetInvariantNumber(RoundNumber(elementPaddingBottom, config.RoundingDigits))}px {GetInvariantNumber(RoundNumber(elementPaddingLeft, config.RoundingDigits))}px";
             }
             return element.Replace("{0}", $"position: absolute; left: {left}; top: {top}; width: {widthActual}; height: {heightActual};{GetAttributesString(elementStyles, true, -1)}");
         }
@@ -3037,6 +3043,7 @@ td {
     border-collapse: collapse;
     white-space: nowrap;
     overflow: hidden;
+    box-sizing: border-box;
 }";
 
         /// <summary>
