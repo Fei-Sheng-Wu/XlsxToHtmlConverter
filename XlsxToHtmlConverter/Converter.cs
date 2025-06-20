@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
-using System.Globalization;
 
 namespace XlsxToHtmlConverter
 {
@@ -1031,7 +1030,7 @@ namespace XlsxToHtmlConverter
                     }
                     writer.Write($"\n{new string(' ', 4)}</style>");
                 }
-                
+
                 writer.Write(!configClone.ConvertHtmlBodyOnly ? "\n</body>\n</html>" : string.Empty);
             }
             catch (Exception ex)
@@ -1059,7 +1058,7 @@ namespace XlsxToHtmlConverter
 
         private static string GetInvariantNumber(double number)
         {
-            return number.ToString(CultureInfo.InvariantCulture);
+            return number.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private static string GetEscapedString(string value)
@@ -1709,14 +1708,102 @@ namespace XlsxToHtmlConverter
             {
                 if (fill.PatternFill != null && (fill.PatternFill.PatternType == null || !fill.PatternFill.PatternType.HasValue || fill.PatternFill.PatternType.Value != PatternValues.None))
                 {
-                    //TODO: pattern fills
-                    if (fill.PatternFill.ForegroundColor != null && GetColor(fill.PatternFill.ForegroundColor, out string fillColorForeground, themes, config))
-                    {
-                        styles["background"] = fillColorForeground;
-                    }
-                    else if (fill.PatternFill.BackgroundColor != null && GetColor(fill.PatternFill.BackgroundColor, out string fillColorBackground, themes, config))
+                    if (fill.PatternFill.BackgroundColor != null && GetColor(fill.PatternFill.BackgroundColor, out string fillColorBackground, themes, config))
                     {
                         styles["background"] = fillColorBackground;
+                    }
+                    string fillColorForeground = fill.PatternFill.ForegroundColor != null && GetColor(fill.PatternFill.ForegroundColor, out fillColorForeground, themes, config) ? fillColorForeground : "black";
+                    if (fill.PatternFill.PatternType != null && fill.PatternFill.PatternType.HasValue)
+                    {
+                        if (fill.PatternFill.PatternType.Value == PatternValues.DarkGray)
+                        {
+                            styles["background-image"] = $"radial-gradient(circle at 1px 1px, {fillColorForeground} 0.5px, transparent 0), radial-gradient(circle at 2.6px 2.6px, {fillColorForeground} 0.5px, transparent 0)";
+                            styles["background-size"] = "3.2px 3.2px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.MediumGray)
+                        {
+                            styles["background-image"] = $"radial-gradient(circle at 1px 1px, {fillColorForeground} 0.5px, transparent 0), radial-gradient(circle at 2.8px 2.8px, {fillColorForeground} 0.5px, transparent 0)";
+                            styles["background-size"] = "3.6px 3.6px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.LightGray)
+                        {
+                            styles["background-image"] = $"radial-gradient(circle at 1px 1px, {fillColorForeground} 0.5px, transparent 0), radial-gradient(circle at 3px 3px, {fillColorForeground} 0.5px, transparent 0)";
+                            styles["background-size"] = "4px 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.Gray125)
+                        {
+                            styles["background-image"] = $"radial-gradient(circle at 1px 1px, {fillColorForeground} 0.5px, transparent 0), radial-gradient(circle at 4px 4px, {fillColorForeground} 0.5px, transparent 0)";
+                            styles["background-size"] = "6px 6px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.Gray0625)
+                        {
+                            styles["background-image"] = $"radial-gradient(circle at 1px 1px, {fillColorForeground} 0.5px, transparent 0), radial-gradient(circle at 5.5px 5.5px, {fillColorForeground} 0.5px, transparent 0)";
+                            styles["background-size"] = "9px 9px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.DarkHorizontal)
+                        {
+                            styles["background-image"] = $"linear-gradient(0deg, {fillColorForeground} 1.5px, transparent 0)";
+                            styles["background-size"] = "100% 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.LightHorizontal)
+                        {
+                            styles["background-image"] = $"linear-gradient(0deg, {fillColorForeground} 1px, transparent 0)";
+                            styles["background-size"] = "100% 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.DarkVertical)
+                        {
+                            styles["background-image"] = $"linear-gradient(90deg, {fillColorForeground} 1.5px, transparent 0)";
+                            styles["background-size"] = "4px 100%";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.LightVertical)
+                        {
+                            styles["background-image"] = $"linear-gradient(90deg, {fillColorForeground} 1px, transparent 0)";
+                            styles["background-size"] = "4px 100%";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.DarkDown)
+                        {
+                            styles["background-image"] = $"linear-gradient(45deg, {fillColorForeground} 25%, transparent 25% 50%, {fillColorForeground} 50% 75%, transparent 75%)";
+                            styles["background-size"] = "4px 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.LightDown)
+                        {
+                            styles["background-image"] = $"linear-gradient(45deg, {fillColorForeground} 10%, transparent 10% 50%, {fillColorForeground} 50% 60%, transparent 60%)";
+                            styles["background-size"] = "4px 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.DarkUp)
+                        {
+                            styles["background-image"] = $"linear-gradient(-45deg, {fillColorForeground} 25%, transparent 25% 50%, {fillColorForeground} 50% 75%, transparent 75%)";
+                            styles["background-size"] = "4px 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.DarkGrid)
+                        {
+                            styles["background-image"] = $"linear-gradient(45deg, {fillColorForeground} 25%, transparent 25% 75%, {fillColorForeground} 75%), linear-gradient(45deg, {fillColorForeground} 25%, transparent 25% 75%, {fillColorForeground} 75%)";
+                            styles["background-position"] = "0 0, 2.5px 2.5px";
+                            styles["background-size"] = "5px 5px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.LightGrid)
+                        {
+                            styles["background-image"] = $"linear-gradient(90deg, {fillColorForeground} 1px, transparent 0), linear-gradient(0deg, {fillColorForeground} 1px, transparent 0)";
+                            styles["background-size"] = "4px 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.DarkTrellis)
+                        {
+                            styles["background-image"] = $"linear-gradient(45deg, {fillColorForeground} 15%, transparent 15% 50%, {fillColorForeground} 50% 65%, transparent 65%), linear-gradient(-45deg, {fillColorForeground} 15%, transparent 15% 50%, {fillColorForeground} 50% 65%, transparent 65%)";
+                            styles["background-size"] = "4px 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.LightTrellis)
+                        {
+                            styles["background-image"] = $"linear-gradient(45deg, {fillColorForeground} 10%, transparent 10% 50%, {fillColorForeground} 50% 60%, transparent 60%), linear-gradient(-45deg, {fillColorForeground} 10%, transparent 10% 50%, {fillColorForeground} 50% 60%, transparent 60%)";
+                            styles["background-size"] = "4px 4px";
+                        }
+                        else
+                        {
+                            styles["background"] = fillColorForeground;
+                        }
+                    }
+                    else
+                    {
+                        styles["background"] = fillColorForeground;
                     }
                 }
                 else if (fill.GradientFill != null)
