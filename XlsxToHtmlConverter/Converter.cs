@@ -289,6 +289,7 @@ namespace XlsxToHtmlConverter
                     }
                     string sheetName = sheet.Name != null && sheet.Name.HasValue ? sheet.Name.Value : string.Empty;
 
+                    List<((int, int, int, int), uint)> tables = new List<((int, int, int, int), uint)>();
                     foreach (TableDefinitionPart tableDefinitionPart in worksheetPart.TableDefinitionParts ?? Enumerable.Empty<TableDefinitionPart>())
                     {
                         //TODO: tables
@@ -298,6 +299,14 @@ namespace XlsxToHtmlConverter
                         }
 
                         GetReferenceRange(tableDefinitionPart.Table.Reference.Value, out int tableFromColumn, out int tableFromRow, out int tableToColumn, out int tableToRow);
+                        if (tableDefinitionPart.Table.HeaderRowFormatId != null && tableDefinitionPart.Table.HeaderRowFormatId.HasValue)
+                        {
+                            tables.Add(((tableFromColumn, tableFromRow, tableToColumn, tableFromRow + (tableDefinitionPart.Table.HeaderRowCount != null && tableDefinitionPart.Table.HeaderRowCount.HasValue ? (int)tableDefinitionPart.Table.HeaderRowCount.Value - 1 : 0)), tableDefinitionPart.Table.HeaderRowFormatId.Value));
+                        }
+                        if (tableDefinitionPart.Table.DataFormatId != null && tableDefinitionPart.Table.DataFormatId.HasValue)
+                        {
+                            tables.Add(((tableFromColumn, tableFromRow + (tableDefinitionPart.Table.HeaderRowCount != null && tableDefinitionPart.Table.HeaderRowCount.HasValue ? (int)tableDefinitionPart.Table.HeaderRowCount.Value : 1), tableToColumn, tableToRow), tableDefinitionPart.Table.DataFormatId.Value));
+                        }
                     }
 
                     Dictionary<int, double> drawingColumnMarkers = new Dictionary<int, double>();
@@ -1773,6 +1782,11 @@ namespace XlsxToHtmlConverter
                         else if (fill.PatternFill.PatternType.Value == PatternValues.DarkUp)
                         {
                             styles["background-image"] = $"linear-gradient(-45deg, {fillColorForeground} 25%, transparent 25% 50%, {fillColorForeground} 50% 75%, transparent 75%)";
+                            styles["background-size"] = "4px 4px";
+                        }
+                        else if (fill.PatternFill.PatternType.Value == PatternValues.LightUp)
+                        {
+                            styles["background-image"] = $"linear-gradient(-45deg, {fillColorForeground} 10%, transparent 10% 50%, {fillColorForeground} 50% 60%, transparent 60%)";
                             styles["background-size"] = "4px 4px";
                         }
                         else if (fill.PatternFill.PatternType.Value == PatternValues.DarkGrid)
