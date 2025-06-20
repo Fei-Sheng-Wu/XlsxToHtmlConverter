@@ -73,11 +73,11 @@ namespace XlsxToHtmlConverter.Test
                     Console.ReadLine();
                 }
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
                 //Output the error
                 Console.SetCursorPosition(0, Console.CursorTop - 1);
-                Console.WriteLine($"\nError: {ex.Message}");
+                Console.WriteLine($"\nError: {e.Message}");
                 Console.WriteLine("\n\nPress Enter to exit.");
                 Console.ReadLine();
             }
@@ -87,7 +87,7 @@ namespace XlsxToHtmlConverter.Test
         {
             //Output the progress
             Console.SetCursorPosition(0, Console.CursorTop - 1);
-            Console.WriteLine($"{e.ProgressPercent:##0.00}% (Sheet {e.CurrentSheet} of {e.TotalSheets} | Row {e.CurrentRow} of {e.TotalRows}){new string(' ', 5) + new string('█', (int)(e.ProgressPercent / 2)) + new string('░', (int)((100 - e.ProgressPercent) / 2))}");
+            Console.WriteLine($"{e.ProgressPercent:##0.00}% (Sheet {e.CurrentSheet} of {e.TotalSheets} | Row {e.CurrentRow} of {e.TotalRows}){new string(' ', 5) + new string('█', (int)(e.ProgressPercent / 2)).PadRight(50, '░')}");
         }
     }
 }
