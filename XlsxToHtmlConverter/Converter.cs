@@ -184,7 +184,7 @@ namespace XlsxToHtmlConverter
                 }
 
                 Stylesheet stylesheet = workbook.WorkbookStylesPart != null && workbook.WorkbookStylesPart.Stylesheet != null ? workbook.WorkbookStylesPart.Stylesheet : null;
-                (Dictionary<string, string>, string, uint)[] stylesheetCellFormats = new (Dictionary<string, string>, string, uint)[stylesheet != null && stylesheet.CellFormats != null ? stylesheet.CellFormats.ChildElements.Count : 0];
+                (Dictionary<string, string>, string, int)[] stylesheetCellFormats = new (Dictionary<string, string>, string, int)[stylesheet != null && stylesheet.CellFormats != null ? stylesheet.CellFormats.ChildElements.Count : 0];
                 for (int stylesheetFormatIndex = 0; stylesheetFormatIndex < stylesheetCellFormats.Length; stylesheetFormatIndex++)
                 {
                     if (stylesheet.CellFormats.ChildElements[stylesheetFormatIndex] is CellFormat cellFormat)
@@ -193,7 +193,7 @@ namespace XlsxToHtmlConverter
                         Font font = (cellFormat.ApplyFont == null || !cellFormat.ApplyFont.HasValue || cellFormat.ApplyFont.Value) && cellFormat.FontId != null && cellFormat.FontId.HasValue && stylesheet.Fonts != null && cellFormat.FontId.Value < stylesheet.Fonts.ChildElements.Count ? (Font)stylesheet.Fonts.ChildElements[(int)cellFormat.FontId.Value] : null;
                         Border border = (cellFormat.ApplyBorder == null || !cellFormat.ApplyBorder.HasValue || cellFormat.ApplyBorder.Value) && cellFormat.BorderId != null && cellFormat.BorderId.HasValue && stylesheet.Borders != null && cellFormat.BorderId.Value < stylesheet.Borders.ChildElements.Count ? (Border)stylesheet.Borders.ChildElements[(int)cellFormat.BorderId.Value] : null;
                         string valueContainer = "{0}";
-                        stylesheetCellFormats[stylesheetFormatIndex] = (GetCellFormat(fill, font, border, cellFormat.ApplyAlignment == null || !cellFormat.ApplyAlignment.HasValue || cellFormat.ApplyAlignment.Value ? cellFormat.Alignment : null, ref valueContainer, themes, configClone), valueContainer, cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || !cellFormat.ApplyNumberFormat.HasValue || cellFormat.ApplyNumberFormat.Value) ? cellFormat.NumberFormatId.Value : 0);
+                        stylesheetCellFormats[stylesheetFormatIndex] = (GetCellFormat(fill, font, border, cellFormat.ApplyAlignment == null || !cellFormat.ApplyAlignment.HasValue || cellFormat.ApplyAlignment.Value ? cellFormat.Alignment : null, ref valueContainer, themes, configClone), valueContainer, cellFormat.NumberFormatId != null && cellFormat.NumberFormatId.HasValue && (cellFormat.ApplyNumberFormat == null || !cellFormat.ApplyNumberFormat.HasValue || cellFormat.ApplyNumberFormat.Value) ? (int)cellFormat.NumberFormatId.Value : 0);
                     }
                 }
                 (Dictionary<string, string>, string)[] stylesheetDifferentialFormats = new (Dictionary<string, string>, string)[stylesheet != null && stylesheet.DifferentialFormats != null ? stylesheet.DifferentialFormats.ChildElements.Count : 0];
@@ -205,8 +205,8 @@ namespace XlsxToHtmlConverter
                         stylesheetDifferentialFormats[stylesheetDifferentialFormatIndex] = (GetCellFormat(differentialFormat.Fill, differentialFormat.Font, differentialFormat.Border, differentialFormat.Alignment, ref valueContainer, themes, configClone), valueContainer);
                     }
                 }
-                Dictionary<uint, string[]> stylesheetNumberingFormats = new Dictionary<uint, string[]>();
-                Dictionary<uint, string> stylesheetNumberingFormatsDateTimes = new Dictionary<uint, string>();
+                Dictionary<int, string[]> stylesheetNumberingFormats = new Dictionary<int, string[]>();
+                Dictionary<int, string> stylesheetNumberingFormatsDateTimes = new Dictionary<int, string>();
                 Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, string[])> stylesheetNumberingFormatsNumbers = new Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, string[])>();
                 if (configClone.ConvertNumberFormats && stylesheet != null && stylesheet.NumberingFormats != null)
                 {
@@ -233,7 +233,7 @@ namespace XlsxToHtmlConverter
                             }
                         }
                         formatCodeSplitted.Add(formatCodeCurrent);
-                        stylesheetNumberingFormats[numberingFormat.NumberFormatId.Value] = formatCodeSplitted.ToArray();
+                        stylesheetNumberingFormats[(int)numberingFormat.NumberFormatId.Value] = formatCodeSplitted.ToArray();
                     }
                 }
 
@@ -289,23 +289,31 @@ namespace XlsxToHtmlConverter
                     }
                     string sheetName = sheet.Name != null && sheet.Name.HasValue ? sheet.Name.Value : string.Empty;
 
-                    List<((int, int, int, int), uint)> tables = new List<((int, int, int, int), uint)>();
-                    foreach (TableDefinitionPart tableDefinitionPart in worksheetPart.TableDefinitionParts ?? Enumerable.Empty<TableDefinitionPart>())
+                    List<((int, int, int, int), int)> tables = new List<((int, int, int, int), int)>();
+                    foreach (TableDefinitionPart tableDefinitionPart in (configClone.ConvertStyles ? worksheetPart.TableDefinitionParts : null) ?? Enumerable.Empty<TableDefinitionPart>())
                     {
-                        //TODO: tables
                         if (tableDefinitionPart.Table == null || tableDefinitionPart.Table.Reference == null || !tableDefinitionPart.Table.Reference.HasValue)
                         {
                             continue;
                         }
 
                         GetReferenceRange(tableDefinitionPart.Table.Reference.Value, out int tableFromColumn, out int tableFromRow, out int tableToColumn, out int tableToRow);
-                        if (tableDefinitionPart.Table.HeaderRowFormatId != null && tableDefinitionPart.Table.HeaderRowFormatId.HasValue)
+                        if (tableDefinitionPart.Table.HeaderRowFormatId != null && tableDefinitionPart.Table.HeaderRowFormatId.HasValue && (tableDefinitionPart.Table.HeaderRowCount == null || !tableDefinitionPart.Table.HeaderRowCount.HasValue || tableDefinitionPart.Table.HeaderRowCount.Value > 0))
                         {
-                            tables.Add(((tableFromColumn, tableFromRow, tableToColumn, tableFromRow + (tableDefinitionPart.Table.HeaderRowCount != null && tableDefinitionPart.Table.HeaderRowCount.HasValue ? (int)tableDefinitionPart.Table.HeaderRowCount.Value - 1 : 0)), tableDefinitionPart.Table.HeaderRowFormatId.Value));
+                            tables.Add(((tableFromColumn, tableFromRow, tableToColumn, tableFromRow + (tableDefinitionPart.Table.HeaderRowCount != null && tableDefinitionPart.Table.HeaderRowCount.HasValue ? (int)tableDefinitionPart.Table.HeaderRowCount.Value - 1 : 0)), (int)tableDefinitionPart.Table.HeaderRowFormatId.Value));
                         }
                         if (tableDefinitionPart.Table.DataFormatId != null && tableDefinitionPart.Table.DataFormatId.HasValue)
                         {
-                            tables.Add(((tableFromColumn, tableFromRow + (tableDefinitionPart.Table.HeaderRowCount != null && tableDefinitionPart.Table.HeaderRowCount.HasValue ? (int)tableDefinitionPart.Table.HeaderRowCount.Value : 1), tableToColumn, tableToRow), tableDefinitionPart.Table.DataFormatId.Value));
+                            tables.Add(((tableFromColumn, tableFromRow + (tableDefinitionPart.Table.HeaderRowCount != null && tableDefinitionPart.Table.HeaderRowCount.HasValue ? (int)tableDefinitionPart.Table.HeaderRowCount.Value : 1), tableToColumn, tableToRow - (tableDefinitionPart.Table.TotalsRowCount != null && tableDefinitionPart.Table.TotalsRowCount.HasValue ? (int)tableDefinitionPart.Table.TotalsRowCount.Value : 0)), (int)tableDefinitionPart.Table.DataFormatId.Value));
+                        }
+                        if (tableDefinitionPart.Table.TotalsRowFormatId != null && tableDefinitionPart.Table.TotalsRowFormatId.HasValue && ((tableDefinitionPart.Table.TotalsRowCount != null && tableDefinitionPart.Table.TotalsRowCount.HasValue && tableDefinitionPart.Table.TotalsRowCount.Value > 0) || (tableDefinitionPart.Table.TotalsRowShown != null && tableDefinitionPart.Table.TotalsRowShown.HasValue && tableDefinitionPart.Table.TotalsRowShown.Value)))
+                        {
+                            tables.Add(((tableFromColumn, tableToRow - (tableDefinitionPart.Table.TotalsRowCount != null && tableDefinitionPart.Table.TotalsRowCount.HasValue ? Math.Max(0, (int)tableDefinitionPart.Table.TotalsRowCount.Value - 1) : 0), tableToColumn, tableToRow), (int)tableDefinitionPart.Table.TotalsRowFormatId.Value));
+                        }
+
+                        if (tableDefinitionPart.Table.TableStyleInfo != null && tableDefinitionPart.Table.TableStyleInfo.Name != null && tableDefinitionPart.Table.TableStyleInfo.Name.HasValue)
+                        {
+                            //TODO: table styles
                         }
                     }
 
@@ -466,13 +474,13 @@ namespace XlsxToHtmlConverter
                         }
                         double columnWidthsTotal = columnWidths.Sum();
                         double columbWidthsAccumulation = 0;
-                        for (int columnWidthIndex = 0; columnWidthIndex < columnWidths.Length; columnWidthIndex++)
+                        for (int i = 0; i < columnWidths.Length; i++)
                         {
-                            columnWidths[columnWidthIndex] = RoundNumber(columnWidths[columnWidthIndex] / columnWidthsTotal * 100, configClone.RoundingDigits);
-                            columbWidthsAccumulation += columnWidths[columnWidthIndex];
-                            if (drawingColumnMarkers.ContainsKey(sheetDimensionFromColumn + columnWidthIndex))
+                            columnWidths[i] = RoundNumber(columnWidths[i] / columnWidthsTotal * 100, configClone.RoundingDigits);
+                            columbWidthsAccumulation += columnWidths[i];
+                            if (drawingColumnMarkers.ContainsKey(sheetDimensionFromColumn + i))
                             {
-                                drawingColumnMarkers[sheetDimensionFromColumn + columnWidthIndex] = RoundNumber(columbWidthsAccumulation, configClone.RoundingDigits);
+                                drawingColumnMarkers[sheetDimensionFromColumn + i] = RoundNumber(columbWidthsAccumulation, configClone.RoundingDigits);
                             }
                         }
                     }
@@ -489,21 +497,21 @@ namespace XlsxToHtmlConverter
                                 continue;
                             }
 
-                            for (int additionalRowIndex = rowIndex; additionalRowIndex < row.RowIndex.Value; additionalRowIndex++)
+                            for (int i = rowIndex; i < row.RowIndex.Value; i++)
                             {
                                 if (configClone.ConvertSizes)
                                 {
                                     rowHeightsAccumulation += rowHeightDefault;
-                                    if (drawingRowMarkers.ContainsKey(additionalRowIndex))
+                                    if (drawingRowMarkers.ContainsKey(i))
                                     {
-                                        drawingRowMarkers[additionalRowIndex] = RoundNumber(rowHeightsAccumulation, configClone.RoundingDigits);
+                                        drawingRowMarkers[i] = RoundNumber(rowHeightsAccumulation, configClone.RoundingDigits);
                                     }
                                 }
 
                                 writer.Write($"\n{new string(' ', 12)}<tr>");
-                                for (int additionalColumnIndex = 0; additionalColumnIndex < columnWidths.Length; additionalColumnIndex++)
+                                for (int j = 0; j < columnWidths.Length; j++)
                                 {
-                                    writer.Write($"\n{new string(' ', 16)}<td style=\"width: {(configClone.ConvertSizes ? $"{GetInvariantNumber(columnWidths[additionalColumnIndex])}%" : "auto")}; height: {(configClone.ConvertSizes ? $"{GetInvariantNumber(rowHeightDefault)}px" : "auto")};\"></td>");
+                                    writer.Write($"\n{new string(' ', 16)}<td style=\"width: {(configClone.ConvertSizes ? $"{GetInvariantNumber(columnWidths[j])}%" : "auto")}; height: {(configClone.ConvertSizes ? $"{GetInvariantNumber(rowHeightDefault)}px" : "auto")};\"></td>");
                                 }
                                 writer.Write($"\n{new string(' ', 12)}</tr>");
                             }
@@ -566,6 +574,11 @@ namespace XlsxToHtmlConverter
                             }
 
                             int styleIndex = cell.StyleIndex != null && cell.StyleIndex.HasValue ? (int)cell.StyleIndex.Value : (row.StyleIndex != null && row.StyleIndex.HasValue ? (int)row.StyleIndex.Value : -1);
+                            if (styleIndex < 0 && tables.Where(x => columnIndex >= x.Item1.Item1 && columnIndex <= x.Item1.Item3 && rowIndex >= x.Item1.Item2 && rowIndex <= x.Item1.Item4).Cast<ValueTuple<ValueTuple<int, int, int, int>, int>?>().FirstOrDefault() is ValueTuple<ValueTuple<int, int, int, int>, int> table)
+                            {
+                                styleIndex = table.Item2;
+                            }
+
                             Dictionary<string, string> cellStyles = new Dictionary<string, string>();
                             string cellValueContainer = "{0}";
                             if (configClone.ConvertStyles && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length)
@@ -1028,13 +1041,13 @@ namespace XlsxToHtmlConverter
                 if (configClone.UseHtmlStyleClasses)
                 {
                     writer.Write($"\n{new string(' ', 4)}<style>");
-                    for (int stylesheetFormatIndex = 0; stylesheetFormatIndex < stylesheetCellFormats.Length; stylesheetFormatIndex++)
+                    for (int i = 0; i < stylesheetCellFormats.Length; i++)
                     {
-                        if (stylesheetCellFormats[stylesheetFormatIndex].Item1 != null)
+                        if (stylesheetCellFormats[i].Item1 != null)
                         {
-                            writer.Write($"\n{new string(' ', 8)}.format-{stylesheetFormatIndex} {{");
-                            writer.Write($"\n{new string(' ', 12)}{GetAttributesString(stylesheetCellFormats[stylesheetFormatIndex].Item1, false, 12)}");
-                            writer.Write($"\n{new string(' ', 8)}}}{(stylesheetFormatIndex < stylesheetCellFormats.Length - 1 ? $"\n{new string(' ', 8)}" : string.Empty)}");
+                            writer.Write($"\n{new string(' ', 8)}.format-{i} {{");
+                            writer.Write($"\n{new string(' ', 12)}{GetAttributesString(stylesheetCellFormats[i].Item1, false, 12)}");
+                            writer.Write($"\n{new string(' ', 8)}}}{(i < stylesheetCellFormats.Length - 1 ? $"\n{new string(' ', 8)}" : string.Empty)}");
                         }
                     }
                     writer.Write($"\n{new string(' ', 4)}</style>");
