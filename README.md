@@ -1,9 +1,9 @@
-# XlsxToHtmlConverter v1.2.21-dev
+# XlsxToHtmlConverter v1.2.21
 
 [![C#](https://img.shields.io/badge/C%23-100%25-blue.svg?style=flat-square)](https://docs.microsoft.com/en-us/dotnet/csharp/)
 [![Target Framework](https://img.shields.io/badge/.Net-%E2%89%A56.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
 [![Target Framework](https://img.shields.io/badge/.Net%20Standard-%E2%89%A52.0-green.svg?style=flat-square)](https://dotnet.microsoft.com/en-us/platform/dotnet-standard)
-[![Nuget](https://img.shields.io/badge/Nuget-v1.2.20%20%28%E2%89%A519.8K%20Total%20Downloads%29-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.20)
+[![Nuget](https://img.shields.io/badge/Nuget-v1.2.21%20%28%E2%89%A525.7K%20Total%20Downloads%29-blue.svg?style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter/1.2.20)
 [![Lincense](https://img.shields.io/badge/Lincense-MIT-orange.svg?style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 
 > A fast Xlsx to Html file converter. Support cell fills, fonts, borders, alignments, and other styles. Support different cell sizes and merged cells. Support custom number formats and basic conditions. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.
