@@ -207,6 +207,7 @@ namespace XlsxToHtmlConverter
                 }
                 Dictionary<int, string[]> stylesheetNumberingFormats = new Dictionary<int, string[]>();
                 Dictionary<int, string> stylesheetNumberingFormatsDateTimes = new Dictionary<int, string>();
+                Dictionary<string, bool> stylesheetNumberingFormatsDateTimeType = new Dictionary<string, bool>();
                 Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, string[])> stylesheetNumberingFormatsNumbers = new Dictionary<string, (int, int, int, bool, int, int, int, int, bool, bool, string[])>();
                 if (configClone.ConvertNumberFormats && stylesheet != null && stylesheet.NumberingFormats != null)
                 {
@@ -729,7 +730,32 @@ namespace XlsxToHtmlConverter
 
                                 if (!string.IsNullOrEmpty(numberFormatCode))
                                 {
-                                    if ((isNumberFormatDefaultDateTime || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date)) && isCellValueNumber)
+                                    bool isNumberingFormatDateTime = isNumberFormatDefaultDateTime || (cell.DataType != null && cell.DataType.HasValue && cell.DataType.Value == CellValues.Date) || (stylesheetNumberingFormatsDateTimeType.ContainsKey(numberFormatCode) && stylesheetNumberingFormatsDateTimeType[numberFormatCode]);
+                                    if (!isNumberingFormatDateTime && !stylesheetNumberingFormatsDateTimeType.ContainsKey(numberFormatCode))
+                                    {
+                                        for (int i = 0; i < numberFormatCode.Length; i++)
+                                        {
+                                            if (numberFormatCode[i] == '\\')
+                                            {
+                                                continue;
+                                            }
+                                            else if (numberFormatCode[i] == '"')
+                                            {
+                                                do
+                                                {
+                                                    i++;
+                                                }
+                                                while (numberFormatCode[i] != '"');
+                                            }
+                                            else if (numberFormatCode[i] == 'm' || numberFormatCode[i] == 'd' || numberFormatCode[i] == 'y' || numberFormatCode[i] == 'h' || numberFormatCode[i] == 's')
+                                            {
+                                                isNumberingFormatDateTime = true;
+                                                break;
+                                            }
+                                        }
+                                        stylesheetNumberingFormatsDateTimeType[numberFormatCode] = isNumberingFormatDateTime;
+                                    }
+                                    if (isNumberingFormatDateTime && isCellValueNumber)
                                     {
                                         if (!isNumberFormatDefaultDateTime && styleIndex >= 0 && styleIndex < stylesheetCellFormats.Length && stylesheetNumberingFormatsDateTimes.ContainsKey(stylesheetCellFormats[styleIndex].Item3))
                                         {
@@ -1394,6 +1420,11 @@ namespace XlsxToHtmlConverter
                     indexValue = infoValue;
                     indexFormat = infoFormat.Item2;
                     isIncreasing = true;
+
+                    if (indexFormat < 0)
+                    {
+                        break;
+                    }
                     continue;
                 }
 
