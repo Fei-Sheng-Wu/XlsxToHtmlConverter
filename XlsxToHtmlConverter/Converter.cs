@@ -737,6 +737,7 @@ namespace XlsxToHtmlConverter
                                         {
                                             if (numberFormatCode[i] == '\\')
                                             {
+                                                i++;
                                                 continue;
                                             }
                                             else if (numberFormatCode[i] == '"')
@@ -746,6 +747,19 @@ namespace XlsxToHtmlConverter
                                                     i++;
                                                 }
                                                 while (numberFormatCode[i] != '"');
+                                            }
+                                            else if (numberFormatCode[i] == '[')
+                                            {
+                                                do
+                                                {
+                                                    i++;
+                                                }
+                                                while (numberFormatCode[i] != ']');
+                                            }
+                                            else if (numberFormatCode[i] == '*' || numberFormatCode[i] == '_')
+                                            {
+                                                i++;
+                                                continue;
                                             }
                                             else if (numberFormatCode[i] == 'm' || numberFormatCode[i] == 'd' || numberFormatCode[i] == 'y' || numberFormatCode[i] == 'h' || numberFormatCode[i] == 's')
                                             {
