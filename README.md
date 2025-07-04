@@ -3,9 +3,8 @@
 [![C#](https://img.shields.io/badge/C%23-100%25-blue.svg?style=flat-square)](#)
 [![Target .Net](https://img.shields.io/badge/.Net-%E2%89%A56.0-green.svg?style=flat-square)](#)
 [![Target .Net Standard](https://img.shields.io/badge/.Net%20Standard-%E2%89%A52.0-green.svg?style=flat-square)](#)
-[![GitHub](https://img.shields.io/github/v/release/Fei-Sheng-Wu/XlsxToHtmlConverter?label=GitHub&style=flat-square&logo=github)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/releases/latest)
 [![Nuget](https://img.shields.io/nuget/v/XlsxToHtmlConverter?label=Nuget&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
-[![Nuget Downloads](https://img.shields.io/nuget/dt/XlsxToHtmlConverter?label=Nuget%20Downloads&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
+[![Downloads](https://img.shields.io/nuget/dt/XlsxToHtmlConverter?label=Downloads&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/latest?label=Commits%20Since&style=flat-square)](#)
 [![Lincense](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 
