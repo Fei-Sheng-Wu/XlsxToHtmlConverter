@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Diagnostics;
 
 namespace XlsxToHtmlConverter.Test
 {
@@ -7,87 +8,38 @@ namespace XlsxToHtmlConverter.Test
     {
         public static void Main(string[] args)
         {
-            Console.Clear();
-            Console.SetCursorPosition(0, 0);
-            Console.CursorVisible = false;
+            string? xlsx = args.Length > 0 ? args[0] : null;
+            string? html = args.Length > 1 ? args[1] : Path.ChangeExtension(xlsx, "html");
 
-            string xlsxFilePath;
-            string htmlFilePath;
-
-            //Get the input and output file paths
-            if (args != null && args.Length == 2)
+            while (xlsx == null || !File.Exists(xlsx))
             {
-                xlsxFilePath = args[0];
-                htmlFilePath = args[1];
+                Console.WriteLine("Please enter the path to the input XLSX file:");
+                xlsx = Console.ReadLine();
             }
-            else if (args != null && args.Length == 1)
+            while (html == null)
             {
-                xlsxFilePath = args[0];
-                htmlFilePath = Path.ChangeExtension(xlsxFilePath, "html");
-            }
-            else
-            {
-                Console.WriteLine("Please enter the path to the Xlsx file:");
-
-                Console.CursorVisible = true;
-                xlsxFilePath = Console.ReadLine();
-                Console.CursorVisible = false;
-
-                Console.WriteLine("Please enter the path to the Html file:");
-
-                Console.CursorVisible = true;
-                htmlFilePath = Console.ReadLine();
-                Console.CursorVisible = false;
+                Console.WriteLine("Please enter the path to the output HTML file:");
+                html = Console.ReadLine();
             }
 
             Console.WriteLine();
+
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
+            Converter.ConvertXlsx(xlsx, html, new ConverterConfiguration()
+            {
+                HtmlTitle = Path.GetFileName(xlsx)
+            }, (x, e) =>
+            {
+                Console.SetCursorPosition(0, Console.CursorTop);
+                Console.Write($"{e.ProgressPercentage:F2}% (Sheet {e.CurrentSheet} of {e.SheetCount} | Row {e.CurrentRow} of {e.RowCount})    {new string('█', (int)(e.ProgressPercentage / 2)).PadRight(50, '░')}");
+            });
+
             Console.WriteLine();
-
-            try
-            {
-                //Set up the progress callback
-                EventHandler<XlsxToHtmlConverter.ConverterProgressCallbackEventArgs> progressCallback = ConverterProgressCallback;
-
-                //Adjust the conversion configurations
-                XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
-                {
-                    PageTitle = Path.GetFileName(xlsxFilePath)
-                };
-
-                //Convert the Xlsx file
-                using (FileStream outputStream = new FileStream(htmlFilePath, FileMode.Create))
-                {
-                    int time = Environment.TickCount;
-                    XlsxToHtmlConverter.Converter.ConvertXlsx(xlsxFilePath, outputStream, config, progressCallback);
-                    Console.WriteLine($"\nThe conversion costed {TimeSpan.FromMilliseconds(Environment.TickCount - time).TotalSeconds} seconds.");
-                }
-
-                //Open the Html file
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(htmlFilePath) { UseShellExecute = true, CreateNoWindow = true })?.Dispose();
-                }
-                finally
-                {
-                    Console.WriteLine("\n\nPress Enter to exit.");
-                    Console.ReadLine();
-                }
-            }
-            catch (Exception e)
-            {
-                //Output the error
-                Console.SetCursorPosition(0, Console.CursorTop - 1);
-                Console.WriteLine($"\nError: {e.Message}");
-                Console.WriteLine("\n\nPress Enter to exit.");
-                Console.ReadLine();
-            }
-        }
-
-        private static void ConverterProgressCallback(object sender, XlsxToHtmlConverter.ConverterProgressCallbackEventArgs e)
-        {
-            //Output the progress
-            Console.SetCursorPosition(0, Console.CursorTop - 1);
-            Console.WriteLine($"{e.ProgressPercent:##0.00}% (Sheet {e.CurrentSheet} of {e.TotalSheets} | Row {e.CurrentRow} of {e.TotalRows}){new string(' ', 5) + new string('█', (int)(e.ProgressPercent / 2)).PadRight(50, '░')}");
+            Console.WriteLine($"The conversion finished after {stopwatch.Elapsed}.");
+            Console.WriteLine();
+            Console.WriteLine("Press Enter to exit.");
+            Console.ReadLine();
         }
     }
 }
