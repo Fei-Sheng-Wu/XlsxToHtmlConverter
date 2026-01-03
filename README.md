@@ -1,4 +1,4 @@
-# XlsxToHtmlConverter v1.2.22-dev
+# XlsxToHtmlConverter v2.0.0-dev
 
 [![C#](https://img.shields.io/badge/C%23-100%25-blue.svg?style=flat-square)](#)
 [![Target .Net](https://img.shields.io/badge/.Net-%E2%89%A56.0-green.svg?style=flat-square)](#)
@@ -9,6 +9,9 @@
 [![Lincense](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 
 > A fast Xlsx to Html file converter. Support cell fills, fonts, borders, alignments, and other styles. Support different cell sizes and merged cells. Support custom number formats and basic conditions. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.
+
+> [!WARNING]
+> The codebase is currently in the process of being refactored. Previously existent functionality may be temporarily missing, and property names have been updated as well. The following content is not up-to-date.
 
 ## Dependencies
 
