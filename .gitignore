@@ -1,0 +1,11 @@
+.vs/
+
+bin/
+obj/
+
+*.user
+*.nupkg
+*.snupkg
+
+*.xlsx
+*.html

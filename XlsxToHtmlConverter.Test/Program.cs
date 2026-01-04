@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Diagnostics;
 
 namespace XlsxToHtmlConverter.Test
@@ -8,18 +9,18 @@ namespace XlsxToHtmlConverter.Test
     {
         public static void Main(string[] args)
         {
-            string? xlsx = args.Length > 0 ? args[0] : null;
-            string? html = args.Length > 1 ? args[1] : Path.ChangeExtension(xlsx, "html");
+            string? xlsx = args.Length > 0 ? args[0].Trim('\"') : null;
+            string? html = args.Length > 1 ? args[1].Trim('\"') : Path.ChangeExtension(xlsx, "html");
 
             while (xlsx == null || !File.Exists(xlsx))
             {
                 Console.WriteLine("Please enter the path to the input XLSX file:");
-                xlsx = Console.ReadLine();
+                xlsx = Console.ReadLine()?.Trim('\"');
             }
-            while (html == null)
+            if (html == null)
             {
                 Console.WriteLine("Please enter the path to the output HTML file:");
-                html = Console.ReadLine();
+                html = Console.ReadLine()?.Trim('\"') is string output && output.Any() ? output : Path.ChangeExtension(xlsx, "html");
             }
 
             Console.WriteLine();

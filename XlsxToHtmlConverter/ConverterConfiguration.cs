@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Globalization;
 using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace XlsxToHtmlConverter
@@ -28,7 +29,7 @@ namespace XlsxToHtmlConverter
             /// <summary>
             /// Gets or sets the converter to read the XLSX shared-string table.
             /// </summary>
-            public Base.IConverterBase<SharedStringTable?, Base.XlsxContent[]> XlsxSharedStringTableReader { get; set; } = new Base.Defaults.DefaultXlsxSharedStringTableReader();
+            public Base.IConverterBase<SharedStringTable?, Base.XlsxString[]> XlsxSharedStringTableReader { get; set; } = new Base.Defaults.DefaultXlsxSharedStringTableReader();
 
             /// <summary>
             /// Gets or sets the converter to read the XLSX sheets.
@@ -41,6 +42,16 @@ namespace XlsxToHtmlConverter
             public Base.IConverterBase<Base.XlsxCell?, Base.XlsxContent> XlsxCellContentReader { get; set; } = new Base.Defaults.DefaultXlsxCellContentReader();
 
             /// <summary>
+            /// Gets or sets the converter to read the XLSX tables.
+            /// </summary>
+            public Base.IConverterBase<TableDefinitionPart?, Base.XlsxRangeSpecialty[]> XlsxTableReader { get; set; } = new Base.Defaults.DefaultXlsxTableReader();
+
+            /// <summary>
+            /// Gets or sets the converter to read the XLSX drawings.
+            /// </summary>
+            public Base.IConverterBase<DrawingsPart?, Base.XlsxRangeSpecialty[]> XlsxDrawingReader { get; set; } = new Base.Defaults.DefaultXlsxDrawingReader();
+
+            /// <summary>
             /// Gets or sets the converter to convert the XLSX colors.
             /// </summary>
             public Base.IConverterBase<OpenXmlElement?, string> XlsxColorConverter { get; set; } = new Base.Defaults.DefaultXlsxColorConverter();
@@ -48,27 +59,27 @@ namespace XlsxToHtmlConverter
             /// <summary>
             /// Gets or sets the converter to convert the XLSX strings.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxContent> XlsxStringConverter { get; set; } = new Base.Defaults.DefaultXlsxStringConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.XlsxString> XlsxStringConverter { get; set; } = new Base.Defaults.DefaultXlsxStringConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX fonts.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxCellFormat> XlsxFontConverter { get; set; } = new Base.Defaults.DefaultXlsxFontConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.XlsxStyles> XlsxFontConverter { get; set; } = new Base.Defaults.DefaultXlsxFontConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX fills.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxCellFormat> XlsxFillConverter { get; set; } = new Base.Defaults.DefaultXlsxFillConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.XlsxStyles> XlsxFillConverter { get; set; } = new Base.Defaults.DefaultXlsxFillConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX borders.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxCellFormat> XlsxBorderConverter { get; set; } = new Base.Defaults.DefaultXlsxBorderConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.XlsxStyles> XlsxBorderConverter { get; set; } = new Base.Defaults.DefaultXlsxBorderConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX alignments.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxCellFormat> XlsxAlignmentConverter { get; set; } = new Base.Defaults.DefaultXlsxAlignmentConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.XlsxStyles> XlsxAlignmentConverter { get; set; } = new Base.Defaults.DefaultXlsxAlignmentConverter();
         }
 
         /// <summary>
