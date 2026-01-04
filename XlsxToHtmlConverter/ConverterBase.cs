@@ -29,24 +29,29 @@ namespace XlsxToHtmlConverter.Base
     public class ConverterContext()
     {
         /// <summary>
-        /// Gets or sets the cache of the current conversion.
+        /// Gets or sets the conversion cache of the context.
         /// </summary>
         public Dictionary<object, object?> Cache { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets the XLSX theme.
+        /// Gets or sets the XLSX theme of the context.
         /// </summary>
         public DocumentFormat.OpenXml.Drawing.Theme? Theme { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets the XLSX stylesheet.
+        /// Gets or sets the XLSX stylesheet of the context.
         /// </summary>
         public XlsxStylesheetCollection Stylesheet { get; set; } = new();
 
         /// <summary>
-        /// Gets or sets the XLSX shared-string table.
+        /// Gets or sets the XLSX shared-string table of the context.
         /// </summary>
-        public XlsxContent[] SharedStrings { get; set; } = [];
+        public XlsxString[] SharedStrings { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the XLSX sheet of the context.
+        /// </summary>
+        public XlsxWorksheet Worksheet { get; set; } = new();
     }
 
     /// <summary>
@@ -107,14 +112,14 @@ namespace XlsxToHtmlConverter.Base
         /// Initializes a new instance of the <see cref="HtmlElement"/> class.
         /// </summary>
         /// <param name="tag">The tag name of the element.</param>
-        /// <param name="format">The XLSX format to apply to the element.</param>
+        /// <param name="styles">The XLSX styles to apply to the element.</param>
         /// <param name="content">The content of the element.</param>
-        public HtmlElement(string tag, XlsxCellFormat format, List<object>? content = null) : this(tag, new HtmlAttributeCollection()
+        public HtmlElement(string tag, XlsxStyles styles, List<object>? content = null) : this(tag, new HtmlAttributeCollection()
         {
-            ["style"] = format.Styles
+            ["style"] = styles.Styles
         })
         {
-            Content.AddRange(format.ApplyContainers(content));
+            Content.AddRange(styles.ApplyContainers(content));
         }
 
         /// <summary>
@@ -214,18 +219,6 @@ namespace XlsxToHtmlConverter.Base
                 this[key] = value;
             }
         }
-
-        /// <summary>
-        /// Removes values with the specified keys from the styles.
-        /// </summary>
-        /// <param name="keys">The specified keys.</param>
-        public void Remove(IEnumerable<string> keys)
-        {
-            foreach (string key in keys)
-            {
-                Remove(key);
-            }
-        }
     }
 
     /// <summary>
@@ -249,7 +242,7 @@ namespace XlsxToHtmlConverter.Base
         public (double Width, double Height) DefaultCellSize { get; set; } = (0, 0);
 
         /// <summary>
-        /// Gets or sets the column widths within the sheet.
+        /// Gets or sets the collection of column widths within the sheet.
         /// </summary>
         public double?[] ColumnWidths { get; set; } = [];
 
@@ -259,9 +252,9 @@ namespace XlsxToHtmlConverter.Base
         public XlsxRange Dimension { get; set; } = new(1, 1, 1, 1);
 
         /// <summary>
-        /// Gets or sets the collection of cell ranges with specialties within the sheet.
+        /// Gets or sets the collection of specialties within the sheet.
         /// </summary>
-        public List<XlsxRange> References { get; set; } = [];
+        public List<XlsxRangeSpecialty> Specialties { get; set; } = [];
     }
 
     /// <summary>
@@ -278,8 +271,7 @@ namespace XlsxToHtmlConverter.Base
         /// </summary>
         /// <param name="range">The XLSX reference that specifies the range.</param>
         /// <param name="dimension">The dimension of the current sheet.</param>
-        /// <param name="specialty">The specialty of the range.</param>
-        public XlsxRange(string range, XlsxRange? dimension = null, object? specialty = null) : this(1, 1, 1, 1)
+        public XlsxRange(string range, XlsxRange? dimension = null) : this(1, 1, 1, 1)
         {
             string[] references = range.Split(':');
             (uint left, uint top) = ParseReference(references[0], (dimension?.ColumnStart ?? 1, dimension?.RowStart ?? 1));
@@ -289,8 +281,6 @@ namespace XlsxToHtmlConverter.Base
             RowStart = Math.Min(top, bottom);
             ColumnEnd = Math.Max(left, right);
             RowEnd = Math.Max(top, bottom);
-
-            Specialty = specialty;
         }
 
         /// <summary>
@@ -312,11 +302,6 @@ namespace XlsxToHtmlConverter.Base
         /// Gets or sets the inclusive 1-indexed end of the rows within the range.
         /// </summary>
         public uint RowEnd { get; set; } = bottom;
-
-        /// <summary>
-        /// Gets or sets the specialty of the range.
-        /// </summary>
-        public object? Specialty { get; set; } = null;
 
         /// <summary>
         /// Gets the number of columns within the range.
@@ -351,11 +336,11 @@ namespace XlsxToHtmlConverter.Base
         }
 
         /// <summary>
-        /// Converts a XLSX reference that specifies a pair of column and row indexes.
+        /// Converts a XLSX reference that specifies a position in terms of column and row indexes.
         /// </summary>
-        /// <param name="reference">The XLSX reference that specifies the positions.</param>
-        /// <param name="fallback">The fallback value when a position is not present.</param>
-        /// <returns>The 1-indexed positions of the column and the row.</returns>
+        /// <param name="reference">The XLSX reference that specifies the position.</param>
+        /// <param name="fallback">The fallback values when an index is not present.</param>
+        /// <returns>The 1-indexed position.</returns>
         public static (uint Column, uint Row) ParseReference(string reference, (uint Column, uint Row)? fallback = null)
         {
             string letters = string.Concat(reference.Where(char.IsLetter));
@@ -383,13 +368,29 @@ namespace XlsxToHtmlConverter.Base
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxRangeSpecialty"/> class.
+    /// </summary>
+    public class XlsxRangeSpecialty()
+    {
+        /// <summary>
+        /// Gets or sets the specialty.
+        /// </summary>
+        public object Specialty { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the range of the specialty.
+        /// </summary>
+        public XlsxRange Range { get; set; } = new(1, 1, 1, 1);
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="XlsxCell"/> class.
     /// </summary>
-    /// <param name="cell">The XLSX cell.</param>
+    /// <param name="cell">The cell.</param>
     public class XlsxCell(Cell cell)
     {
         /// <summary>
-        /// Gets or sets the XLSX cell.
+        /// Gets or sets the cell.
         /// </summary>
         public Cell Cell { get; set; } = cell;
 
@@ -399,9 +400,25 @@ namespace XlsxToHtmlConverter.Base
         public uint NumberFormatId { get; set; } = 0;
 
         /// <summary>
-        /// Gets or sets the specialties associated with the cell.
+        /// Gets or sets the collection of specialties associated with the cell.
         /// </summary>
-        public object[] Specialties { get; set; } = [];
+        public XlsxRangeSpecialty[] Specialties { get; set; } = [];
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxElement"/> class.
+    /// </summary>
+    public class XlsxString()
+    {
+        /// <summary>
+        /// Gets or sets the content of the string.
+        /// </summary>
+        public List<object> Content { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the raw representation of the string.
+        /// </summary>
+        public string Raw { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -415,9 +432,14 @@ namespace XlsxToHtmlConverter.Base
         public List<object> Content { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets the XLSX cell format associated with the content.
+        /// Gets or sets the styles associated with the content.
         /// </summary>
-        public XlsxCellFormat Format { get; set; } = new();
+        public XlsxStyles Styles { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the collection of differential formats associated with the content.
+        /// </summary>
+        public List<uint> DifferentialFormatIds { get; set; } = [];
     }
 
     /// <summary>
@@ -433,7 +455,7 @@ namespace XlsxToHtmlConverter.Base
         /// <summary>
         /// Gets or sets the collection of XLSX differential formats.
         /// </summary>
-        public XlsxCellFormat[] DifferentialFormats { get; set; } = [];
+        public XlsxDifferentialFormat[] DifferentialFormats { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the collection of XLSX number formats.
@@ -442,40 +464,47 @@ namespace XlsxToHtmlConverter.Base
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxCellFormat"/> class.
+    /// Initializes a new instance of the <see cref="XlsxStyles"/> class.
     /// </summary>
-    public class XlsxCellFormat()
+    public class XlsxStyles()
     {
         /// <summary>
-        /// Gets or sets the styles of the format.
+        /// Gets or sets the styles.
         /// </summary>
         public HtmlStyles Styles { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets the collection of the styles respective to each layer of a nested HTML container element that surrounds the cell content using the format.
+        /// Gets or sets the collection of styles respective to each layer of a nested HTML container element that surrounds the cell content using the styles.
         /// </summary>
         public List<HtmlStyles> Containers { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets the number format ID of the format.
+        /// Merges a specified <see cref="XlsxStyles"/> into this instance.
         /// </summary>
-        public uint NumberFormatId { get; set; } = 0;
-
-        /// <summary>
-        /// Merges a specified <see cref="XlsxCellFormat"/> into this instance.
-        /// </summary>
-        /// <param name="format">The specified <see cref="XlsxCellFormat"/>.</param>
-        public void Merge(XlsxCellFormat format)
+        /// <param name="styles">The specified <see cref="XlsxStyles"/>.</param>
+        /// <param name="isReserved">Whether the styles of the specified <see cref="XlsxStyles"/> are reserved.</param>
+        public void Merge(XlsxStyles styles, bool isReserved = false)
         {
-            Styles.Merge(format.Styles);
-            Containers.AddRange(format.Containers);
+            if (isReserved)
+            {
+                foreach (string key in styles.Styles.Select(x => x.Key))
+                {
+                    Styles.Remove(key);
+                }
+            }
+            else
+            {
+                Styles.Merge(styles.Styles);
+            }
+
+            Containers.AddRange(styles.Containers);
         }
 
         /// <summary>
         /// Applies the containers onto the specified content.
         /// </summary>
         /// <param name="content">The specified content.</param>
-        /// <returns>The result HTML content.</returns>
+        /// <returns>The applied HTML content.</returns>
         public List<object> ApplyContainers(List<object>? content = null)
         {
             if (!Containers.Any())
@@ -498,6 +527,64 @@ namespace XlsxToHtmlConverter.Base
             }
 
             parent?.Content.AddRange(content ?? []);
+
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxCellFormat"/> class.
+    /// </summary>
+    public class XlsxCellFormat()
+    {
+        /// <summary>
+        /// Gets or sets the styles of the format.
+        /// </summary>
+        public XlsxStyles Styles { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the number format of the format.
+        /// </summary>
+        public uint NumberFormatId { get; set; } = 0;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxDifferentialFormat"/> class.
+    /// </summary>
+    public class XlsxDifferentialFormat()
+    {
+        /// <summary>
+        /// Gets or sets the font styles of the format.
+        /// </summary>
+        public XlsxStyles FontStyles { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the fill styles of the format.
+        /// </summary>
+        public XlsxStyles FillStyles { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the border styles of the format.
+        /// </summary>
+        public XlsxStyles BorderStyles { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the alignment styles of the format.
+        /// </summary>
+        public XlsxStyles AlignmentStyles { get; set; } = new();
+
+        /// <summary>
+        /// Combines the styles into a single <see cref="XlsxStyles"/> instance.
+        /// </summary>
+        /// <returns>The combined <see cref="XlsxStyles"/>.</returns>
+        public XlsxStyles Combine()
+        {
+            XlsxStyles result = new();
+
+            result.Merge(FillStyles);
+            result.Merge(FontStyles);
+            result.Merge(BorderStyles);
+            result.Merge(AlignmentStyles);
 
             return result;
         }
