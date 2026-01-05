@@ -121,32 +121,36 @@ namespace XlsxToHtmlConverter
         {
             ["body"] = new()
             {
-                { "margin", "0" },
-                { "padding", "0" }
+                ["margin"] = "0",
+                ["padding"] = "0"
             },
             ["table"] = new()
             {
-                { "width", "100%" },
-                { "table-layout", "fixed" },
-                { "border-collapse", "collapse" }
+                ["width"] = "100%",
+                ["table-layout"] = "fixed",
+                ["border-collapse"] = "collapse"
             },
             ["caption"] = new()
             {
-                { "margin", "10px auto" },
-                { "padding", "2px" },
-                { "width", "fit-content" },
-                { "font-size", "20px" },
-                { "font-weight", "bold" }
+                ["margin"] = "10px auto",
+                ["padding"] = "2px",
+                ["width"] = "fit-content",
+                ["font-size"] = "20px",
+                ["font-weight"] = "bold"
+            },
+            ["tbody"] = new()
+            {
+                ["position"] = "relative"
             },
             ["td"] = new()
             {
-                { "padding", "0" },
-                { "text-align", "left" },
-                { "vertical-align", "bottom" },
-                { "border", "thin solid lightgray" },
-                { "white-space", "pre" },
-                { "overflow", "hidden" },
-                { "box-sizing", "border-box" }
+                ["padding"] = "0",
+                ["text-align"] = "left",
+                ["vertical-align"] = "bottom",
+                ["border"] = "thin solid lightgray",
+                ["white-space"] = "pre",
+                ["overflow"] = "hidden",
+                ["box-sizing"] = "border-box"
             }
         };
 

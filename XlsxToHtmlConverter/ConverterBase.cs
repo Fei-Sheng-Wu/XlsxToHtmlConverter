@@ -103,10 +103,34 @@ namespace XlsxToHtmlConverter.Base
         /// <summary>
         /// Initializes a new instance of the <see cref="HtmlElement"/> class.
         /// </summary>
+        /// <param name="type">The type of the element.</param>
         /// <param name="tag">The tag name of the element.</param>
         /// <param name="attributes">The attributes of the element.</param>
         /// <param name="content">The content of the element.</param>
-        public HtmlElement(string tag, HtmlAttributeCollection attributes, List<object>? content = null) : this(0, ElementType.Paired, tag, attributes, content) { }
+        public HtmlElement(ElementType type, string tag, HtmlAttributeCollection attributes, List<object>? content = null) : this(0, type, tag, attributes, content) { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HtmlElement"/> class.
+        /// </summary>
+        /// <param name="tag">The tag name of the element.</param>
+        /// <param name="attributes">The attributes of the element.</param>
+        /// <param name="content">The content of the element.</param>
+        public HtmlElement(string tag, HtmlAttributeCollection attributes, List<object>? content = null) : this(ElementType.Paired, tag, attributes, content) { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HtmlElement"/> class.
+        /// </summary>
+        /// <param name="type">The type of the element.</param>
+        /// <param name="tag">The tag name of the element.</param>
+        /// <param name="styles">The XLSX styles to apply to the element.</param>
+        /// <param name="content">The content of the element.</param>
+        public HtmlElement(ElementType type, string tag, XlsxStyles styles, List<object>? content = null) : this(type, tag, new HtmlAttributeCollection()
+        {
+            ["style"] = styles.Styles
+        })
+        {
+            Content.AddRange(styles.ApplyContainers(content));
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HtmlElement"/> class.
@@ -114,13 +138,7 @@ namespace XlsxToHtmlConverter.Base
         /// <param name="tag">The tag name of the element.</param>
         /// <param name="styles">The XLSX styles to apply to the element.</param>
         /// <param name="content">The content of the element.</param>
-        public HtmlElement(string tag, XlsxStyles styles, List<object>? content = null) : this(tag, new HtmlAttributeCollection()
-        {
-            ["style"] = styles.Styles
-        })
-        {
-            Content.AddRange(styles.ApplyContainers(content));
-        }
+        public HtmlElement(string tag, XlsxStyles styles, List<object>? content = null) : this(ElementType.Paired, tag, styles, content) { }
 
         /// <summary>
         /// Gets or sets the level of indentation.
@@ -332,7 +350,27 @@ namespace XlsxToHtmlConverter.Base
         /// <returns><see langword="true"/> if the range contains the specified column and row; otherwise, <see langword="false"/>.</returns>
         public bool Contains(uint column, uint row)
         {
-            return column >= ColumnStart && column <= ColumnEnd && row >= RowStart && row <= RowEnd;
+            return ContainsColumn(column) && ContainsRow(row);
+        }
+
+        /// <summary>
+        /// Determines whether the range contains the specified column.
+        /// </summary>
+        /// <param name="column">The specified column.</param>
+        /// <returns><see langword="true"/> if the range contains the specified column; otherwise, <see langword="false"/>.</returns>
+        public bool ContainsColumn(uint column)
+        {
+            return column >= ColumnStart && column <= ColumnEnd;
+        }
+
+        /// <summary>
+        /// Determines whether the range contains the specified row.
+        /// </summary>
+        /// <param name="row">The specified row.</param>
+        /// <returns><see langword="true"/> if the range contains the specified row; otherwise, <see langword="false"/>.</returns>
+        public bool ContainsRow(uint row)
+        {
+            return row >= RowStart && row <= RowEnd;
         }
 
         /// <summary>
@@ -406,7 +444,7 @@ namespace XlsxToHtmlConverter.Base
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxElement"/> class.
+    /// Initializes a new instance of the <see cref="XlsxString"/> class.
     /// </summary>
     public class XlsxString()
     {
