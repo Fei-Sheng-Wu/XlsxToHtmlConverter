@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Globalization;
 using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace XlsxToHtmlConverter.Base
@@ -41,114 +40,101 @@ namespace XlsxToHtmlConverter.Base
         /// <summary>
         /// Gets or sets the XLSX stylesheet of the context.
         /// </summary>
-        public XlsxStylesheetCollection Stylesheet { get; set; } = new();
+        public Specification.Xlsx.XlsxStylesCollection Stylesheet { get; set; } = new();
 
         /// <summary>
         /// Gets or sets the XLSX shared-string table of the context.
         /// </summary>
-        public XlsxString[] SharedStrings { get; set; } = [];
+        public Specification.Xlsx.XlsxString[] SharedStrings { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the XLSX sheet of the context.
         /// </summary>
-        public XlsxWorksheet Worksheet { get; set; } = new();
+        public Specification.Xlsx.XlsxSheet Sheet { get; set; } = new();
+    }
+}
+
+namespace XlsxToHtmlConverter.Base.Specification
+{
+    /// <summary>
+    /// Represents a mergeable object.
+    /// </summary>
+    public interface IMergeable
+    {
+        /// <summary>
+        /// Merges a specified object into this instance.
+        /// </summary>
+        /// <param name="value">The specified object.</param>
+        public abstract void Merge(object? value);
+    }
+}
+
+namespace XlsxToHtmlConverter.Base.Specification.Html
+{
+    /// <summary>
+    /// Specifies the type of a HTML element.
+    /// </summary>
+    public enum HtmlElementType
+    {
+        /// <summary>
+        /// Declaration element.
+        /// </summary>
+        Declaration,
+
+        /// <summary>
+        /// Paired element.
+        /// </summary>
+        Paired,
+
+        /// <summary>
+        /// Starting tag of a paired element.
+        /// </summary>
+        PairedStart,
+
+        /// <summary>
+        /// Closing tag of a paired element.
+        /// </summary>
+        PairedEnd,
+
+        /// <summary>
+        /// Unpaired element.
+        /// </summary>
+        Unpaired,
+
+        /// <summary>
+        /// Comment.
+        /// </summary>
+        Comment
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlElement"/> class.
     /// </summary>
-    /// <param name="indent">The level of indentation.</param>
+    /// <param name="indent">The indentation level of the element.</param>
     /// <param name="type">The type of the element.</param>
     /// <param name="tag">The tag name of the element.</param>
     /// <param name="attributes">The attributes of the element.</param>
-    /// <param name="content">The content of the element.</param>
-    public class HtmlElement(int indent, HtmlElement.ElementType type, string tag, HtmlAttributeCollection? attributes = null, List<object>? content = null)
+    /// <param name="children">The children of the element.</param>
+    public class HtmlElement(int? indent, HtmlElementType type, string tag, HtmlAttributes? attributes = null, HtmlChildren? children = null)
     {
         /// <summary>
-        /// Specifies the type of the element.
-        /// </summary>
-        public enum ElementType
-        {
-            /// <summary>
-            /// Declaration element.
-            /// </summary>
-            Declaration,
-
-            /// <summary>
-            /// Paired element.
-            /// </summary>
-            Paired,
-
-            /// <summary>
-            /// Starting tag of a paired element.
-            /// </summary>
-            PairedStart,
-
-            /// <summary>
-            /// Closing tag of a paired element.
-            /// </summary>
-            PairedEnd,
-
-            /// <summary>
-            /// Unpaired element.
-            /// </summary>
-            Unpaired,
-
-            /// <summary>
-            /// Comment.
-            /// </summary>
-            Comment
-        }
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="HtmlElement"/> class.
         /// </summary>
         /// <param name="type">The type of the element.</param>
         /// <param name="tag">The tag name of the element.</param>
         /// <param name="attributes">The attributes of the element.</param>
-        /// <param name="content">The content of the element.</param>
-        public HtmlElement(ElementType type, string tag, HtmlAttributeCollection attributes, List<object>? content = null) : this(0, type, tag, attributes, content) { }
+        /// <param name="children">The children of the element.</param>
+        public HtmlElement(HtmlElementType type, string tag, HtmlAttributes? attributes = null, HtmlChildren? children = null) : this(null, type, tag, attributes, children) { }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="HtmlElement"/> class.
+        /// Gets or sets the indentation level of the element.
         /// </summary>
-        /// <param name="tag">The tag name of the element.</param>
-        /// <param name="attributes">The attributes of the element.</param>
-        /// <param name="content">The content of the element.</param>
-        public HtmlElement(string tag, HtmlAttributeCollection attributes, List<object>? content = null) : this(ElementType.Paired, tag, attributes, content) { }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="HtmlElement"/> class.
-        /// </summary>
-        /// <param name="type">The type of the element.</param>
-        /// <param name="tag">The tag name of the element.</param>
-        /// <param name="styles">The XLSX styles to apply to the element.</param>
-        /// <param name="content">The content of the element.</param>
-        public HtmlElement(ElementType type, string tag, XlsxStyles styles, List<object>? content = null) : this(type, tag, new HtmlAttributeCollection()
-        {
-            ["style"] = styles.Styles
-        })
-        {
-            Content.AddRange(styles.ApplyContainers(content));
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="HtmlElement"/> class.
-        /// </summary>
-        /// <param name="tag">The tag name of the element.</param>
-        /// <param name="styles">The XLSX styles to apply to the element.</param>
-        /// <param name="content">The content of the element.</param>
-        public HtmlElement(string tag, XlsxStyles styles, List<object>? content = null) : this(ElementType.Paired, tag, styles, content) { }
-
-        /// <summary>
-        /// Gets or sets the level of indentation.
-        /// </summary>
-        public int Indent { get; set; } = indent;
+        public int? Indent { get; set; } = indent;
 
         /// <summary>
         /// Gets or sets the type of the element.
         /// </summary>
-        public ElementType Type { get; set; } = type;
+        public HtmlElementType Type { get; set; } = type;
 
         /// <summary>
         /// Gets or sets the tag name of the element.
@@ -158,42 +144,104 @@ namespace XlsxToHtmlConverter.Base
         /// <summary>
         /// Gets or sets the attributes of the element.
         /// </summary>
-        public HtmlAttributeCollection Attributes { get; set; } = attributes ?? [];
+        public HtmlAttributes Attributes { get; set; } = attributes ?? [];
 
         /// <summary>
-        /// Gets or set the content of the element.
+        /// Gets or set the children of the element.
         /// </summary>
-        public List<object> Content { get; set; } = content ?? [];
+        public HtmlChildren Children { get; set; } = children ?? [];
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="HtmlAttributeCollection"/> class.
+    /// Initializes a new instance of the <see cref="HtmlChildren"/> class.
     /// </summary>
-    public class HtmlAttributeCollection() : Dictionary<string, object?>
+    public class HtmlChildren() : List<object> { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HtmlAttributes"/> class.
+    /// </summary>
+    public class HtmlAttributes() : Dictionary<string, object?>, IMergeable
     {
-        /// <summary>
-        /// Merges a specified <see cref="HtmlAttributeCollection"/> into this instance.
-        /// </summary>
-        /// <param name="collection">The specified <see cref="HtmlAttributeCollection"/>.</param>
-        public void Merge(HtmlAttributeCollection collection)
+        public void Merge(object? value)
         {
-            foreach ((string key, object? value) in collection)
+            if (value is not HtmlAttributes attributes)
             {
-                this[key] = value;
+                return;
+            }
+
+            foreach ((string attribute, object? field) in attributes)
+            {
+                if (field is IMergeable mergeable && Implementation.Common.Get(this, attribute) is IMergeable baseline)
+                {
+                    baseline.Merge(mergeable);
+                    continue;
+                }
+
+                this[attribute] = field;
+            }
+        }
+
+        /// <summary>
+        /// Merges a <see cref="HtmlStyles"/> instance into this instance.
+        /// </summary>
+        /// <param name="styles">The <see cref="HtmlStyles"/> instance.</param>
+        /// <param name="name">The class name of the <see cref="HtmlStyles"/> instance.</param>
+        public void MergeStyles(HtmlStyles styles, string? name = null)
+        {
+            if (Implementation.Common.Get(this, "style") is not HtmlStyles baseline)
+            {
+                baseline = [];
+                this["style"] = baseline;
+            }
+            if (name == null)
+            {
+                baseline.Merge(styles);
+                return;
+            }
+
+            if (Implementation.Common.Get(this, "class") is not HtmlClasses classes)
+            {
+                classes = [name];
+                this["class"] = classes;
+            }
+            else
+            {
+                classes.Add(name);
+            }
+
+            foreach (string property in styles.Keys)
+            {
+                baseline.Remove(property);
             }
         }
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="HtmlStylesheetCollection"/> class.
+    /// Initializes a new instance of the <see cref="HtmlClasses"/> class.
     /// </summary>
-    public class HtmlStylesheetCollection() : Dictionary<string, HtmlStyles>
+    public class HtmlClasses() : List<string>, IMergeable
+    {
+        public void Merge(object? value)
+        {
+            if (value is not HtmlClasses classes)
+            {
+                return;
+            }
+
+            AddRange(classes);
+        }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HtmlStylesCollection"/> class.
+    /// </summary>
+    public class HtmlStylesCollection() : Dictionary<string, HtmlStyles>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="HtmlStylesheetCollection"/> class.
+        /// Initializes a new instance of the <see cref="HtmlStylesCollection"/> class.
         /// </summary>
         /// <param name="raw">The raw HTML representation of the stylesheet.</param>
-        public HtmlStylesheetCollection(string raw) : this()
+        public HtmlStylesCollection(string raw) : this()
         {
             foreach (string block in raw.Split('}'))
             {
@@ -224,55 +272,81 @@ namespace XlsxToHtmlConverter.Base
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlStyles"/> class.
     /// </summary>
-    public class HtmlStyles() : Dictionary<string, string>
+    public class HtmlStyles() : Dictionary<string, string>, IMergeable
     {
-        /// <summary>
-        /// Merges a specified <see cref="HtmlStyles"/> into this instance.
-        /// </summary>
-        /// <param name="styles">The specified <see cref="HtmlStyles"/>.</param>
-        public void Merge(HtmlStyles styles)
+        public void Merge(object? value)
         {
-            foreach ((string key, string value) in styles)
+            if (value is not HtmlStyles styles)
             {
-                this[key] = value;
+                return;
+            }
+
+            foreach ((string property, string field) in styles)
+            {
+                this[property] = field;
             }
         }
     }
+}
 
+namespace XlsxToHtmlConverter.Base.Specification.Xlsx
+{
     /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxWorksheet"/> class.
+    /// Initializes a new instance of the <see cref="XlsxCell"/> class.
     /// </summary>
-    public class XlsxWorksheet()
+    /// <param name="cell">The cell.</param>
+    public class XlsxCell(Cell? cell)
     {
         /// <summary>
-        /// Gets or sets the sheet content.
+        /// Gets or sets the cell.
         /// </summary>
-        public SheetData? Data { get; set; } = null;
+        public Cell? Cell { get; set; } = cell;
 
         /// <summary>
-        /// Gets or sets the HTML styles of the sheet title.
+        /// Gets or sets the styles of the cell.
         /// </summary>
-        public HtmlStyles TitleStyles { get; set; } = [];
+        public List<XlsxStyles> Styles { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets the default cell size within the sheet.
+        /// Gets or sets the number format of the cell.
         /// </summary>
-        public (double Width, double Height) DefaultCellSize { get; set; } = (0, 0);
+        public XlsxNumberFormat? NumberFormat { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets the collection of column widths within the sheet.
+        /// Gets or sets the number format ID of the cell.
         /// </summary>
-        public double?[] ColumnWidths { get; set; } = [];
+        public uint? NumberFormatId { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets the sheet dimension.
+        /// Gets or sets the specialties associated with the cell.
         /// </summary>
-        public XlsxRange Dimension { get; set; } = new(1, 1, 1, 1);
+        public IEnumerable<XlsxSpecialty> Specialties { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets the collection of specialties within the sheet.
+        /// Gets or sets the attributes of the cell.
         /// </summary>
-        public List<XlsxRangeSpecialty> Specialties { get; set; } = [];
+        public Html.HtmlAttributes Attributes { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the children of the cell.
+        /// </summary>
+        public Html.HtmlChildren Children { get; set; } = [];
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxString"/> class.
+    /// </summary>
+    public class XlsxString()
+    {
+        /// <summary>
+        /// Gets or sets the children of the string.
+        /// </summary>
+        public Html.HtmlChildren Children { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the raw representation of the string.
+        /// </summary>
+        public string Raw { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -287,11 +361,16 @@ namespace XlsxToHtmlConverter.Base
         /// <summary>
         /// Initializes a new instance of the <see cref="XlsxRange"/> class.
         /// </summary>
-        /// <param name="range">The XLSX reference that specifies the range.</param>
+        public XlsxRange() : this(1, 1, 1, 1) { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="XlsxRange"/> class.
+        /// </summary>
+        /// <param name="raw">The XLSX reference that specifies the range.</param>
         /// <param name="dimension">The dimension of the current sheet.</param>
-        public XlsxRange(string range, XlsxRange? dimension = null) : this(1, 1, 1, 1)
+        public XlsxRange(string raw, XlsxRange? dimension = null) : this()
         {
-            string[] references = range.Split(':');
+            string[] references = raw.Split(':');
             (uint left, uint top) = ParseReference(references[0], (dimension?.ColumnStart ?? 1, dimension?.RowStart ?? 1));
             (uint right, uint bottom) = ParseReference(references[^1], (dimension?.ColumnEnd ?? 1, dimension?.RowEnd ?? 1));
 
@@ -374,11 +453,11 @@ namespace XlsxToHtmlConverter.Base
         }
 
         /// <summary>
-        /// Converts a XLSX reference that specifies a position in terms of column and row indexes.
+        /// Converts a XLSX reference that represents a specified column and row.
         /// </summary>
-        /// <param name="reference">The XLSX reference that specifies the position.</param>
+        /// <param name="reference">The XLSX reference.</param>
         /// <param name="fallback">The fallback values when an index is not present.</param>
-        /// <returns>The 1-indexed position.</returns>
+        /// <returns>The 1-indexed specified column and row.</returns>
         public static (uint Column, uint Row) ParseReference(string reference, (uint Column, uint Row)? fallback = null)
         {
             string letters = string.Concat(reference.Where(char.IsLetter));
@@ -398,7 +477,7 @@ namespace XlsxToHtmlConverter.Base
             uint? row = null;
             if (digits.Any())
             {
-                row = Math.Max(1, uint.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint value) ? value : 1);
+                row = Math.Max(1, Implementation.Common.ParsePositive(digits) ?? 1);
             }
 
             return (column ?? fallback?.Column ?? 1, row ?? fallback?.Row ?? 1);
@@ -406,225 +485,255 @@ namespace XlsxToHtmlConverter.Base
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxRangeSpecialty"/> class.
+    /// Initializes a new instance of the <see cref="XlsxSheet"/> class.
     /// </summary>
-    public class XlsxRangeSpecialty()
+    public class XlsxSheet()
+    {
+        /// <summary>
+        /// Gets or sets the sheet content.
+        /// </summary>
+        public SheetData? Data { get; set; } = null;
+
+        /// <summary>
+        /// Gets or sets the sheet dimension.
+        /// </summary>
+        public XlsxRange Dimension { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the attributes of the sheet title.
+        /// </summary>
+        public Html.HtmlAttributes TitleAttributes { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the attributes of the columns within the sheet.
+        /// </summary>
+        public Html.HtmlAttributes ColumnAttributes { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the attributes of the rows within the sheet.
+        /// </summary>
+        public Html.HtmlAttributes RowAttributes { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the attributes of the cells within the sheet.
+        /// </summary>
+        public Html.HtmlAttributes CellAttributes { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the columns within the sheet.
+        /// </summary>
+        public (double? Width, bool? IsHidden, uint? StylesIndex)[] Columns { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the size of the cells within the sheet.
+        /// </summary>
+        public (double Width, double Height) CellSize { get; set; } = (0, 0);
+
+        /// <summary>
+        /// Gets or sets the specialties within the sheet.
+        /// </summary>
+        public List<XlsxSpecialty> Specialties { get; set; } = [];
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxSpecialty"/> class.
+    /// </summary>
+    /// <param name="specialty">The specialty.</param>
+    public class XlsxSpecialty(object specialty)
     {
         /// <summary>
         /// Gets or sets the specialty.
         /// </summary>
-        public object Specialty { get; set; } = new();
+        public object Specialty { get; set; } = specialty;
 
         /// <summary>
         /// Gets or sets the range of the specialty.
         /// </summary>
-        public XlsxRange Range { get; set; } = new(1, 1, 1, 1);
+        public XlsxRange Range { get; set; } = new();
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxCell"/> class.
+    /// Initializes a new instance of the <see cref="XlsxStylesCollection"/> class.
     /// </summary>
-    /// <param name="cell">The cell.</param>
-    public class XlsxCell(Cell cell)
+    public class XlsxStylesCollection()
     {
         /// <summary>
-        /// Gets or sets the cell.
+        /// Gets or sets the base styles.
         /// </summary>
-        public Cell Cell { get; set; } = cell;
+        public XlsxBaseStyles[] BaseStyles { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets the number format ID of the cell.
+        /// Gets or sets the differential styles.
         /// </summary>
-        public uint NumberFormatId { get; set; } = 0;
+        public XlsxDifferentialStyles[] DifferentialStyles { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets the collection of specialties associated with the cell.
-        /// </summary>
-        public XlsxRangeSpecialty[] Specialties { get; set; } = [];
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxString"/> class.
-    /// </summary>
-    public class XlsxString()
-    {
-        /// <summary>
-        /// Gets or sets the content of the string.
-        /// </summary>
-        public List<object> Content { get; set; } = [];
-
-        /// <summary>
-        /// Gets or sets the raw representation of the string.
-        /// </summary>
-        public string Raw { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxContent"/> class.
-    /// </summary>
-    public class XlsxContent()
-    {
-        /// <summary>
-        /// Gets or sets the content.
-        /// </summary>
-        public List<object> Content { get; set; } = [];
-
-        /// <summary>
-        /// Gets or sets the styles associated with the content.
-        /// </summary>
-        public XlsxStyles Styles { get; set; } = new();
-
-        /// <summary>
-        /// Gets or sets the collection of differential formats associated with the content.
-        /// </summary>
-        public List<uint> DifferentialFormatIds { get; set; } = [];
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxStylesheetCollection"/> class.
-    /// </summary>
-    public class XlsxStylesheetCollection()
-    {
-        /// <summary>
-        /// Gets or sets the collection of XLSX cell formats.
-        /// </summary>
-        public XlsxCellFormat[] CellFormats { get; set; } = [];
-
-        /// <summary>
-        /// Gets or sets the collection of XLSX differential formats.
-        /// </summary>
-        public XlsxDifferentialFormat[] DifferentialFormats { get; set; } = [];
-
-        /// <summary>
-        /// Gets or sets the collection of XLSX number formats.
+        /// Gets or sets the number formats.
         /// </summary>
         public Dictionary<uint, XlsxNumberFormat> NumberFormats { get; set; } = [];
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxStyles"/> class.
+    /// Provides applicable XLSX styles.
     /// </summary>
-    public class XlsxStyles()
+    public abstract class XlsxStyles
+    {
+        /// <summary>
+        /// Gets or sets the name of the styles.
+        /// </summary>
+        public string? Name { get; set; } = null;
+
+        /// <summary>
+        /// Gets or sets whether the styles should hide the cell content.
+        /// </summary>
+        public bool? IsHidden { get; set; } = null;
+
+        protected abstract IEnumerable<XlsxStylesLayer> GetLayers();
+
+        /// <summary>
+        /// Retrieves the styles.
+        /// </summary>
+        public Html.HtmlStyles GetsStyles()
+        {
+            return GetsStyles(GetLayers());
+        }
+
+        /// <summary>
+        /// Applies the styles onto the specified HTML element.
+        /// </summary>
+        /// <param name="element">The specified HTML element.</param>
+        /// <param name="isNamed">Whether to use the names of the styles.</param>
+        public void ApplyStyles(Html.HtmlElement element, bool isNamed)
+        {
+            ApplyStyles(element, GetLayers(), isNamed ? Name : null);
+        }
+
+        /// <summary>
+        /// Retrieves the styles.
+        /// </summary>
+        /// <param name="layers">The layers of the styles.</param>
+        public static Html.HtmlStyles GetsStyles(IEnumerable<XlsxStylesLayer> layers)
+        {
+            Html.HtmlStyles result = [];
+
+            foreach (XlsxStylesLayer layer in layers)
+            {
+                result.Merge(layer.Styles);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Applies the styles onto the specified HTML element.
+        /// </summary>
+        /// <param name="element">The specified HTML element.</param>
+        /// <param name="layers">The layers of the styles.</param>
+        /// <param name="name">The name of the styles.</param>
+        public static void ApplyStyles(Html.HtmlElement element, IEnumerable<XlsxStylesLayer> layers, string? name = null)
+        {
+            element.Attributes.MergeStyles(GetsStyles(layers), name);
+
+            foreach (XlsxStylesLayer layer in layers)
+            {
+                Html.HtmlChildren children = element.Children;
+                foreach (Html.HtmlStyles container in layer.Containers)
+                {
+                    children = [new Html.HtmlElement(Html.HtmlElementType.Paired, "span", new Html.HtmlAttributes()
+                    {
+                        ["style"] = container
+                    }, children)];
+                }
+
+                element.Children = children;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxStylesLayer"/> class.
+    /// </summary>
+    public class XlsxStylesLayer : IMergeable
+    {
+        /// <summary>
+        /// Gets or sets the styles of the styles layer.
+        /// </summary>
+        public Html.HtmlStyles Styles { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the styles respective to each layer of nested containers that surround the cell content using the styles layer.
+        /// </summary>
+        public List<Html.HtmlStyles> Containers { get; set; } = [];
+
+        public void Merge(object? value)
+        {
+            if (value is not XlsxStylesLayer layer)
+            {
+                return;
+            }
+
+            Styles.Merge(layer.Styles);
+            Containers.AddRange(layer.Containers);
+        }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxBaseStyles"/> class.
+    /// </summary>
+    public class XlsxBaseStyles() : XlsxStyles
     {
         /// <summary>
         /// Gets or sets the styles.
         /// </summary>
-        public HtmlStyles Styles { get; set; } = [];
+        public XlsxStylesLayer Styles { get; set; } = new();
 
         /// <summary>
-        /// Gets or sets the collection of styles respective to each layer of a nested HTML container element that surrounds the cell content using the styles.
+        /// Gets or sets the number format ID of the styles.
         /// </summary>
-        public List<HtmlStyles> Containers { get; set; } = [];
+        public uint? NumberFormatId { get; set; } = null;
 
-        /// <summary>
-        /// Merges a specified <see cref="XlsxStyles"/> into this instance.
-        /// </summary>
-        /// <param name="styles">The specified <see cref="XlsxStyles"/>.</param>
-        /// <param name="isReserved">Whether the styles of the specified <see cref="XlsxStyles"/> are reserved.</param>
-        public void Merge(XlsxStyles styles, bool isReserved = false)
+        protected override IEnumerable<XlsxStylesLayer> GetLayers()
         {
-            if (isReserved)
-            {
-                foreach (string key in styles.Styles.Select(x => x.Key))
-                {
-                    Styles.Remove(key);
-                }
-            }
-            else
-            {
-                Styles.Merge(styles.Styles);
-            }
-
-            Containers.AddRange(styles.Containers);
-        }
-
-        /// <summary>
-        /// Applies the containers onto the specified content.
-        /// </summary>
-        /// <param name="content">The specified content.</param>
-        /// <returns>The applied HTML content.</returns>
-        public List<object> ApplyContainers(List<object>? content = null)
-        {
-            if (!Containers.Any())
-            {
-                return content ?? [];
-            }
-
-            List<object> result = [];
-
-            HtmlElement? parent = null;
-            foreach (HtmlStyles container in Containers)
-            {
-                HtmlElement element = new("div", new HtmlAttributeCollection()
-                {
-                    ["style"] = container
-                });
-
-                (parent?.Content ?? result).Add(element);
-                parent = element;
-            }
-
-            parent?.Content.AddRange(content ?? []);
-
-            return result;
+            yield return Styles;
         }
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxCellFormat"/> class.
+    /// Initializes a new instance of the <see cref="XlsxDifferentialStyles"/> class.
     /// </summary>
-    public class XlsxCellFormat()
+    public class XlsxDifferentialStyles() : XlsxStyles
     {
         /// <summary>
-        /// Gets or sets the styles of the format.
+        /// Gets or sets the font styles of the styles.
         /// </summary>
-        public XlsxStyles Styles { get; set; } = new();
+        public XlsxStylesLayer FontStyles { get; set; } = new();
 
         /// <summary>
-        /// Gets or sets the number format of the format.
+        /// Gets or sets the fill styles of the styles.
         /// </summary>
-        public uint NumberFormatId { get; set; } = 0;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="XlsxDifferentialFormat"/> class.
-    /// </summary>
-    public class XlsxDifferentialFormat()
-    {
-        /// <summary>
-        /// Gets or sets the font styles of the format.
-        /// </summary>
-        public XlsxStyles FontStyles { get; set; } = new();
+        public XlsxStylesLayer FillStyles { get; set; } = new();
 
         /// <summary>
-        /// Gets or sets the fill styles of the format.
+        /// Gets or sets the border styles of the styles.
         /// </summary>
-        public XlsxStyles FillStyles { get; set; } = new();
+        public XlsxStylesLayer BorderStyles { get; set; } = new();
 
         /// <summary>
-        /// Gets or sets the border styles of the format.
+        /// Gets or sets the alignment styles of the styles.
         /// </summary>
-        public XlsxStyles BorderStyles { get; set; } = new();
+        public XlsxStylesLayer AlignmentStyles { get; set; } = new();
 
         /// <summary>
-        /// Gets or sets the alignment styles of the format.
+        /// Gets or sets the number format of the styles.
         /// </summary>
-        public XlsxStyles AlignmentStyles { get; set; } = new();
+        public XlsxNumberFormat? NumberFormat { get; set; } = null;
 
-        /// <summary>
-        /// Combines the styles into a single <see cref="XlsxStyles"/> instance.
-        /// </summary>
-        /// <returns>The combined <see cref="XlsxStyles"/>.</returns>
-        public XlsxStyles Combine()
+        protected override IEnumerable<XlsxStylesLayer> GetLayers()
         {
-            XlsxStyles result = new();
-
-            result.Merge(FillStyles);
-            result.Merge(FontStyles);
-            result.Merge(BorderStyles);
-            result.Merge(AlignmentStyles);
-
-            return result;
+            yield return FontStyles;
+            yield return FillStyles;
+            yield return BorderStyles;
+            yield return AlignmentStyles;
         }
     }
 
@@ -635,9 +744,9 @@ namespace XlsxToHtmlConverter.Base
     /// <param name="negative">The negative section of the number format.</param>
     /// <param name="zero">The zero section of the number format.</param>
     /// <param name="text">The text section of the number format.</param>
-    public class XlsxNumberFormat((string Code, bool IsDate)? positive, (string Code, bool IsDate)? negative, (string Code, bool IsDate)? zero, (string Code, bool IsDate)? text)
+    public class XlsxNumberFormat(XlsxNumberFormatCode positive, XlsxNumberFormatCode negative, XlsxNumberFormatCode zero, XlsxNumberFormatCode text)
     {
-        private enum EscapeState
+        protected enum EscapeState
         {
             None,
             Immediate,
@@ -645,42 +754,64 @@ namespace XlsxToHtmlConverter.Base
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="XlsxNumberFormat"/> class.
+        /// </summary>
+        /// <param name="positive">The positive section of the number format.</param>
+        /// <param name="negative">The negative section of the number format.</param>
+        /// <param name="zero">The zero section of the number format.</param>
+        public XlsxNumberFormat(XlsxNumberFormatCode positive, XlsxNumberFormatCode negative, XlsxNumberFormatCode zero) : this(positive, negative, zero, new()) { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="XlsxNumberFormat"/> class.
+        /// </summary>
+        /// <param name="positive">The positive section of the number format.</param>
+        /// <param name="negative">The negative section of the number format.</param>
+        public XlsxNumberFormat(XlsxNumberFormatCode positive, XlsxNumberFormatCode negative) : this(positive, negative, positive) { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="XlsxNumberFormat"/> class.
+        /// </summary>
+        /// <param name="positive">The positive section of the number format.</param>
+        public XlsxNumberFormat(XlsxNumberFormatCode positive) : this(positive, new($"-{positive.Code}", positive.IsDate)) { }
+
+        /// <summary>
         /// Gets or sets the positive section of the number format.
         /// </summary>
-        public (string Code, bool IsDate)? Positive { get; set; } = positive;
+        public XlsxNumberFormatCode Positive { get; set; } = positive;
 
         /// <summary>
         /// Gets or sets the negative section of the number format.
         /// </summary>
-        public (string Code, bool IsDate)? Negative { get; set; } = negative;
+        public XlsxNumberFormatCode Negative { get; set; } = negative;
 
         /// <summary>
         /// Gets or sets the zero section of the number format.
         /// </summary>
-        public (string Code, bool IsDate)? Zero { get; set; } = zero;
+        public XlsxNumberFormatCode Zero { get; set; } = zero;
 
         /// <summary>
         /// Gets or sets the text section of the number format.
         /// </summary>
-        public (string Code, bool IsDate)? Text { get; set; } = text;
+        public XlsxNumberFormatCode Text { get; set; } = text;
 
         /// <summary>
         /// Iterates through the specified format code with regards to character escaping.
         /// </summary>
         /// <param name="code">The specified format code.</param>
-        /// <param name="immediate">The additional immediate escape characters to check for.</param>
-        /// <param name="continuous">The additional continuous escape characters to check for.</param>
-        /// <returns>The collection of characters with information regrading character escaping.</returns>
-        public static IEnumerable<(int Index, char Character, bool IsEscaped)> Escape(string code, char[]? immediate = null, char[]? continuous = null)
+        /// <param name="singles">The additional immediate escape characters to check for.</param>
+        /// <param name="blocks">The additional continuous escape characters to check for.</param>
+        /// <returns>The characters with respective information regrading character escaping.</returns>
+        public static IEnumerable<(int Index, char Character, bool IsEscaped)> Escape(string code, char[]? singles = null, char[]? blocks = null)
         {
             int index = 0;
             EscapeState state = EscapeState.None;
+
             foreach (char character in code)
             {
                 yield return (index, character, state switch
                 {
                     EscapeState.None => false,
-                    EscapeState.Continuous => character is not '\"' && (!continuous?.Contains(character) ?? true),
+                    EscapeState.Continuous => character is not '\"' && (!blocks?.Contains(character) ?? true),
                     _ => true
                 });
 
@@ -689,14 +820,37 @@ namespace XlsxToHtmlConverter.Base
                 {
                     (EscapeState.None, '\\') => EscapeState.Immediate,
                     (EscapeState.None, '\"') => EscapeState.Continuous,
-                    (EscapeState.None, _) when immediate?.Contains(character) ?? false => EscapeState.Immediate,
-                    (EscapeState.None, _) when continuous?.Contains(character) ?? false => EscapeState.Continuous,
+                    (EscapeState.None, _) when singles?.Contains(character) ?? false => EscapeState.Immediate,
+                    (EscapeState.None, _) when blocks?.Contains(character) ?? false => EscapeState.Continuous,
                     (EscapeState.Immediate, _) => EscapeState.None,
                     (EscapeState.Continuous, '\"') => EscapeState.None,
-                    (EscapeState.Continuous, _) when continuous?.Contains(character) ?? false => EscapeState.None,
+                    (EscapeState.Continuous, _) when blocks?.Contains(character) ?? false => EscapeState.None,
                     _ => state
                 };
             }
         }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="XlsxNumberFormatCode"/> class.
+    /// </summary>
+    /// <param name="code">The code.</param>
+    /// <param name="isDate">Whether the code is a date representation.</param>
+    public class XlsxNumberFormatCode(string code, bool isDate)
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="XlsxNumberFormatCode"/> class.
+        /// </summary>
+        public XlsxNumberFormatCode() : this(string.Empty, false) { }
+
+        /// <summary>
+        /// Gets or sets the code.
+        /// </summary>
+        public string Code { get; set; } = code;
+
+        /// <summary>
+        /// Gets or sets whether the code is a date representation.
+        /// </summary>
+        public bool IsDate { get; set; } = isDate;
     }
 }

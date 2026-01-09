@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -19,67 +20,67 @@ namespace XlsxToHtmlConverter
             /// <summary>
             /// Gets or sets the converter to write the HTML content.
             /// </summary>
-            public Base.IConverterBase<Base.HtmlElement, string> HtmlWriter { get; set; } = new Base.Defaults.DefaultHtmlWriter();
+            public Base.IConverterBase<Base.Specification.Html.HtmlElement, string> HtmlWriter { get; set; } = new Base.Implementation.DefaultHtmlWriter();
 
             /// <summary>
             /// Gets or sets the converter to read the XLSX stylesheet.
             /// </summary>
-            public Base.IConverterBase<Stylesheet?, Base.XlsxStylesheetCollection> XlsxStylesheetReader { get; set; } = new Base.Defaults.DefaultXlsxStylesheetReader();
+            public Base.IConverterBase<Stylesheet?, Base.Specification.Xlsx.XlsxStylesCollection> XlsxStylesheetReader { get; set; } = new Base.Implementation.DefaultXlsxStylesheetReader();
 
             /// <summary>
             /// Gets or sets the converter to read the XLSX shared-string table.
             /// </summary>
-            public Base.IConverterBase<SharedStringTable?, Base.XlsxString[]> XlsxSharedStringTableReader { get; set; } = new Base.Defaults.DefaultXlsxSharedStringTableReader();
+            public Base.IConverterBase<SharedStringTable?, Base.Specification.Xlsx.XlsxString[]> XlsxSharedStringTableReader { get; set; } = new Base.Implementation.DefaultXlsxSharedStringTableReader();
 
             /// <summary>
             /// Gets or sets the converter to read the XLSX sheets.
             /// </summary>
-            public Base.IConverterBase<Worksheet?, Base.XlsxWorksheet> XlsxWorksheetReader { get; set; } = new Base.Defaults.DefaultXlsxWorksheetReader();
+            public Base.IConverterBase<Worksheet?, Base.Specification.Xlsx.XlsxSheet> XlsxWorksheetReader { get; set; } = new Base.Implementation.DefaultXlsxWorksheetReader();
 
             /// <summary>
             /// Gets or sets the converter to read the XLSX cell values.
             /// </summary>
-            public Base.IConverterBase<Base.XlsxCell?, Base.XlsxContent> XlsxCellContentReader { get; set; } = new Base.Defaults.DefaultXlsxCellContentReader();
+            public Base.IConverterBase<Base.Specification.Xlsx.XlsxCell?, Base.Specification.Xlsx.XlsxCell> XlsxCellContentReader { get; set; } = new Base.Implementation.DefaultXlsxCellContentReader();
 
             /// <summary>
             /// Gets or sets the converter to read the XLSX tables.
             /// </summary>
-            public Base.IConverterBase<TableDefinitionPart?, Base.XlsxRangeSpecialty[]> XlsxTableReader { get; set; } = new Base.Defaults.DefaultXlsxTableReader();
+            public Base.IConverterBase<TableDefinitionPart?, Base.Specification.Xlsx.XlsxSpecialty[]> XlsxTableReader { get; set; } = new Base.Implementation.DefaultXlsxTableReader();
 
             /// <summary>
             /// Gets or sets the converter to read the XLSX drawings.
             /// </summary>
-            public Base.IConverterBase<DrawingsPart?, Base.XlsxRangeSpecialty[]> XlsxDrawingReader { get; set; } = new Base.Defaults.DefaultXlsxDrawingReader();
+            public Base.IConverterBase<DrawingsPart?, Base.Specification.Xlsx.XlsxSpecialty[]> XlsxDrawingReader { get; set; } = new Base.Implementation.DefaultXlsxDrawingReader();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX colors.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, string> XlsxColorConverter { get; set; } = new Base.Defaults.DefaultXlsxColorConverter();
+            public Base.IConverterBase<OpenXmlElement?, string> XlsxColorConverter { get; set; } = new Base.Implementation.DefaultXlsxColorConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX strings.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxString> XlsxStringConverter { get; set; } = new Base.Defaults.DefaultXlsxStringConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.Specification.Xlsx.XlsxString> XlsxStringConverter { get; set; } = new Base.Implementation.DefaultXlsxStringConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX fonts.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxStyles> XlsxFontConverter { get; set; } = new Base.Defaults.DefaultXlsxFontConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.Specification.Xlsx.XlsxStylesLayer> XlsxFontConverter { get; set; } = new Base.Implementation.DefaultXlsxFontConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX fills.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxStyles> XlsxFillConverter { get; set; } = new Base.Defaults.DefaultXlsxFillConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.Specification.Xlsx.XlsxStylesLayer> XlsxFillConverter { get; set; } = new Base.Implementation.DefaultXlsxFillConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX borders.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxStyles> XlsxBorderConverter { get; set; } = new Base.Defaults.DefaultXlsxBorderConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.Specification.Xlsx.XlsxStylesLayer> XlsxBorderConverter { get; set; } = new Base.Implementation.DefaultXlsxBorderConverter();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX alignments.
             /// </summary>
-            public Base.IConverterBase<OpenXmlElement?, Base.XlsxStyles> XlsxAlignmentConverter { get; set; } = new Base.Defaults.DefaultXlsxAlignmentConverter();
+            public Base.IConverterBase<OpenXmlElement?, Base.Specification.Xlsx.XlsxStylesLayer> XlsxAlignmentConverter { get; set; } = new Base.Implementation.DefaultXlsxAlignmentConverter();
         }
 
         /// <summary>
@@ -107,26 +108,24 @@ namespace XlsxToHtmlConverter
         /// </summary>
         public int RoundingDigits { get; set; } = 2;
 
+        /// <summary>
+        /// Gets or sets the local culture for converting culture-dependent XLSX content.
+        /// </summary>
         public CultureInfo CurrentCulture { get; set; } = CultureInfo.CurrentCulture;
 
         /// <summary>
         /// Gets or sets the title of the HTML content.
         /// </summary>
-        public string HtmlTitle { get; set; } = "Conversion Result";
+        public string? HtmlTitle { get; set; } = null;
 
         /// <summary>
         /// Gets or sets the preset stylesheet of the HTML content.
         /// </summary>
-        public Base.HtmlStylesheetCollection HtmlPresetStylesheet { get; set; } = new()
+        public Base.Specification.Html.HtmlStylesCollection HtmlPresetStylesheet { get; set; } = new()
         {
-            ["body"] = new()
-            {
-                ["margin"] = "0",
-                ["padding"] = "0"
-            },
             ["table"] = new()
             {
-                ["width"] = "100%",
+                ["width"] = "fit-content",
                 ["table-layout"] = "fixed",
                 ["border-collapse"] = "collapse"
             },
@@ -136,7 +135,8 @@ namespace XlsxToHtmlConverter
                 ["padding"] = "2px",
                 ["width"] = "fit-content",
                 ["font-size"] = "20px",
-                ["font-weight"] = "bold"
+                ["font-weight"] = "bold",
+                ["border-bottom"] = "thick solid var(--color)"
             },
             ["tbody"] = new()
             {
@@ -145,14 +145,18 @@ namespace XlsxToHtmlConverter
             ["td"] = new()
             {
                 ["padding"] = "0",
-                ["text-align"] = "left",
                 ["vertical-align"] = "bottom",
                 ["border"] = "thin solid lightgray",
                 ["white-space"] = "pre",
-                ["overflow"] = "hidden",
+                ["overflow-y"] = "clip",
                 ["box-sizing"] = "border-box"
             }
         };
+
+        /// <summary>
+        /// Gets or sets the selector that determines whether a XLSX sheet should be converted.
+        /// </summary>
+        public Func<(int Index, string? Id), bool>? XlsxSheetSelector { get; set; } = null;
 
         /// <summary>
         /// Gets or sets whether to convert XLSX sheet names to HTML table captions.
@@ -160,24 +164,19 @@ namespace XlsxToHtmlConverter
         public bool ConvertSheetTitles { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets whether to convert XLSX hidden sheets.
+        /// Gets or sets whether to convert XLSX cell sizes.
         /// </summary>
-        public bool ConvertHiddenSheets { get; set; } = false;
+        public bool ConvertSizes { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets whether to convert the first XLSX sheet only.
+        /// Gets or sets whether to convert XLSX visibilities.
         /// </summary>
-        public bool ConvertFirstSheetOnly { get; set; } = false;
+        public bool ConvertVisibilities { get; set; } = true;
 
         /// <summary>
         /// Gets or sets whether to convert XLSX visual styles.
         /// </summary>
         public bool ConvertStyles { get; set; } = true;
-
-        /// <summary>
-        /// Gets or sets whether to convert XLSX cell sizes.
-        /// </summary>
-        public bool ConvertSizes { get; set; } = true;
 
         /// <summary>
         /// Gets or sets whether to convert XLSX cell values using the respective number formats.
@@ -208,5 +207,15 @@ namespace XlsxToHtmlConverter
         /// Gets or sets whether to utilize the HTML hexadecimal color representations.
         /// </summary>
         public bool UseHtmlHexColors { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether to utilize the HTML proportional widths with percentages.
+        /// </summary>
+        public bool UseHtmlProportionalWidths { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether to utilize the HTML machine-readable elements.
+        /// </summary>
+        public bool UseHtmlDataElements { get; set; } = true;
     }
 }
