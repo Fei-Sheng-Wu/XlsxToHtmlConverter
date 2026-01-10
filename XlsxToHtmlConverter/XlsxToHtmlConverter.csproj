@@ -11,11 +11,11 @@
     <Title>XlsxToHtmlConverter</Title>
     <Version>2.0.0</Version>
     <Authors>FeiShengWu</Authors>
-    <Description>A fast Xlsx to Html file converter. Support cell fills, fonts, borders, alignments, and other styles. Support different cell sizes and merged cells. Support custom number formats and basic conditions. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.</Description>
+    <Description>A fast, versatile, and powerful XLSX to HTML converter. Support an extensive scope of cell stylings and additional elements. Empower the efficient transformation of spreadsheets into well-structured web documents. Provide the ability to easily customize every aspect of the conversion process with progress callbacks. Only depend on the Open XML SDK.</Description>
     <Copyright>Copyright © 2026 FeiShengWu</Copyright>
     <PackageProjectUrl>https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageTags>C#;Excel;Xlsx;Html;Webpage;Converter;Exporter;Parser;Data;Spreadsheet;OpenXml</PackageTags>
+    <PackageTags>C#;Xlsx;Html;Excel;Spreadsheet;Webpage;Web;Converter;Conversion;Parser;Exporter;Data;Document</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup>

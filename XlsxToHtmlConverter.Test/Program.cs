@@ -27,7 +27,7 @@ namespace XlsxToHtmlConverter.Test
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            Converter.ConvertXlsx(xlsx, html, new ConverterConfiguration()
+            Converter.Convert(xlsx, html, new()
             {
                 HtmlTitle = Path.GetFileName(xlsx)
             }, (x, e) =>
