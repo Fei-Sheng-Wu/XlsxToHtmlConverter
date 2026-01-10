@@ -21,13 +21,13 @@
 - [x] Elements of pictures and shapes with responsive positioning
 - [x] HTML construction with configurable details and modernized organization
 
-### Original XLSX File
+| Original XLSX File |
+| :---: |
+| ![Original XLSX File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/sample-xlsx.png) |
 
-![Original XLSX File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/sample-xlsx.png)
-
-### Converted HTML File
-
-![Converted HTML File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/sample-html.png)
+| Converted HTML File |
+| :---: |
+| ![Converted HTML File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/sample-html.png) |
 
 ## Versioning
 

@@ -537,7 +537,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 uint integer => integer.ToString(CultureInfo.InvariantCulture),
                 int integer => integer.ToString(CultureInfo.InvariantCulture),
                 long integer => integer.ToString(CultureInfo.InvariantCulture),
-                double decimals => decimals.ToString(configuration.RoundingDigits < 0 ? "G" : $"F{configuration.RoundingDigits}", CultureInfo.InvariantCulture),
+                double decimals => decimals.ToString(configuration.RoundingDigits < 0 ? "G" : $"0.{new string('#', configuration.RoundingDigits)}", CultureInfo.InvariantCulture),
                 _ => value.ToString() ?? string.Empty
             };
         }
@@ -3470,45 +3470,51 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
             Specification.Xlsx.XlsxStylesLayer result = new();
 
-            void styles(string position, BorderPropertiesType? border)
+            string? styles(BorderPropertiesType? border)
             {
                 if (border == null)
                 {
-                    return;
+                    return null;
                 }
 
-                if (border.Style?.Value != null && border.Style.Value switch
+                string? style = border.Style?.Value switch
                 {
-                    _ when border.Style.Value == BorderStyleValues.Thick => ("thick", "solid"),
-                    _ when border.Style.Value == BorderStyleValues.Medium => ("medium", "solid"),
-                    _ when border.Style.Value == BorderStyleValues.MediumDashed => ("medium", "dashed"),
-                    _ when border.Style.Value == BorderStyleValues.MediumDashDot => ("medium", "dashed"),
-                    _ when border.Style.Value == BorderStyleValues.MediumDashDotDot => ("medium", "dotted"),
-                    _ when border.Style.Value == BorderStyleValues.Double => ("medium", "double"),
-                    _ when border.Style.Value == BorderStyleValues.Thin => ("thin", "solid"),
-                    _ when border.Style.Value == BorderStyleValues.Dashed => ("thin", "dashed"),
-                    _ when border.Style.Value == BorderStyleValues.DashDot => ("thin", "dashed"),
-                    _ when border.Style.Value == BorderStyleValues.SlantDashDot => ("thin", "dashed"),
-                    _ when border.Style.Value == BorderStyleValues.DashDotDot => ("thin", "dotted"),
-                    _ when border.Style.Value == BorderStyleValues.Hair => ("thin", "dotted"),
-                    _ => (null, null)
-                } is (string width, string style))
-                {
-                    result.Styles[$"border-{position}-width"] = width;
-                    result.Styles[$"border-{position}-style"] = style;
-                }
-                if (border.Color != null)
-                {
-                    result.Styles[$"border-{position}-color"] = configuration.ConverterComposition.XlsxColorConverter.Convert(border.Color, context, configuration);
-                }
+                    _ when border.Style?.Value == BorderStyleValues.Thick => "thick solid ",
+                    _ when border.Style?.Value == BorderStyleValues.Medium => "medium solid ",
+                    _ when border.Style?.Value == BorderStyleValues.MediumDashed => "medium dashed ",
+                    _ when border.Style?.Value == BorderStyleValues.MediumDashDot => "medium dashed ",
+                    _ when border.Style?.Value == BorderStyleValues.MediumDashDotDot => "medium dotted ",
+                    _ when border.Style?.Value == BorderStyleValues.Double => "medium double ",
+                    _ when border.Style?.Value == BorderStyleValues.Thin => "thin solid ",
+                    _ when border.Style?.Value == BorderStyleValues.Dashed => "thin dashed ",
+                    _ when border.Style?.Value == BorderStyleValues.DashDot => "thin dashed ",
+                    _ when border.Style?.Value == BorderStyleValues.SlantDashDot => "thin dashed ",
+                    _ when border.Style?.Value == BorderStyleValues.DashDotDot => "thin dotted ",
+                    _ when border.Style?.Value == BorderStyleValues.Hair => "thin dotted ",
+                    _ => null
+                };
+
+                return style != null || border.Color != null ? $"{style}{configuration.ConverterComposition.XlsxColorConverter.Convert(border.Color, context, configuration)}" : null;
             }
 
             if (value is Border border)
             {
-                styles("top", border.TopBorder);
-                styles("right", border.RightBorder);
-                styles("bottom", border.BottomBorder);
-                styles("left", border.LeftBorder);
+                if (styles(border.TopBorder) is string top)
+                {
+                    result.Styles["border-top"] = top;
+                }
+                if (styles(border.RightBorder) is string right)
+                {
+                    result.Styles["border-right"] = right;
+                }
+                if (styles(border.BottomBorder) is string bottom)
+                {
+                    result.Styles["border-bottom"] = bottom;
+                }
+                if (styles(border.LeftBorder) is string left)
+                {
+                    result.Styles["border-left"] = left;
+                }
             }
 
             return result;
