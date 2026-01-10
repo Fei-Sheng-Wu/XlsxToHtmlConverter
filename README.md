@@ -2,7 +2,7 @@
 
 [![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)](#)
 [![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)](#)
-[![.NET Standard](https://img.shields.io/badge/.NET%20Standard-%E2%89%A52.0-orange.svg?style=flat-square)](#)
+[![.NET Standard](https://img.shields.io/badge/.NET%20Standard-%E2%89%A52.1-orange.svg?style=flat-square)](#)
 [![NuGet](https://img.shields.io/nuget/v/XlsxToHtmlConverter?label=NuGet&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Downloads](https://img.shields.io/nuget/dt/XlsxToHtmlConverter?label=Downloads&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/latest?label=Commits%20Since&style=flat-square)](#)
