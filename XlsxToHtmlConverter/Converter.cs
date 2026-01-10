@@ -23,12 +23,12 @@ namespace XlsxToHtmlConverter
         /// <param name="output">The output path of the HTML content.</param>
         /// <param name="configuration">The conversion configuration.</param>
         /// <param name="callback">The progress callback event handler.</param>
-        public static void ConvertXlsx(string input, string output, ConverterConfiguration? configuration = null, ConverterProgressChangedEventHandler? callback = null)
+        public static void Convert(string input, string output, ConverterConfiguration? configuration = null, ConverterProgressChangedEventHandler? callback = null)
         {
             configuration ??= new();
 
             using FileStream stream = new(output, FileMode.Create, FileAccess.Write, FileShare.Read, configuration.BufferSize);
-            ConvertXlsx(input, stream, configuration, callback);
+            Convert(input, stream, configuration, callback);
         }
 
         /// <summary>
@@ -38,12 +38,12 @@ namespace XlsxToHtmlConverter
         /// <param name="output">The output stream of the HTML content.</param>
         /// <param name="configuration">The conversion configuration.</param>
         /// <param name="callback">The progress callback event handler.</param>
-        public static void ConvertXlsx(string input, Stream output, ConverterConfiguration? configuration = null, ConverterProgressChangedEventHandler? callback = null)
+        public static void Convert(string input, Stream output, ConverterConfiguration? configuration = null, ConverterProgressChangedEventHandler? callback = null)
         {
             configuration ??= new();
 
             using FileStream stream = new(input, FileMode.Open, FileAccess.Read, FileShare.Read, configuration.BufferSize);
-            ConvertXlsx(stream, output, configuration, callback);
+            Convert(stream, output, configuration, callback);
         }
 
         /// <summary>
@@ -53,12 +53,12 @@ namespace XlsxToHtmlConverter
         /// <param name="output">The output stream of the HTML content.</param>
         /// <param name="configuration">The conversion configuration.</param>
         /// <param name="callback">The progress callback event handler.</param>
-        public static void ConvertXlsx(Stream input, Stream output, ConverterConfiguration? configuration = null, ConverterProgressChangedEventHandler? callback = null)
+        public static void Convert(Stream input, Stream output, ConverterConfiguration? configuration = null, ConverterProgressChangedEventHandler? callback = null)
         {
             configuration ??= new();
 
             using SpreadsheetDocument spreadsheet = SpreadsheetDocument.Open(input, false);
-            ConvertXlsx(spreadsheet, output, configuration, callback);
+            Convert(spreadsheet, output, configuration, callback);
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace XlsxToHtmlConverter
         /// <param name="output">The output stream of the HTML content.</param>
         /// <param name="configuration">The conversion configuration.</param>
         /// <param name="callback">The progress callback event handler.</param>
-        public static void ConvertXlsx(SpreadsheetDocument input, Stream output, ConverterConfiguration? configuration = null, ConverterProgressChangedEventHandler? callback = null)
+        public static void Convert(SpreadsheetDocument input, Stream output, ConverterConfiguration? configuration = null, ConverterProgressChangedEventHandler? callback = null)
         {
             configuration ??= new();
             Base.ConverterContext context = new();
@@ -3479,21 +3479,22 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                 if (border.Style?.Value != null && border.Style.Value switch
                 {
-                    _ when border.Style.Value == BorderStyleValues.Thick => "thick solid",
-                    _ when border.Style.Value == BorderStyleValues.Medium => "medium solid",
-                    _ when border.Style.Value == BorderStyleValues.MediumDashed => "medium dashed",
-                    _ when border.Style.Value == BorderStyleValues.MediumDashDot => "medium dashed",
-                    _ when border.Style.Value == BorderStyleValues.MediumDashDotDot => "medium dotted",
-                    _ when border.Style.Value == BorderStyleValues.Double => "medium double",
-                    _ when border.Style.Value == BorderStyleValues.Thin => "thin solid",
-                    _ when border.Style.Value == BorderStyleValues.Dashed => "thin dashed",
-                    _ when border.Style.Value == BorderStyleValues.DashDot => "thin dashed",
-                    _ when border.Style.Value == BorderStyleValues.SlantDashDot => "thin dashed",
-                    _ when border.Style.Value == BorderStyleValues.DashDotDot => "thin dotted",
-                    _ when border.Style.Value == BorderStyleValues.Hair => "thin dotted",
-                    _ => null
-                } is string style)
+                    _ when border.Style.Value == BorderStyleValues.Thick => ("thick", "solid"),
+                    _ when border.Style.Value == BorderStyleValues.Medium => ("medium", "solid"),
+                    _ when border.Style.Value == BorderStyleValues.MediumDashed => ("medium", "dashed"),
+                    _ when border.Style.Value == BorderStyleValues.MediumDashDot => ("medium", "dashed"),
+                    _ when border.Style.Value == BorderStyleValues.MediumDashDotDot => ("medium", "dotted"),
+                    _ when border.Style.Value == BorderStyleValues.Double => ("medium", "double"),
+                    _ when border.Style.Value == BorderStyleValues.Thin => ("thin", "solid"),
+                    _ when border.Style.Value == BorderStyleValues.Dashed => ("thin", "dashed"),
+                    _ when border.Style.Value == BorderStyleValues.DashDot => ("thin", "dashed"),
+                    _ when border.Style.Value == BorderStyleValues.SlantDashDot => ("thin", "dashed"),
+                    _ when border.Style.Value == BorderStyleValues.DashDotDot => ("thin", "dotted"),
+                    _ when border.Style.Value == BorderStyleValues.Hair => ("thin", "dotted"),
+                    _ => (null, null)
+                } is (string width, string style))
                 {
+                    result.Styles[$"border-{position}-width"] = width;
                     result.Styles[$"border-{position}-style"] = style;
                 }
                 if (border.Color != null)
@@ -3556,8 +3557,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 }
                 if (alignment.WrapText != null && (alignment.WrapText?.Value ?? true))
                 {
-                    result.Styles["white-space"] = "normal";
-                    result.Styles["overflow-wrap"] = "break-word";
+                    result.Styles["white-space"] = "preserve wrap";
                 }
                 if (alignment.TextRotation?.Value != null && alignment.TextRotation.Value != 0)
                 {

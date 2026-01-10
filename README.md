@@ -1,113 +1,116 @@
-# XlsxToHtmlConverter v2.0.0-dev
+# XlsxToHtmlConverter v2.0.0
 
-[![C#](https://img.shields.io/badge/C%23-100%25-blue.svg?style=flat-square)](#)
-[![Target .Net](https://img.shields.io/badge/.Net-%E2%89%A56.0-green.svg?style=flat-square)](#)
-[![Target .Net Standard](https://img.shields.io/badge/.Net%20Standard-%E2%89%A52.0-green.svg?style=flat-square)](#)
-[![Nuget](https://img.shields.io/nuget/v/XlsxToHtmlConverter?label=Nuget&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
+[![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)](#)
+[![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)](#)
+[![.NET Standard](https://img.shields.io/badge/.NET%20Standard-%E2%89%A52.0-orange.svg?style=flat-square)](#)
+[![NuGet](https://img.shields.io/nuget/v/XlsxToHtmlConverter?label=NuGet&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Downloads](https://img.shields.io/nuget/dt/XlsxToHtmlConverter?label=Downloads&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/latest?label=Commits%20Since&style=flat-square)](#)
-[![Lincense](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
+[![License](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 
-> A fast Xlsx to Html file converter. Support cell fills, fonts, borders, alignments, and other styles. Support different cell sizes and merged cells. Support custom number formats and basic conditions. Support multiple sheets and hidden sheets. Support embedded pictures. Support progress callbacks. Only depend on the Microsoft Open Xml SDK.
-
-> [!WARNING]
-> The codebase is currently in the process of being refactored. Previously existent functionality may be temporarily missing, and property names have been updated as well. The following content is not up-to-date.
+> A fast, versatile, and powerful XLSX to HTML converter. Support an extensive scope of cell stylings and additional elements. Empower the efficient transformation of spreadsheets into well-structured web documents. Provide the ability to easily customize every aspect of the conversion process with progress callbacks. Only depend on the Open XML SDK.
 
 ## Dependencies
 
-**DocumentFormat.OpenXml** ≥ 3.0.0
+- [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) ≥ 3.0.0, < 4.0.0
 
-## Main Features
+## Features
 
-- [x] Cell fills, fonts, borders, alignments, and other styles
-- [x] Custom column widths and row heights
-- [x] Vertical and horizontal merged cells
-- [x] Number formats and basic conditional formats
-- [x] Sheet tab titles, colors, and hidden sheets
-- [x] Picture embeddings as Base64 images
-- [x] Conversion progress callback
+- [x] Cell structures, sizes, fonts, fills, borders, alignments, and visibilities
+- [x] Content presentation with number formats and basic conditional formats
+- [x] Elements of pictures and shapes with responsive positioning
+- [x] HTML construction with configurable details and modernized organization
 
-### Original Xlsx File
+### Original XLSX File
 
-![Original Xlsx File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/screenshot-xlsx.png)
+![Original XLSX File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/sample-xlsx.png)
 
-### Converted Html File
+### Converted HTML File
 
-![Converted Html File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/screenshot-html.png)
+![Converted HTML File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/sample-html.png)
+
+## Versioning
+
+For versions ≥ v2.0.0, the versioning of XlsxToHtmlConverter conforms to the following scheme:
+
+| Generation | | Major | | Minor |
+| :--- | :---: | :--- | :---: | :--- |
+| **2** | . | **0** | . | **0** |
+| _(backward-incompatible)_ | | _(backward-incompatible)_ | | _(backward-compatible)_ |
+| Significant codebase refactors. | | Severe bug fixes and core improvements. | | Mild changes. |
 
 ## How to Use
 
-Only one line to convert a Xlsx file to Html with the use of `Stream`.
+Only one line to convert a local XLSX file to HTML:
 
 ```c#
-XlsxToHtmlConverter.Converter.ConvertXlsx(inputStream, outputStream);
+XlsxToHtmlConverter.Converter.Convert(@"C:\path\to\input.xlsx", @"C:\path\to\output.html");
 ```
 
-Or to convert with specific `ConverterConfig` and progress callback.
+Similarly, the use of `Stream` is supported:
 
 ```c#
-XlsxToHtmlConverter.Converter.ConvertXlsx(inputStream, outputStream, config, progressCallback);
+Stream input = ...;
+Stream output = ...;
+XlsxToHtmlConverter.Converter.Convert(input, output);
 ```
 
-### Convert Local Files
-
-Just use a `string` of the path to the file instead of a `Stream` to convert a local Xlsx file.
+Alternatively, the input may also be a `DocumentFormat.OpenXml.Packaging.SpreadsheetDocument` instance:
 
 ```c#
-string filename = @"C:\path\to\file.xlsx";
-XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream);
+using DocumentFormat.OpenXml.Packaging;
+```
+```c#
+SpreadsheetDocument input = ...;
+Stream output = ...;
+XlsxToHtmlConverter.Converter.Convert(input, output);
 ```
 
-A third optional parameter can be set to decide whether to use a `MemoryStream` or a `FileStream`. When set to `true`, a `MemoryStream` is used to load the entire file at once instead of reading the file with a `FileStream`.
+### Conversion Configuration
 
-> Please note that using a `MemoryStream` will use up significantly more memory, especially for larger files.
-
-```c#
-XlsxToHtmlConverter.Converter.ConvertXlsx(filename, outputStream, true);
-```
-
-### Conversion Configurations
-
-`ConverterConfig` include flexible and customizable conversion configurations.
-
-> In rare cases where the converter is unable to produce the correct stylings, it is suggested to set `ConvertStyles` to `false`, which will at least ensure the conversion of all the content with default stylings.
+A third optional parameter can be set to configure the conversion process:
 
 ```c#
-XlsxToHtmlConverter.ConverterConfig config = new XlsxToHtmlConverter.ConverterConfig()
+XlsxToHtmlConverter.ConverterConfiguration configuration = new()
 {
-    PageTitle = "My Title",
-    PresetStyles = XlsxToHtmlConverter.ConverterConfig.DefaultPresetStyles + " body { background-color: skyblue; } table { width: 100%; }",
-    ErrorMessage = "An unhandled error occured during the conversion: {EXCEPTION}",
-    Encoding = System.Text.Encoding.UTF8,
     BufferSize = 65536,
-    ConvertStyles = true,
+    Encoding = Encoding.UTF8,
+    NewlineCharacter = "\n",
+    RoundingDigits = 2,
+    CurrentCulture = CultureInfo.CurrentCulture,
+    HtmlTitle = null,
+    HtmlPresetStylesheet = ...,
+    XlsxSheetSelector = null,
+    ConvertSheetTitles = true,
     ConvertSizes = true,
+    ConvertVisibilities = true,
+    ConvertStyles = true,
     ConvertNumberFormats = true,
     ConvertPictures = true,
     ConvertShapes = true,
-    ConvertSheetTitles = true,
-    ConvertHiddenSheets = false,
-    ConvertFirstSheetOnly = false,
-    ConvertHtmlBodyOnly = false,
-    UseHtmlStyleClasses = true,
-    UseHexColors = true,
-    RoundingDigits = 2
+    UseHtmlFragment = false,
+    UseHtmlClasses = true,
+    UseHtmlHexColors = true,
+    UseHtmlProportionalWidths = true,
+    UseHtmlDataElements = true,
+    ...
 };
+XlsxToHtmlConverter.Converter.Convert(..., ..., configuration);
 ```
 
 ### Progress Callback
 
-A progress callback event can be set up with `ConverterProgressCallbackEventArgs`, where things like `ProgressPercent` can be used.
+A fourth optional parameter can be set to add a progress callback event handler:
 
 ```c#
-EventHandler<XlsxToHtmlConverter.ConverterProgressCallbackEventArgs> progressCallback = ConverterProgressCallback;
+XlsxToHtmlConverter.Converter.Convert(..., ..., ..., HandleProgressChanged);
 ```
 ```c#
-private static void ConverterProgressCallback(object sender, XlsxToHtmlConverter.ConverterProgressCallbackEventArgs e)
+private void HandleProgressChanged(DocumentFormat.OpenXml.Packaging.SpreadsheetDocument? sender, XlsxToHtmlConverter.ConverterProgressChangedEventArgs e)
 {
-    string info = string.Format("{0:##0.00}% (Sheet {1} of {2} | Row {3} of {4})", e.ProgressPercent, e.CurrentSheet, e.TotalSheets, e.CurrentRow, e.TotalRows);
-    string progress = new string('█', (int)(e.ProgressPercent / 2)).PadRight(50, '░');
-    Console.WriteLine(info + new string(' ', 5) + progress);
+    string summary = $"Sheet {e.CurrentSheet} of {e.SheetCount} | Row {e.CurrentRow} of {e.RowCount}";
+    string progress = new string('█', (int)Math.Round(e.ProgressPercentage / 100.0 * 50)).PadRight(50, '░');
+    Console.Write($"{e.ProgressPercentage:F2}% ({summary}) {progress}");
 }
 ```
 
