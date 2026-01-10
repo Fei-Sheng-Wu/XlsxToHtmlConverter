@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using System.Collections.Generic;
 using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -45,12 +46,12 @@ namespace XlsxToHtmlConverter
             /// <summary>
             /// Gets or sets the converter to read the XLSX tables.
             /// </summary>
-            public Base.IConverterBase<TableDefinitionPart?, Base.Specification.Xlsx.XlsxSpecialty[]> XlsxTableReader { get; set; } = new Base.Implementation.DefaultXlsxTableReader();
+            public Base.IConverterBase<TableDefinitionPart?, IEnumerable<Base.Specification.Xlsx.XlsxSpecialty>> XlsxTableReader { get; set; } = new Base.Implementation.DefaultXlsxTableReader();
 
             /// <summary>
             /// Gets or sets the converter to read the XLSX drawings.
             /// </summary>
-            public Base.IConverterBase<DrawingsPart?, Base.Specification.Xlsx.XlsxSpecialty[]> XlsxDrawingReader { get; set; } = new Base.Implementation.DefaultXlsxDrawingReader();
+            public Base.IConverterBase<DrawingsPart?, IEnumerable<Base.Specification.Xlsx.XlsxSpecialty>> XlsxDrawingReader { get; set; } = new Base.Implementation.DefaultXlsxDrawingReader();
 
             /// <summary>
             /// Gets or sets the converter to convert the XLSX colors.
@@ -136,7 +137,7 @@ namespace XlsxToHtmlConverter
                 ["width"] = "fit-content",
                 ["font-size"] = "20px",
                 ["font-weight"] = "bold",
-                ["border-bottom"] = "thick solid var(--color)"
+                ["border-bottom"] = "thick solid var(--sheet-color)"
             },
             ["tbody"] = new()
             {
@@ -144,10 +145,10 @@ namespace XlsxToHtmlConverter
             },
             ["td"] = new()
             {
-                ["padding"] = "0",
+                ["padding"] = "0 2px",
                 ["vertical-align"] = "bottom",
                 ["border"] = "thin solid lightgray",
-                ["white-space"] = "pre",
+                ["white-space"] = "preserve nowrap",
                 ["overflow-y"] = "clip",
                 ["box-sizing"] = "border-box"
             }

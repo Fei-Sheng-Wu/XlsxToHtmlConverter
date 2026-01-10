@@ -418,7 +418,58 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// <returns><see langword="true"/> if the range starts at the specified column and row; otherwise, <see langword="false"/>.</returns>
         public bool StartsAt(uint column, uint row)
         {
-            return column == ColumnStart && row == RowStart;
+            return StartsAtColumn(column) && StartsAtRow(row);
+        }
+
+        /// <summary>
+        /// Determines whether the range starts at the specified column.
+        /// </summary>
+        /// <param name="column">The specified column.</param>
+        /// <returns><see langword="true"/> if the range starts at the specified column; otherwise, <see langword="false"/>.</returns>
+        public bool StartsAtColumn(uint column)
+        {
+            return column == ColumnStart;
+        }
+
+        /// <summary>
+        /// Determines whether the range starts at the specified row.
+        /// </summary>
+        /// <param name="row">The specified row.</param>
+        /// <returns><see langword="true"/> if the range starts at the specified row; otherwise, <see langword="false"/>.</returns>
+        public bool StartsAtRow(uint row)
+        {
+            return row == RowStart;
+        }
+
+        /// <summary>
+        /// Determines whether the range ends at the specified column and row.
+        /// </summary>
+        /// <param name="column">The specified column.</param>
+        /// <param name="row">The specified row.</param>
+        /// <returns><see langword="true"/> if the range ends at the specified column and row; otherwise, <see langword="false"/>.</returns>
+        public bool EndsAt(uint column, uint row)
+        {
+            return EndsAtColumn(column) && EndsAtRow(row);
+        }
+
+        /// <summary>
+        /// Determines whether the range ends at the specified column.
+        /// </summary>
+        /// <param name="column">The specified column.</param>
+        /// <returns><see langword="true"/> if the range ends at the specified column; otherwise, <see langword="false"/>.</returns>
+        public bool EndsAtColumn(uint column)
+        {
+            return column == ColumnEnd;
+        }
+
+        /// <summary>
+        /// Determines whether the range ends at the specified row.
+        /// </summary>
+        /// <param name="row">The specified row.</param>
+        /// <returns><see langword="true"/> if the range ends at the specified row; otherwise, <see langword="false"/>.</returns>
+        public bool EndsAtRow(uint row)
+        {
+            return row == RowEnd;
         }
 
         /// <summary>
@@ -588,7 +639,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         public bool? IsHidden { get; set; } = null;
 
-        protected abstract IEnumerable<XlsxStylesLayer> GetLayers();
+        internal abstract IEnumerable<XlsxStylesLayer> GetLayers();
 
         /// <summary>
         /// Retrieves the styles.
@@ -603,7 +654,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         /// <param name="element">The specified HTML element.</param>
         /// <param name="isNamed">Whether to use the names of the styles.</param>
-        public void ApplyStyles(Html.HtmlElement element, bool isNamed)
+        public void ApplyStyles(Html.HtmlElement element, bool isNamed = true)
         {
             ApplyStyles(element, GetLayers(), isNamed ? Name : null);
         }
@@ -634,18 +685,9 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         {
             element.Attributes.MergeStyles(GetsStyles(layers), name);
 
-            foreach (XlsxStylesLayer layer in layers)
+            foreach (Func<Html.HtmlChildren, Html.HtmlChildren> formatter in layers.SelectMany(x => x.Formatters))
             {
-                Html.HtmlChildren children = element.Children;
-                foreach (Html.HtmlStyles container in layer.Containers)
-                {
-                    children = [new Html.HtmlElement(Html.HtmlElementType.Paired, "span", new Html.HtmlAttributes()
-                    {
-                        ["style"] = container
-                    }, children)];
-                }
-
-                element.Children = children;
+                element.Children = formatter(element.Children);
             }
         }
     }
@@ -653,17 +695,18 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
     /// <summary>
     /// Initializes a new instance of the <see cref="XlsxStylesLayer"/> class.
     /// </summary>
-    public class XlsxStylesLayer : IMergeable
+    /// <param name="styles">The styles of the layer.</param>
+    public class XlsxStylesLayer(Html.HtmlStyles? styles = null) : IMergeable
     {
         /// <summary>
-        /// Gets or sets the styles of the styles layer.
+        /// Gets or sets the styles of the layer.
         /// </summary>
-        public Html.HtmlStyles Styles { get; set; } = [];
+        public Html.HtmlStyles Styles { get; set; } = styles ?? [];
 
         /// <summary>
-        /// Gets or sets the styles respective to each layer of nested containers that surround the cell content using the styles layer.
+        /// Gets or sets the formatters of the layer.
         /// </summary>
-        public List<Html.HtmlStyles> Containers { get; set; } = [];
+        public List<Func<Html.HtmlChildren, Html.HtmlChildren>> Formatters { get; set; } = [];
 
         public void Merge(object? value)
         {
@@ -673,7 +716,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
             }
 
             Styles.Merge(layer.Styles);
-            Containers.AddRange(layer.Containers);
+            Formatters.AddRange(layer.Formatters);
         }
     }
 
@@ -692,7 +735,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         public uint? NumberFormatId { get; set; } = null;
 
-        protected override IEnumerable<XlsxStylesLayer> GetLayers()
+        internal override IEnumerable<XlsxStylesLayer> GetLayers()
         {
             yield return Styles;
         }
@@ -728,7 +771,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         public XlsxNumberFormat? NumberFormat { get; set; } = null;
 
-        protected override IEnumerable<XlsxStylesLayer> GetLayers()
+        internal override IEnumerable<XlsxStylesLayer> GetLayers()
         {
             yield return FontStyles;
             yield return FillStyles;
@@ -746,7 +789,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
     /// <param name="text">The text section of the number format.</param>
     public class XlsxNumberFormat(XlsxNumberFormatCode positive, XlsxNumberFormatCode negative, XlsxNumberFormatCode zero, XlsxNumberFormatCode text)
     {
-        protected enum EscapeState
+        internal enum EscapeState
         {
             None,
             Immediate,
