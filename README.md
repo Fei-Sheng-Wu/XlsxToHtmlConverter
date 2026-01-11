@@ -1,4 +1,4 @@
-# XlsxToHtmlConverter v2.0.0
+# XlsxToHtmlConverter v2.0.1-dev
 
 [![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)](#)
 [![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)](#)
