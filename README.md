@@ -39,6 +39,8 @@ For versions ≥ v2.0.0, the versioning of XlsxToHtmlConverter conforms to the f
 | _(backward-incompatible)_ | | _(backward-incompatible)_ | | _(backward-compatible)_ |
 | Significant codebase refactors. | | Severe bug fixes and core improvements. | | Mild changes. |
 
+The changelogs are available at the [Releases](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/releases).
+
 ## How to Use
 
 Only one line to convert a local XLSX file to HTML:

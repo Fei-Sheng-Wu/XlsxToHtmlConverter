@@ -38,9 +38,16 @@ namespace XlsxToHtmlConverter.Test
 
             Console.WriteLine();
             Console.WriteLine($"The conversion finished after {stopwatch.Elapsed}.");
+
             Console.WriteLine();
-            Console.WriteLine("Press Enter to exit.");
+            Console.WriteLine("Press Enter to open the HTML file.");
             Console.ReadLine();
+
+            using Process? process = Process.Start(new ProcessStartInfo()
+            {
+                FileName = html,
+                UseShellExecute = true
+            });
         }
     }
 }
