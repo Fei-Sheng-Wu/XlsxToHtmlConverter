@@ -422,15 +422,27 @@ namespace XlsxToHtmlConverter
                             continue;
                         }
 
-                        element.Indent = indent;
-                        element.Attributes.MergeStyles(new()
+                        Base.Specification.Html.HtmlStyles positions = [];
+                        if (specialty.Range.RowStart > 0)
                         {
-                            ["--top"] = $"anchor(--row-{Base.Implementation.Common.Format(specialty.Range.RowStart, configuration)} top)",
-                            ["--right"] = $"anchor(--column-{Base.Implementation.Common.Format(specialty.Range.ColumnEnd, configuration)} left)",
-                            ["--bottom"] = $"anchor(--row-{Base.Implementation.Common.Format(specialty.Range.RowEnd, configuration)} top)",
-                            ["--left"] = $"anchor(--column-{Base.Implementation.Common.Format(specialty.Range.ColumnStart, configuration)} left)",
-                            ["visibility"] = "visible"
-                        });
+                            positions["--top"] = $"anchor(--row-{Base.Implementation.Common.Format(specialty.Range.RowStart, configuration)} top)";
+                        }
+                        if (specialty.Range.ColumnEnd > 0)
+                        {
+                            positions["--right"] = $"anchor(--column-{Base.Implementation.Common.Format(specialty.Range.ColumnEnd, configuration)} left)";
+                        }
+                        if (specialty.Range.RowEnd > 0)
+                        {
+                            positions["--bottom"] = $"anchor(--row-{Base.Implementation.Common.Format(specialty.Range.RowEnd, configuration)} top)";
+                        }
+                        if (specialty.Range.ColumnStart > 0)
+                        {
+                            positions["--left"] = $"anchor(--column-{Base.Implementation.Common.Format(specialty.Range.ColumnStart, configuration)} left)";
+                        }
+                        positions["visibility"] = "visible";
+
+                        element.Indent = indent;
+                        element.Attributes.MergeStyles(positions);
 
                         writer.Write(converter(configuration.ConverterComposition.HtmlWriter, element));
                     }
@@ -2003,19 +2015,23 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         case DocumentFormat.OpenXml.Drawing.Transform2D transform:
                             if (transform.Offset?.X?.Value != null && !styles.ContainsKey("left"))
                             {
-                                styles["left"] = $"{Common.Format(transform.Offset.X.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px";
+                                double offset = transform.Offset.X.Value * Common.RATIO_ENGLISH_METRIC_UNIT;
+                                styles["left"] = $"{Common.Format(offset, configuration)}px";
+
+                                if (transform.Extents?.Cx?.Value != null && !styles.ContainsKey("right"))
+                                {
+                                    styles["right"] = $"calc(100% - {Common.Format(offset + transform.Extents.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)";
+                                }
                             }
                             if (transform.Offset?.Y?.Value != null && !styles.ContainsKey("top"))
                             {
-                                styles["top"] = $"{Common.Format(transform.Offset.Y.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px";
-                            }
-                            if (transform.Extents?.Cx?.Value != null && !styles.ContainsKey("width") && !styles.ContainsKey("right"))
-                            {
-                                styles["width"] = $"{Common.Format(transform.Extents.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px";
-                            }
-                            if (transform.Extents?.Cy?.Value != null && !styles.ContainsKey("height") && !styles.ContainsKey("bottom"))
-                            {
-                                styles["height"] = $"{Common.Format(transform.Extents.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px";
+                                double offset = transform.Offset.Y.Value * Common.RATIO_ENGLISH_METRIC_UNIT;
+                                styles["top"] = $"{Common.Format(offset, configuration)}px";
+
+                                if (transform.Extents?.Cy?.Value != null && !styles.ContainsKey("bottom"))
+                                {
+                                    styles["bottom"] = $"calc(100% - {Common.Format(offset + transform.Extents.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)";
+                                }
                             }
                             if (transform.Rotation?.Value != null)
                             {
@@ -2141,78 +2157,95 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 {
                     ["position"] = "absolute"
                 };
-                uint left = 0;
-                uint top = 0;
-                uint right = 0;
-                uint bottom = 0;
+                (uint Index, string? Field) left = (0, null);
+                (uint Index, string? Field) top = (0, null);
+                (uint Index, string? Field) right = (0, null);
+                (uint Index, string? Field) bottom = (0, null);
 
                 switch (child)
                 {
                     case DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absolute:
                         if (absolute.Position?.X?.Value != null)
                         {
-                            positions["left"] = $"calc(var(--left) + {Common.Format(absolute.Position.X.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)";
+                            double offset = absolute.Position.X.Value * Common.RATIO_ENGLISH_METRIC_UNIT;
+                            left = (0, $"{Common.Format(offset, configuration)}px");
+
+                            if (absolute.Extent?.Cx?.Value != null)
+                            {
+                                right = (0, $"calc(100% - {Common.Format(offset + absolute.Extent.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)");
+                            }
                         }
                         if (absolute.Position?.Y?.Value != null)
                         {
-                            positions["top"] = $"calc(var(--top) + {Common.Format(absolute.Position.Y.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)";
-                        }
-                        if (absolute.Extent?.Cx?.Value != null)
-                        {
-                            positions["width"] = $"{Common.Format(absolute.Extent.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px";
-                        }
-                        if (absolute.Extent?.Cy?.Value != null)
-                        {
-                            positions["height"] = $"{Common.Format(absolute.Extent.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px";
+                            double offset = absolute.Position.Y.Value * Common.RATIO_ENGLISH_METRIC_UNIT;
+                            top = (0, $"{Common.Format(offset, configuration)}px");
+
+                            if (absolute.Extent?.Cy?.Value != null)
+                            {
+                                bottom = (0, $"calc(100% - {Common.Format(offset + absolute.Extent.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)");
+                            }
                         }
 
                         break;
                     case DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor single:
                         if (Common.ParsePositive(single.FromMarker?.ColumnId?.Text) is uint column)
                         {
-                            left = column + 1;
-                            right = left;
-                            positions["left"] = $"calc(var(--left) + {Common.Format((Common.ParseInteger(single.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)";
+                            double offset = (Common.ParseDecimals(single.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
+                            left = (column + 1, $"calc(var(--left) + {Common.Format(offset, configuration)}px)");
+
+                            if (single.Extent?.Cx?.Value != null)
+                            {
+                                right = (0, $"calc(var(--left) - {Common.Format(offset + single.Extent.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)");
+                            }
                         }
                         if (Common.ParsePositive(single.FromMarker?.RowId?.Text) is uint row)
                         {
-                            top = row + 1;
-                            bottom = top;
-                            positions["top"] = $"calc(var(--top) + {Common.Format((Common.ParseInteger(single.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)";
-                        }
-                        if (single.Extent?.Cx?.Value != null)
-                        {
-                            positions["width"] = $"{Common.Format(single.Extent.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px";
-                        }
-                        if (single.Extent?.Cy?.Value != null)
-                        {
-                            positions["height"] = $"{Common.Format(single.Extent.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px";
+                            double offset = (Common.ParseDecimals(single.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
+                            top = (row + 1, $"calc(var(--top) + {Common.Format(offset, configuration)}px)");
+
+                            if (single.Extent?.Cy?.Value != null)
+                            {
+                                bottom = (0, $"calc(var(--top) - {Common.Format(offset + single.Extent.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)");
+                            }
                         }
 
                         break;
                     case DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor dual:
+                        if (Common.ParsePositive(dual.FromMarker?.ColumnId?.Text) is uint before)
+                        {
+                            left = (before + 1, $"calc(var(--left) + {Common.Format((Common.ParseDecimals(dual.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
+                        }
                         if (Common.ParsePositive(dual.FromMarker?.RowId?.Text) is uint upper)
                         {
-                            top = upper + 1;
-                            positions["top"] = $"calc(var(--top) + {Common.Format((Common.ParseInteger(dual.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)";
+                            top = (upper + 1, $"calc(var(--top) + {Common.Format((Common.ParseDecimals(dual.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
                         }
                         if (Common.ParsePositive(dual.ToMarker?.ColumnId?.Text) is uint after)
                         {
-                            right = after + 1;
-                            positions["right"] = $"calc(var(--right) - {Common.Format((Common.ParseInteger(dual.ToMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)";
+                            right = (after + 1, $"calc(var(--right) - {Common.Format((Common.ParseDecimals(dual.ToMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
                         }
                         if (Common.ParsePositive(dual.ToMarker?.RowId?.Text) is uint lower)
                         {
-                            bottom = lower + 1;
-                            positions["bottom"] = $"calc(var(--bottom) - {Common.Format((Common.ParseInteger(dual.ToMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)";
-                        }
-                        if (Common.ParsePositive(dual.FromMarker?.ColumnId?.Text) is uint before)
-                        {
-                            left = before + 1;
-                            positions["left"] = $"calc(var(--left) + {Common.Format((Common.ParseInteger(dual.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)";
+                            bottom = (lower + 1, $"calc(var(--bottom) - {Common.Format((Common.ParseDecimals(dual.ToMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
                         }
 
                         break;
+                }
+
+                if (top.Field != null)
+                {
+                    positions["top"] = top.Field;
+                }
+                if (right.Field != null)
+                {
+                    positions["right"] = right.Field;
+                }
+                if (bottom.Field != null)
+                {
+                    positions["bottom"] = bottom.Field;
+                }
+                if (left.Field != null)
+                {
+                    positions["left"] = left.Field;
                 }
 
                 foreach (OpenXmlElement component in child.Elements())
@@ -2476,7 +2509,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     {
                         yield return new(root)
                         {
-                            Range = new(left, top, right, bottom)
+                            Range = new(left.Index, top.Index, right.Index, bottom.Index)
                         };
                     }
                 }
