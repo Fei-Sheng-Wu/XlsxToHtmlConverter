@@ -2541,7 +2541,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxColorConverter() : IConverterBase<OpenXmlElement?, string>
     {
-        internal static (byte Red, byte Green, byte Blue)[] indexes = [
+        internal static (byte Red, byte Green, byte Blue)?[] indexes = [
             (0, 0, 0),
             (255, 255, 255),
             (255, 0, 0),
@@ -2608,7 +2608,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             (51, 51, 51),
             (128, 128, 128),
             (255, 255, 255)];
-        internal static Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, (byte Red, byte Green, byte Blue)> systems = new()
+        internal static Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, (byte Red, byte Green, byte Blue)?> systems = new()
         {
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder] = (180, 180, 180),
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption] = (153, 180, 209),
@@ -2641,7 +2641,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowFrame] = (100, 100, 100),
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText] = (0, 0, 0)
         };
-        internal static Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, (byte Red, byte Green, byte Blue)> presets = new()
+        internal static Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, (byte Red, byte Green, byte Blue)?> presets = new()
         {
             [DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue] = (240, 248, 255),
             [DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite] = (250, 235, 215),
@@ -2898,29 +2898,29 @@ namespace XlsxToHtmlConverter.Base.Implementation
             {
                 switch (color)
                 {
-                    case DocumentFormat.OpenXml.Drawing.RgbColorModelHex model when model.Val?.Value != null:
-                        hex(model.Val.Value);
+                    case DocumentFormat.OpenXml.Drawing.RgbColorModelHex rgb when rgb.Val?.Value != null:
+                        hex(rgb.Val.Value);
                         break;
-                    case DocumentFormat.OpenXml.Drawing.RgbColorModelPercentage percentage:
-                        red = Math.Clamp((255.0 * percentage.RedPortion?.Value * Common.RATIO_PERCENTAGE) ?? 0, 0, 255);
-                        green = Math.Clamp((255.0 * percentage.GreenPortion?.Value * Common.RATIO_PERCENTAGE) ?? 0, 0, 255);
-                        blue = Math.Clamp((255.0 * percentage.BluePortion?.Value * Common.RATIO_PERCENTAGE) ?? 0, 0, 255);
+                    case DocumentFormat.OpenXml.Drawing.RgbColorModelPercentage rgb:
+                        red = Math.Clamp((255.0 * rgb.RedPortion?.Value * Common.RATIO_PERCENTAGE) ?? 0, 0, 255);
+                        green = Math.Clamp((255.0 * rgb.GreenPortion?.Value * Common.RATIO_PERCENTAGE) ?? 0, 0, 255);
+                        blue = Math.Clamp((255.0 * rgb.BluePortion?.Value * Common.RATIO_PERCENTAGE) ?? 0, 0, 255);
                         break;
                     case DocumentFormat.OpenXml.Drawing.HslColor hsl:
                         modifier(x => (hsl.HueValue?.Value * Common.RATIO_ANGLE) ?? 0, x => (hsl.SatValue?.Value * Common.RATIO_PERCENTAGE) ?? 0, x => (hsl.LumValue?.Value * Common.RATIO_PERCENTAGE) ?? 0);
                         break;
-                    case DocumentFormat.OpenXml.Drawing.SystemColor system when system.Val?.Value != null && systems.ContainsKey(system.Val.Value):
-                        red = systems[system.Val.Value].Red;
-                        green = systems[system.Val.Value].Green;
-                        blue = systems[system.Val.Value].Blue;
+                    case DocumentFormat.OpenXml.Drawing.SystemColor key when key.Val?.Value != null && Common.Get(systems, key.Val.Value) is (byte Red, byte Green, byte Blue) system:
+                        red = system.Red;
+                        green = system.Green;
+                        blue = system.Blue;
                         break;
-                    case DocumentFormat.OpenXml.Drawing.SystemColor system when system.LastColor?.Value != null:
-                        hex(system.LastColor.Value);
+                    case DocumentFormat.OpenXml.Drawing.SystemColor fallback when fallback.LastColor?.Value != null:
+                        hex(fallback.LastColor.Value);
                         break;
-                    case DocumentFormat.OpenXml.Drawing.PresetColor preset when preset.Val?.Value != null && presets.ContainsKey(preset.Val.Value):
-                        red = presets[preset.Val.Value].Red;
-                        green = presets[preset.Val.Value].Green;
-                        blue = presets[preset.Val.Value].Blue;
+                    case DocumentFormat.OpenXml.Drawing.PresetColor key when key.Val?.Value != null && Common.Get(presets, key.Val.Value) is (byte Red, byte Green, byte Blue) preset:
+                        red = preset.Red;
+                        green = preset.Green;
+                        blue = preset.Blue;
                         break;
                     case DocumentFormat.OpenXml.Drawing.SchemeColor scheme when scheme.Val?.Value != null:
                         return ((DocumentFormat.OpenXml.Drawing.Color2Type?)(scheme.Val.Value switch
@@ -3065,11 +3065,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 {
                     hex(color.Rgb.Value);
                 }
-                else if (color.Indexed?.Value != null && color.Indexed.Value < indexes.Length)
+                else if (Common.Get(indexes, color.Indexed?.Value) is (byte Red, byte Green, byte Blue) indexed)
                 {
-                    red = indexes[color.Indexed.Value].Red;
-                    green = indexes[color.Indexed.Value].Green;
-                    blue = indexes[color.Indexed.Value].Blue;
+                    red = indexed.Red;
+                    green = indexed.Green;
+                    blue = indexed.Blue;
                 }
                 else if (color.Theme?.Value == null || ((DocumentFormat.OpenXml.Drawing.Color2Type?)(color.Theme.Value switch
                 {
