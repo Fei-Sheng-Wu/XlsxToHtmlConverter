@@ -2110,19 +2110,19 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         case DocumentFormat.OpenXml.Drawing.CustomGeometry custom:
                             if (custom.Rectangle?.Top?.Value != null)
                             {
-                                styles["margin-top"] = $"{Common.Format((Common.ParseDecimals(custom.Rectangle.Top.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px";
+                                styles["margin-top"] = $"{Common.Format((Common.ParseLarge(custom.Rectangle.Top.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px";
                             }
                             if (custom.Rectangle?.Right?.Value != null)
                             {
-                                styles["margin-right"] = $"{Common.Format((Common.ParseDecimals(custom.Rectangle.Right.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px";
+                                styles["margin-right"] = $"{Common.Format((Common.ParseLarge(custom.Rectangle.Right.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px";
                             }
                             if (custom.Rectangle?.Bottom?.Value != null)
                             {
-                                styles["margin-bottom"] = $"{Common.Format((Common.ParseDecimals(custom.Rectangle.Bottom.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px";
+                                styles["margin-bottom"] = $"{Common.Format((Common.ParseLarge(custom.Rectangle.Bottom.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px";
                             }
                             if (custom.Rectangle?.Left?.Value != null)
                             {
-                                styles["margin-left"] = $"{Common.Format((Common.ParseDecimals(custom.Rectangle.Left.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px";
+                                styles["margin-left"] = $"{Common.Format((Common.ParseLarge(custom.Rectangle.Left.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px";
                             }
                             if (custom.PathList != null)
                             {
@@ -2134,10 +2134,10 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                         case DocumentFormat.OpenXml.Drawing.CloseShapePath:
                                             return "Z";
                                         case DocumentFormat.OpenXml.Drawing.ArcTo arc:
-                                            double width = (Common.ParseDecimals(arc.WidthRadius?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
-                                            double height = (Common.ParseDecimals(arc.HeightRadius?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
-                                            double start = (Common.ParseDecimals(arc.StartAngle?.Value) * Common.RATIO_ANGLE * Math.PI / 180.0) ?? 0;
-                                            double end = start + ((Common.ParseDecimals(arc.SwingAngle?.Value) * Common.RATIO_ANGLE * Math.PI / 180.0) ?? 0);
+                                            double width = (Common.ParseLarge(arc.WidthRadius?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
+                                            double height = (Common.ParseLarge(arc.HeightRadius?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
+                                            double start = (Common.ParseInteger(arc.StartAngle?.Value) * Common.RATIO_ANGLE * Math.PI / 180.0) ?? 0;
+                                            double end = start + ((Common.ParseInteger(arc.SwingAngle?.Value) * Common.RATIO_ANGLE * Math.PI / 180.0) ?? 0);
 
                                             last = (last.X - width * Math.Cos(start) + width * Math.Cos(end), last.Y - height * Math.Sin(start) + height * Math.Sin(end));
 
@@ -2151,7 +2151,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                                 _ => "L",
                                             }} {string.Join(' ', x.Elements<DocumentFormat.OpenXml.Drawing.Point>().Select(y =>
                                             {
-                                                last = ((Common.ParseDecimals(y.X?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, (Common.ParseDecimals(y.Y?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0);
+                                                last = ((Common.ParseLarge(y.X?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, (Common.ParseLarge(y.Y?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0);
                                                 return $"{Common.Format(last.X, configuration)},{Common.Format(last.Y, configuration)}";
                                             }))}";
                                     }
@@ -2209,7 +2209,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     case DocumentFormat.OpenXml.Drawing.Spreadsheet.OneCellAnchor single:
                         if (Common.ParsePositive(single.FromMarker?.ColumnId?.Text) is uint column)
                         {
-                            double offset = (Common.ParseDecimals(single.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
+                            double offset = (Common.ParseLarge(single.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
                             left = (column + 1, $"calc(var(--left) + {Common.Format(offset, configuration)}px)");
 
                             if (single.Extent?.Cx?.Value != null)
@@ -2219,7 +2219,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         }
                         if (Common.ParsePositive(single.FromMarker?.RowId?.Text) is uint row)
                         {
-                            double offset = (Common.ParseDecimals(single.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
+                            double offset = (Common.ParseLarge(single.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
                             top = (row + 1, $"calc(var(--top) + {Common.Format(offset, configuration)}px)");
 
                             if (single.Extent?.Cy?.Value != null)
@@ -2232,19 +2232,19 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     case DocumentFormat.OpenXml.Drawing.Spreadsheet.TwoCellAnchor dual:
                         if (Common.ParsePositive(dual.FromMarker?.ColumnId?.Text) is uint before)
                         {
-                            left = (before + 1, $"calc(var(--left) + {Common.Format((Common.ParseDecimals(dual.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
+                            left = (before + 1, $"calc(var(--left) + {Common.Format((Common.ParseLarge(dual.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
                         }
                         if (Common.ParsePositive(dual.FromMarker?.RowId?.Text) is uint upper)
                         {
-                            top = (upper + 1, $"calc(var(--top) + {Common.Format((Common.ParseDecimals(dual.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
+                            top = (upper + 1, $"calc(var(--top) + {Common.Format((Common.ParseLarge(dual.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
                         }
                         if (Common.ParsePositive(dual.ToMarker?.ColumnId?.Text) is uint after)
                         {
-                            right = (after + 1, $"calc(var(--right) - {Common.Format((Common.ParseDecimals(dual.ToMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
+                            right = (after + 1, $"calc(var(--right) - {Common.Format((Common.ParseLarge(dual.ToMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
                         }
                         if (Common.ParsePositive(dual.ToMarker?.RowId?.Text) is uint lower)
                         {
-                            bottom = (lower + 1, $"calc(var(--bottom) - {Common.Format((Common.ParseDecimals(dual.ToMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
+                            bottom = (lower + 1, $"calc(var(--bottom) - {Common.Format((Common.ParseLarge(dual.ToMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px)");
                         }
 
                         break;
