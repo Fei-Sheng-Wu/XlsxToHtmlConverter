@@ -110,6 +110,11 @@ namespace XlsxToHtmlConverter
         public string NewlineCharacter { get; set; } = "\n";
 
         /// <summary>
+        /// Gets or sets the tab character for writing the HTML content.
+        /// </summary>
+        public string TabCharacter { get; set; } = new(' ', 2);
+
+        /// <summary>
         /// Gets or sets the number of decimal places for rounding numeric HTML attributes. If set to negative values, no rounding is used.
         /// </summary>
         public int RoundingDigits { get; set; } = 2;

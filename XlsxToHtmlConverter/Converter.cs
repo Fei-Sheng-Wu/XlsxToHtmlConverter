@@ -579,20 +579,20 @@ namespace XlsxToHtmlConverter.Base.Implementation
     {
         public string Convert(Specification.Html.HtmlElement value, ConverterContext context, ConverterConfiguration configuration)
         {
-            string padding(int? indent)
+            string padding(int indent)
             {
-                return new string(' ', (indent ?? 0) * 4);
+                return string.Concat(Enumerable.Repeat(configuration.TabCharacter, indent));
             }
             string element(Specification.Html.HtmlElement element)
             {
                 return element.Type switch
                 {
                     Specification.Html.HtmlElementType.Declaration => $"<!DOCTYPE {element.Tag}>",
-                    Specification.Html.HtmlElementType.Paired => $"<{element.Tag}{attributes(element.Attributes)}>{children(element.Children, element.Indent)}</{element.Tag}>",
+                    Specification.Html.HtmlElementType.Paired => $"<{element.Tag}{attributes(element.Attributes)}>{children(element.Children, element.Indent ?? 0)}</{element.Tag}>",
                     Specification.Html.HtmlElementType.PairedStart => $"<{element.Tag}{attributes(element.Attributes)}>",
                     Specification.Html.HtmlElementType.PairedEnd => $"</{element.Tag}>",
                     Specification.Html.HtmlElementType.Unpaired => $"<{element.Tag}{attributes(element.Attributes)}>",
-                    _ => $"<!-- {children(element.Children, element.Indent)} -->"
+                    _ => $"<!-- {children(element.Children, element.Indent ?? 0)} -->"
                 };
             }
             string attributes(Specification.Html.HtmlAttributes attributes)
@@ -605,7 +605,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     _ => $" {x.Key}=\"{x.Value}\""
                 }));
             }
-            string children(Specification.Html.HtmlChildren content, int? indent)
+            string children(Specification.Html.HtmlChildren content, int indent)
             {
                 return string.Concat(content.Select(x =>
                 {
@@ -643,7 +643,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 return WebUtility.HtmlEncode(raw);
             }
 
-            return $"{padding(value.Indent)}{element(value)}{configuration.NewlineCharacter}";
+            return $"{padding(value.Indent ?? 0)}{element(value)}{configuration.NewlineCharacter}";
         }
     }
 
