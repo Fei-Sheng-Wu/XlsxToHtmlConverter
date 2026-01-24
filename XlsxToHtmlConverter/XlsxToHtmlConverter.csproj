@@ -9,7 +9,7 @@
 
   <PropertyGroup>
     <Title>XlsxToHtmlConverter</Title>
-    <Version>2.0.1</Version>
+    <Version>2.1.0</Version>
     <Authors>FeiShengWu</Authors>
     <Description>A fast, versatile, and powerful XLSX to HTML converter. Support an extensive scope of cell stylings and additional elements. Empower the efficient transformation of spreadsheets into well-structured web documents. Provide the ability to easily customize every aspect of the conversion process with progress callbacks. Only depend on the Open XML SDK.</Description>
     <Copyright>Copyright © 2026 FeiShengWu</Copyright>
