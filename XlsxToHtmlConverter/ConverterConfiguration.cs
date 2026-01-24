@@ -24,6 +24,11 @@ namespace XlsxToHtmlConverter
             public Base.IConverterBase<Base.Specification.Html.HtmlElement, string> HtmlWriter { get; set; } = new Base.Implementation.DefaultHtmlWriter();
 
             /// <summary>
+            /// Gets or sets the converter to iterate the XLSX sheets.
+            /// </summary>
+            public Base.IConverterBase<Base.Specification.Xlsx.XlsxSheet?, IEnumerable<Base.Specification.Xlsx.XlsxCell>> XlsxWorksheetIterator { get; set; } = new Base.Implementation.DefaultXlsxWorksheetIterator();
+
+            /// <summary>
             /// Gets or sets the converter to read the XLSX stylesheet.
             /// </summary>
             public Base.IConverterBase<Stylesheet?, Base.Specification.Xlsx.XlsxStylesCollection> XlsxStylesheetReader { get; set; } = new Base.Implementation.DefaultXlsxStylesheetReader();

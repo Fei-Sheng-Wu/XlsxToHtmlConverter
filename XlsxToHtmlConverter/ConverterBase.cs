@@ -303,6 +303,11 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         public Cell? Cell { get; set; } = cell;
 
         /// <summary>
+        /// Gets or sets the reference of the cell.
+        /// </summary>
+        public (uint Column, uint Row) Reference { get; set; } = (1, 1);
+
+        /// <summary>
         /// Gets or sets the styles of the cell.
         /// </summary>
         public List<XlsxStyles> Styles { get; set; } = [];
@@ -339,14 +344,14 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
     public class XlsxString()
     {
         /// <summary>
-        /// Gets or sets the children of the string.
-        /// </summary>
-        public Html.HtmlChildren Children { get; set; } = [];
-
-        /// <summary>
         /// Gets or sets the raw representation of the string.
         /// </summary>
         public string Raw { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the children of the string.
+        /// </summary>
+        public Html.HtmlChildren Children { get; set; } = [];
     }
 
     /// <summary>
@@ -578,7 +583,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// <summary>
         /// Gets or sets the size of the cells within the sheet.
         /// </summary>
-        public (double Width, double Height) CellSize { get; set; } = (0, 0);
+        public (double Width, double Height) CellSize { get; set; } = (1, 1);
 
         /// <summary>
         /// Gets or sets the specialties within the sheet.

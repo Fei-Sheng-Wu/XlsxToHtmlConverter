@@ -1,4 +1,4 @@
-# XlsxToHtmlConverter v2.0.1-dev
+# XlsxToHtmlConverter v2.1.0-dev
 
 [![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)](#)
 [![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)](#)
@@ -35,7 +35,7 @@ For versions ≥ v2.0.0, the versioning of XlsxToHtmlConverter conforms to the f
 
 | Generation | | Major | | Minor |
 | :--- | :---: | :--- | :---: | :--- |
-| **2** | . | **0** | . | **0** |
+| **2** | . | **1** | . | **0** |
 | _(backward-incompatible)_ | | _(backward-incompatible)_ | | _(backward-compatible)_ |
 | Significant codebase refactors. | | Severe bug fixes and core improvements. | | Mild changes. |
 
