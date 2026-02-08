@@ -149,14 +149,11 @@ namespace XlsxToHtmlConverter
                 ["font-weight"] = "bold",
                 ["border-bottom"] = "thick solid var(--sheet-color)"
             },
-            ["tbody"] = new()
-            {
-                ["position"] = "relative"
-            },
             ["td"] = new()
             {
                 ["padding"] = "0 2px",
                 ["vertical-align"] = "bottom",
+                ["line-height"] = "1.25",
                 ["border"] = "thin solid lightgray",
                 ["white-space"] = "preserve nowrap",
                 ["overflow-y"] = "clip",

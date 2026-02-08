@@ -6,7 +6,7 @@
 [![NuGet](https://img.shields.io/nuget/v/XlsxToHtmlConverter?label=NuGet&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Downloads](https://img.shields.io/nuget/dt/XlsxToHtmlConverter?label=Downloads&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/latest?label=Commits%20Since&style=flat-square)](#)
-[![License](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
+[![License](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](LICENSE.txt)
 
 > A fast, versatile, and powerful XLSX to HTML converter. Support an extensive scope of cell stylings and additional elements. Empower the efficient transformation of spreadsheets into well-structured web documents. Provide the ability to easily customize every aspect of the conversion process with progress callbacks. Only depend on the Open XML SDK.
 
@@ -23,15 +23,15 @@
 
 | Original XLSX File |
 | :---: |
-| ![Original XLSX File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/sample-xlsx.png) |
+| ![Original XLSX File](sample-xlsx.png) |
 
 | Converted HTML File |
 | :---: |
-| ![Converted HTML File](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/sample-html.png) |
+| ![Converted HTML File](sample-html.png) |
 
 ## Versioning
 
-For versions ≥ v2.0.0, the versioning of XlsxToHtmlConverter conforms to the following scheme:
+For versions ≥ 2.0.0, the versioning of XlsxToHtmlConverter conforms to the following scheme:
 
 | Generation | | Major | | Minor |
 | :--- | :---: | :--- | :---: | :--- |
@@ -78,6 +78,7 @@ XlsxToHtmlConverter.ConverterConfiguration configuration = new()
     BufferSize = 65536,
     Encoding = Encoding.UTF8,
     NewlineCharacter = "\n",
+    TabCharacter = new(' ', 2),
     RoundingDigits = 2,
     CurrentCulture = CultureInfo.CurrentCulture,
     HtmlTitle = null,
@@ -118,4 +119,4 @@ private void HandleProgressChanged(DocumentFormat.OpenXml.Packaging.SpreadsheetD
 
 ## License
 
-This project is under the [MIT License](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt).
+This project is under the [MIT License](LICENSE.txt).
