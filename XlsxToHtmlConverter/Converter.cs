@@ -465,6 +465,17 @@ namespace XlsxToHtmlConverter.Base.Implementation
         public const double RATIO_ENGLISH_METRIC_UNIT = 1 / 914400.0 * 96.0;
 
         /// <summary>
+        /// Specifies the category of a cached entry.
+        /// </summary>
+        public enum CacheCategory
+        {
+            /// <summary>
+            /// Number format.
+            /// </summary>
+            NumberFormat
+        }
+
+        /// <summary>
         /// Retrieves a specified value.
         /// </summary>
         /// <typeparam name="T">The type of the value.</typeparam>
@@ -1188,7 +1199,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     double number when number == 0 => (2, format.Zero),
                     _ => (3, format.Text)
                 } : (-1, null);
-                object? key = value.NumberFormatId != null ? ("numFmt", value.NumberFormatId.Value, section) : null;
+                object? key = value.NumberFormatId != null ? (Common.CacheCategory.NumberFormat, value.NumberFormatId.Value, section) : null;
 
                 string? currency = null;
                 CultureInfo culture = configuration.CurrentCulture;
