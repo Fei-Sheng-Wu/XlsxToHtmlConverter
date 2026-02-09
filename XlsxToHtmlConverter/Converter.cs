@@ -336,7 +336,6 @@ namespace XlsxToHtmlConverter
                         }
                     }
 
-                    colStart = configuration.ColsToRender?.Start ?? context.Sheet.Dimension.ColumnStart;
                     uint colIndex = cell.Reference.Column - colStart;
                     Base.Specification.Xlsx.XlsxBaseStyles? shared = Base.Implementation.Common.Get(context.Stylesheet.BaseStyles, cell.Cell?.StyleIndex?.Value ?? Base.Implementation.Common.Get(columns, colIndex).StylesIndex ?? row?.StyleIndex?.Value ?? 0);
                     if (shared != null)
