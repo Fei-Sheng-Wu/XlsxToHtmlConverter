@@ -225,5 +225,37 @@ namespace XlsxToHtmlConverter
         /// Gets or sets whether to utilize the HTML machine-readable elements.
         /// </summary>
         public bool UseHtmlDataElements { get; set; } = true;
+
+        public Range? RowsToRender { get; set; } = null;
+        public Range? ColsToRender { get; set; } = null;
+
+        public struct Range
+        {
+            public uint Start { get; set; }
+
+            public uint End { get; set; }
+
+            public Range(uint start, uint end)
+            {
+                if (start < 1)
+                {
+                    throw new ArgumentException("Start row cannot be less than 1.", nameof(start));
+                }
+                if (start > end)
+                {
+                    throw new ArgumentException("Start row cannot be greater than end row.", nameof(start));
+                }
+
+                Start = start;
+                End = end;
+            }
+
+            public readonly bool Contains(uint row)
+            {
+                return row >= Start && row <= End;
+            }
+
+            public readonly uint Count => End - Start + 1;
+        }
     }
 }
