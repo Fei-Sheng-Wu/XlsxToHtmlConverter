@@ -136,7 +136,6 @@ namespace XlsxToHtmlConverter
         {
             ["table"] = new()
             {
-                ["width"] = "fit-content",
                 ["table-layout"] = "fixed",
                 ["border-collapse"] = "collapse"
             },

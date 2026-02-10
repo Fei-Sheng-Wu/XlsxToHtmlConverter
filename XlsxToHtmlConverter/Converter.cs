@@ -173,10 +173,16 @@ namespace XlsxToHtmlConverter
                     }
                 }
 
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, "table", sheet.State?.Value != null && sheet.State.Value != SheetStateValues.Visible && configuration.ConvertVisibilities ? new()
+                Base.Specification.Html.HtmlAttributes table = new()
                 {
-                    ["hidden"] = null
-                } : null)));
+                    ["width"] = configuration.UseHtmlProportionalWidths ? "100%" : "fit-content"
+                };
+                if (sheet.State?.Value != null && sheet.State.Value != SheetStateValues.Visible && configuration.ConvertVisibilities)
+                {
+                    table["hidden"] = null;
+                }
+
+                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, "table", table)));
                 indent++;
 
                 if (configuration.ConvertSheetTitles)
