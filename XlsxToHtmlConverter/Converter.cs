@@ -306,6 +306,8 @@ namespace XlsxToHtmlConverter
                         content(i, cell.Reference.Row);
                     }
 
+                    bool isSelected = configuration.XlsxCellSelector?.Invoke((cell.Reference.Column, cell.Reference.Row)) ?? true;
+
                     Base.Specification.Xlsx.XlsxBaseStyles? shared = Base.Implementation.Common.Get(context.Stylesheet.BaseStyles, cell.Cell?.StyleIndex?.Value ?? Base.Implementation.Common.Get(columns, cell.Reference.Column - context.Sheet.Dimension.ColumnStart).StylesIndex ?? row?.StyleIndex?.Value ?? 0);
                     if (shared != null)
                     {
@@ -325,7 +327,7 @@ namespace XlsxToHtmlConverter
                                 cell.Attributes["rowspan"] = Base.Implementation.Common.Format(specialty.Range.RowCount, configuration);
                                 individual["overflow-x"] = "hidden";
                                 break;
-                            case Base.Specification.Xlsx.XlsxStyles styles:
+                            case Base.Specification.Xlsx.XlsxStyles styles when isSelected:
                                 cell.Styles.Add(styles);
                                 if (styles is Base.Specification.Xlsx.XlsxDifferentialStyles differential && differential.NumberFormat != null && configuration.ConvertNumberFormats)
                                 {
@@ -342,11 +344,14 @@ namespace XlsxToHtmlConverter
                     cell.Attributes["style"] = individual;
                     cell.Attributes.Merge(context.Sheet.CellAttributes);
 
-                    cell = converter(configuration.ConverterComposition.XlsxCellContentReader, cell);
+                    if (isSelected)
+                    {
+                        cell = converter(configuration.ConverterComposition.XlsxCellContentReader, cell);
+                    }
                     Base.Specification.Html.HtmlElement element = new(indent, Base.Specification.Html.HtmlElementType.Paired, "td", cell.Attributes, cell.Children);
 
                     bool isHidden = false;
-                    foreach (Base.Specification.Xlsx.XlsxStyles styles in cell.Styles)
+                    foreach (Base.Specification.Xlsx.XlsxStyles styles in isSelected ? cell.Styles : [])
                     {
                         if (configuration.ConvertStyles)
                         {
@@ -364,7 +369,6 @@ namespace XlsxToHtmlConverter
                     }
 
                     content(cell.Reference.Column, cell.Reference.Row, element);
-
                     last = cell.Reference;
                 }
                 suffix();

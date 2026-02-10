@@ -169,6 +169,11 @@ namespace XlsxToHtmlConverter
         /// Gets or sets the selector that determines the dimension of a XLSX sheet.
         /// </summary>
         public Func<(uint Left, uint Top, uint Right, uint Bottom), (uint Left, uint Top, uint Right, uint Bottom)>? XlsxSheetDimensionSelector { get; set; } = null;
+        
+        /// <summary>
+        /// Gets or sets the selector that determines whether a XLSX cell should be converted.
+        /// </summary>
+        public Func<(uint Column, uint Row), bool>? XlsxCellSelector { get; set; } = null;
 
         /// <summary>
         /// Gets or sets whether to convert XLSX sheet names to HTML table captions.
