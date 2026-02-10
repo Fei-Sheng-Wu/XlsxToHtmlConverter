@@ -1,4 +1,4 @@
-# XlsxToHtmlConverter v2.1.0
+# XlsxToHtmlConverter v2.1.1-dev
 
 [![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)](#)
 [![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)](#)
@@ -35,7 +35,7 @@ For versions ≥ 2.0.0, the versioning of XlsxToHtmlConverter conforms to the fo
 
 | Generation | | Major | | Minor |
 | :--- | :---: | :--- | :---: | :--- |
-| **2** | . | **1** | . | **0** |
+| **2** | . | **1** | . | **1** |
 | _(backward-incompatible)_ | | _(backward-incompatible)_ | | _(backward-compatible)_ |
 | Significant codebase refactors. | | Severe bug fixes and core improvements. | | Mild changes. |
 
@@ -116,6 +116,10 @@ private void HandleProgressChanged(DocumentFormat.OpenXml.Packaging.SpreadsheetD
     Console.Write($"{e.ProgressPercentage:F2}% ({summary}) {progress}");
 }
 ```
+
+## Contributors
+
+[![Contributors](https://contrib.rocks/image?repo=Fei-Sheng-Wu/XlsxToHtmlConverter)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/graphs/contributors)
 
 ## License
 

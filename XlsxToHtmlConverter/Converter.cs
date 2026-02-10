@@ -187,15 +187,10 @@ namespace XlsxToHtmlConverter
                 writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, "colgroup")));
                 indent++;
 
-                uint colStart = configuration.ColsToRender?.Start ?? context.Sheet.Dimension.ColumnStart;
-                uint colEnd = configuration.ColsToRender?.End ?? context.Sheet.Dimension.ColumnEnd;
-                uint colCount = colEnd - colStart + 1;
-
-                (double Width, bool? IsHidden, uint? StylesIndex)[] columns = new (double Width, bool? IsHidden, uint? StylesIndex)[colCount];
-                for (uint i = 0; i < colCount; i++)
+                (double Width, bool? IsHidden, uint? StylesIndex)[] columns = new (double Width, bool? IsHidden, uint? StylesIndex)[context.Sheet.Dimension.ColumnCount];
+                for (uint i = 0; i < columns.Length; i++)
                 {
-                    uint colIndex = colStart + i - context.Sheet.Dimension.ColumnStart;
-                    (double? width, bool? isHidden, uint? styles) = Base.Implementation.Common.Get(context.Sheet.Columns, colIndex);
+                    (double? width, bool? isHidden, uint? styles) = Base.Implementation.Common.Get(context.Sheet.Columns, i);
                     columns[i] = (width ?? context.Sheet.CellSize.Width, isHidden, styles);
                 }
                 if (configuration.UseHtmlProportionalWidths)
@@ -230,12 +225,12 @@ namespace XlsxToHtmlConverter
                 writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, "tbody")));
                 indent++;
 
-                (uint Column, uint Row) last = ((configuration.ColsToRender?.Start ?? context.Sheet.Dimension.ColumnStart) - 1, (configuration.RowsToRender?.Start ?? context.Sheet.Dimension.RowStart) - 1);
+                (uint Column, uint Row) last = (context.Sheet.Dimension.ColumnStart - 1, context.Sheet.Dimension.RowStart - 1);
                 List<Base.Specification.Xlsx.XlsxSpecialty> specialties = [];
 
                 void content(uint column, uint row, Base.Specification.Html.HtmlElement? element = null)
                 {
-                    if (specialties.Any(x => x.Specialty is MergeCell && x.Range.ContainsColumn(column) && !x.Range.StartsAt(column, row)))
+                    if (specialties.Any(x => x.Specialty is MergeCell && x.Range.ContainsColumn(column) && !x.Range.StartsAt(column, row) && context.Sheet.Dimension.Contains(x.Range.ColumnStart, x.Range.RowStart)))
                     {
                         return;
                     }
@@ -249,7 +244,7 @@ namespace XlsxToHtmlConverter
                         return;
                     }
 
-                    for (uint i = last.Column + 1; i <= colEnd; i++)
+                    for (uint i = last.Column + 1; i <= context.Sheet.Dimension.ColumnEnd; i++)
                     {
                         content(i, last.Row);
                     }
@@ -269,39 +264,11 @@ namespace XlsxToHtmlConverter
                         continue;
                     }
 
-                    // Skip rows before the range starts
-                    if (configuration.RowsToRender != null && cell.Reference.Row < configuration.RowsToRender?.Start)
-                    {
-                        continue;
-                    }
-
-                    // Stop processing once we've passed the end of the range
-                    if (configuration.RowsToRender != null && cell.Reference.Row > configuration.RowsToRender?.End)
-                    {
-                        break;
-                    }
-
-                    // Skip columns before the range starts
-                    if (configuration.ColsToRender != null && cell.Reference.Column < configuration.ColsToRender?.Start)
-                    {
-                        continue;
-                    }
-
-                    // Skip columns after the range ends
-                    if (configuration.ColsToRender != null && cell.Reference.Column > configuration.ColsToRender?.End)
-                    {
-                        continue;
-                    }
-
                     while (cell.Reference.Row > last.Row)
                     {
-                        // Only call suffix if we've already created a row
-                        if (last.Row >= (configuration.RowsToRender?.Start ?? context.Sheet.Dimension.RowStart))
-                        {
-                            suffix();
-                        }
+                        suffix();
 
-                        last = ((configuration.ColsToRender?.Start ?? context.Sheet.Dimension.ColumnStart) - 1, last.Row + 1);
+                        last = (context.Sheet.Dimension.ColumnStart - 1, last.Row + 1);
                         specialties = Base.Implementation.Common.Get(references, last.Row) ?? [];
                         row = cell.Reference.Row <= last.Row ? cell.Cell?.Parent as Row : null;
 
@@ -330,14 +297,10 @@ namespace XlsxToHtmlConverter
                     }
                     for (uint i = last.Column + 1; i < cell.Reference.Column; i++)
                     {
-                        if (i >= colStart && i <= colEnd)
-                        {
-                            content(i, cell.Reference.Row);
-                        }
+                        content(i, cell.Reference.Row);
                     }
 
-                    uint colIndex = cell.Reference.Column - colStart;
-                    Base.Specification.Xlsx.XlsxBaseStyles? shared = Base.Implementation.Common.Get(context.Stylesheet.BaseStyles, cell.Cell?.StyleIndex?.Value ?? Base.Implementation.Common.Get(columns, colIndex).StylesIndex ?? row?.StyleIndex?.Value ?? 0);
+                    Base.Specification.Xlsx.XlsxBaseStyles? shared = Base.Implementation.Common.Get(context.Stylesheet.BaseStyles, cell.Cell?.StyleIndex?.Value ?? Base.Implementation.Common.Get(columns, cell.Reference.Column - context.Sheet.Dimension.ColumnStart).StylesIndex ?? row?.StyleIndex?.Value ?? 0);
                     if (shared != null)
                     {
                         cell.Styles.Add(shared);
@@ -398,11 +361,7 @@ namespace XlsxToHtmlConverter
 
                     last = cell.Reference;
                 }
-                // Only call suffix if we have valid rows to close
-                if (configuration.RowsToRender == null || last.Row >= configuration.RowsToRender?.Start)
-                {
-                    suffix();
-                }
+                suffix();
 
                 if (elements.Any())
                 {
@@ -1003,6 +962,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                 result.Dimension.ColumnEnd = column;
                 result.Dimension.RowEnd = row;
+            }
+            if (configuration.XlsxSheetDimensionSelector != null)
+            {
+                (uint left, uint top, uint right, uint bottom) = configuration.XlsxSheetDimensionSelector((result.Dimension.ColumnStart, result.Dimension.RowStart, result.Dimension.ColumnEnd, result.Dimension.RowEnd));
+                result.Dimension = new(Math.Max(1, Math.Min(left, right)), Math.Max(1, Math.Min(top, bottom)), Math.Max(1, Math.Max(left, right)), Math.Max(1, Math.Max(top, bottom)));
             }
 
             result.Columns = new (double? Width, bool? IsHidden, uint? StylesIndex)[result.Dimension.ColumnCount];

@@ -167,6 +167,11 @@ namespace XlsxToHtmlConverter
         public Func<(int Index, string? Id), bool>? XlsxSheetSelector { get; set; } = null;
 
         /// <summary>
+        /// Gets or sets the selector that determines the dimension of a XLSX sheet.
+        /// </summary>
+        public Func<(uint Left, uint Top, uint Right, uint Bottom), (uint Left, uint Top, uint Right, uint Bottom)>? XlsxSheetDimensionSelector { get; set; } = null;
+
+        /// <summary>
         /// Gets or sets whether to convert XLSX sheet names to HTML table captions.
         /// </summary>
         public bool ConvertSheetTitles { get; set; } = true;
@@ -225,37 +230,5 @@ namespace XlsxToHtmlConverter
         /// Gets or sets whether to utilize the HTML machine-readable elements.
         /// </summary>
         public bool UseHtmlDataElements { get; set; } = true;
-
-        public Range? RowsToRender { get; set; } = null;
-        public Range? ColsToRender { get; set; } = null;
-
-        public struct Range
-        {
-            public uint Start { get; set; }
-
-            public uint End { get; set; }
-
-            public Range(uint start, uint end)
-            {
-                if (start < 1)
-                {
-                    throw new ArgumentException("Start row cannot be less than 1.", nameof(start));
-                }
-                if (start > end)
-                {
-                    throw new ArgumentException("Start row cannot be greater than end row.", nameof(start));
-                }
-
-                Start = start;
-                End = end;
-            }
-
-            public readonly bool Contains(uint row)
-            {
-                return row >= Start && row <= End;
-            }
-
-            public readonly uint Count => End - Start + 1;
-        }
     }
 }
