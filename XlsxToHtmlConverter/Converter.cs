@@ -2276,6 +2276,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         break;
                 }
 
+                if (!(configuration.XlsxObjectSelector?.Invoke((left.Index > 0 && top.Index > 0 ? (left.Index, top.Index) : null, right.Index > 0 && bottom.Index > 0 ? (right.Index, bottom.Index) : null)) ?? true))
+                {
+                    continue;
+                }
+
                 if (top.Field != null)
                 {
                     positions["top"] = top.Field;
