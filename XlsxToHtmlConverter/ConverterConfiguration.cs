@@ -130,6 +130,11 @@ namespace XlsxToHtmlConverter
         public string? HtmlTitle { get; set; } = null;
 
         /// <summary>
+        /// Gets or sets the root class of the HTML content.
+        /// </summary>
+        public string? HtmlRootClass { get; set; } = "xlsx";
+
+        /// <summary>
         /// Gets or sets the preset stylesheet of the HTML content.
         /// </summary>
         public Base.Specification.Html.HtmlStylesCollection HtmlPresetStylesheet { get; set; } = new()

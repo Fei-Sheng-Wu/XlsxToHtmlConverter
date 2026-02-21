@@ -104,22 +104,40 @@ namespace XlsxToHtmlConverter
                 }
             }
 
-            writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Paired, "style", null, [configuration.HtmlPresetStylesheet])));
-            if (configuration.ConvertStyles && configuration.UseHtmlClasses)
+            if (configuration.ConvertStyles)
             {
-                Base.Specification.Html.HtmlStylesCollection stylesheet = [];
-                foreach (Base.Specification.Xlsx.XlsxBaseStyles styles in context.Stylesheet.BaseStyles)
+                string selector(string selector)
                 {
-                    stylesheet[$".{styles.Name}"] = styles.GetsStyles();
-                }
-                foreach (Base.Specification.Xlsx.XlsxDifferentialStyles styles in context.Stylesheet.DifferentialStyles)
-                {
-                    stylesheet[$".{styles.Name}"] = styles.GetsStyles();
+                    return configuration.HtmlRootClass != null ? selector switch
+                    {
+                        "table" => $"{selector}.{configuration.HtmlRootClass}",
+                        _ => $".{configuration.HtmlRootClass} {selector}"
+                    } : selector;
                 }
 
-                if (stylesheet.Any())
+                Base.Specification.Html.HtmlStylesCollection preset = [];
+                foreach ((string original, Base.Specification.Html.HtmlStyles styles) in configuration.HtmlPresetStylesheet)
                 {
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Paired, "style", null, [stylesheet])));
+                    preset[selector(original)] = styles;
+                }
+                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Paired, "style", null, [preset])));
+
+                if (configuration.UseHtmlClasses)
+                {
+                    Base.Specification.Html.HtmlStylesCollection stylesheet = [];
+                    foreach (Base.Specification.Xlsx.XlsxBaseStyles styles in context.Stylesheet.BaseStyles)
+                    {
+                        stylesheet[selector($".{styles.Name}")] = styles.GetsStyles();
+                    }
+                    foreach (Base.Specification.Xlsx.XlsxDifferentialStyles styles in context.Stylesheet.DifferentialStyles)
+                    {
+                        stylesheet[selector($".{styles.Name}")] = styles.GetsStyles();
+                    }
+
+                    if (stylesheet.Any())
+                    {
+                        writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Paired, "style", null, [stylesheet])));
+                    }
                 }
             }
 
@@ -173,10 +191,18 @@ namespace XlsxToHtmlConverter
                     }
                 }
 
-                Base.Specification.Html.HtmlAttributes table = new()
+                Base.Specification.Html.HtmlAttributes table = [];
+                if (configuration.HtmlRootClass != null)
                 {
-                    ["width"] = configuration.UseHtmlProportionalWidths ? "100%" : "fit-content"
-                };
+                    table["class"] = new Base.Specification.Html.HtmlClasses() { configuration.HtmlRootClass };
+                }
+                if (configuration.ConvertSizes)
+                {
+                    table["style"] = new Base.Specification.Html.HtmlStyles()
+                    {
+                        ["width"] = configuration.UseHtmlProportionalWidths ? "100%" : "fit-content"
+                    };
+                }
                 if (sheet.State?.Value != null && sheet.State.Value != SheetStateValues.Visible && configuration.ConvertVisibilities)
                 {
                     table["hidden"] = null;
