@@ -5,7 +5,7 @@
 [![.NET Standard](https://img.shields.io/badge/.NET%20Standard-%E2%89%A52.1-orange.svg?style=flat-square)](#)
 [![NuGet](https://img.shields.io/nuget/v/XlsxToHtmlConverter?label=NuGet&style=flat-square&logo=nuget)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Downloads](https://img.shields.io/nuget/dt/XlsxToHtmlConverter?label=Downloads&style=flat-square&logo=nuget&logoColor=white)](https://www.nuget.org/packages/XlsxToHtmlConverter)
-[![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/latest?label=Commits%20Since&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/commits/master)
+[![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/v2.1.1?label=Commits%20Since&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/commits/master)
 [![License](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](LICENSE.txt)
 [![Sponsor](https://img.shields.io/badge/GitHub%20Sponsors-red.svg?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Fei-Sheng-Wu)
 

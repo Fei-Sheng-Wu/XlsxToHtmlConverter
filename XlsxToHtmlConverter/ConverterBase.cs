@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using DocumentFormat.OpenXml.Spreadsheet;
@@ -155,12 +155,12 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlChildren"/> class.
     /// </summary>
-    public class HtmlChildren() : List<object> { }
+    public class HtmlChildren() : List<object>() { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlAttributes"/> class.
     /// </summary>
-    public class HtmlAttributes() : Dictionary<string, object?>, IMergeable
+    public class HtmlAttributes() : Dictionary<string, object?>(), IMergeable
     {
         public void Merge(object? value)
         {
@@ -188,10 +188,10 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
         /// <param name="name">The class name of the <see cref="HtmlStyles"/> instance.</param>
         public void MergeStyles(HtmlStyles styles, string? name = null)
         {
-            if (Implementation.Common.Get(this, "style") is not HtmlStyles baseline)
+            if (Implementation.Common.Get(this, Implementation.Common.ATTRIBUTE_STYLE) is not HtmlStyles baseline)
             {
                 baseline = [];
-                this["style"] = baseline;
+                this[Implementation.Common.ATTRIBUTE_STYLE] = baseline;
             }
             if (name == null)
             {
@@ -199,10 +199,10 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
                 return;
             }
 
-            if (Implementation.Common.Get(this, "class") is not HtmlClasses classes)
+            if (Implementation.Common.Get(this, Implementation.Common.ATTRIBUTE_CLASS) is not HtmlClasses classes)
             {
                 classes = [name];
-                this["class"] = classes;
+                this[Implementation.Common.ATTRIBUTE_CLASS] = classes;
             }
             else
             {
@@ -219,7 +219,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlClasses"/> class.
     /// </summary>
-    public class HtmlClasses() : List<string>, IMergeable
+    public class HtmlClasses() : List<string>(), IMergeable
     {
         public void Merge(object? value)
         {
@@ -235,7 +235,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlStylesCollection"/> class.
     /// </summary>
-    public class HtmlStylesCollection() : Dictionary<string, HtmlStyles>
+    public class HtmlStylesCollection() : Dictionary<string, HtmlStyles>()
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="HtmlStylesCollection"/> class.
@@ -272,8 +272,30 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
     /// <summary>
     /// Initializes a new instance of the <see cref="HtmlStyles"/> class.
     /// </summary>
-    public class HtmlStyles() : Dictionary<string, string>, IMergeable
+    public class HtmlStyles() : Dictionary<string, string>(), IMergeable
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HtmlStyles"/> class.
+        /// </summary>
+        /// <param name="collection">The styles.</param>
+        public HtmlStyles(IEnumerable<KeyValuePair<string, string>> collection) : this()
+        {
+            foreach (KeyValuePair<string, string> style in collection)
+            {
+                Add(style.Key, style.Value);
+            }
+        }
+
+        /// <summary>
+        /// Adds the specified key and value to the dictionary.
+        /// </summary>
+        /// <param name="style">The specified key and value.</param>
+        /// <param name="content">The content for a formattable value.</param>
+        public void Apply(KeyValuePair<string, string> style, string? content = null)
+        {
+            this[style.Key] = content != null ? string.Format(style.Value, content) : style.Value;
+        }
+
         public void Merge(object? value)
         {
             if (value is not HtmlStyles styles)
@@ -286,6 +308,141 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
                 this[property] = field;
             }
         }
+    }
+
+    /// <summary>
+    /// Specifies the type of a HTML style.
+    /// </summary>
+    public enum HtmlStyleType
+    {
+        TableLayoutDefault,
+        TableSpacingDefault,
+        TableWidthFull,
+        TableWidthFit,
+        TitleMarginDefault,
+        TitlePaddingDefault,
+        TitleWidthDefault,
+        TitleTextSizeDefault,
+        TitleTextWeightDefault,
+        TitleBorderDefault,
+        TitleVariableColor,
+        ColumnWidthAutomatic,
+        ColumnWidthExact,
+        ColumnWidthProportional,
+        ColumnVisibilityVisible,
+        ColumnVisibilityCollapsed,
+        ColumnAnchorDefinition,
+        RowHeightExact,
+        RowBorderTopThick,
+        RowBorderBottomThick,
+        RowVisibilityVisible,
+        RowVisibilityCollapsed,
+        RowAnchorDefinition,
+        CellPaddingDefault,
+        CellTextSizeExact,
+        CellTextFamilyDefinition,
+        CellTextWeightNormal,
+        CellTextWeightBold,
+        CellTextStyleNormal,
+        CellTextStyleItalic,
+        CellTextStretchNormal,
+        CellTextStretchExpanded,
+        CellTextStretchCondensed,
+        CellTextDecorationDefinition,
+        CellTextTransformDefinition,
+        CellTextLineHeightDefault,
+        CellTextLetterSpacingExact,
+        CellTextIndentExact,
+        CellTextWrappingDefault,
+        CellTextWrappingWrap,
+        CellForegroundExact,
+        CellForegroundNone,
+        CellBackgroundExact,
+        CellBorderDefault,
+        CellBorderTop,
+        CellBorderRight,
+        CellBorderBottom,
+        CellBorderLeft,
+        CellHorizontalAlignmentLeft,
+        CellHorizontalAlignmentCenter,
+        CellHorizontalAlignmentRight,
+        CellHorizontalAlignmentJustify,
+        CellVerticalAlignmentDefault,
+        CellVerticalAlignmentNormal,
+        CellVerticalAlignmentTop,
+        CellVerticalAlignmentCenter,
+        CellVerticalAlignmentBottom,
+        CellVerticalAlignmentSuperscript,
+        CellVerticalAlignmentSubscript,
+        CellClippingDefault,
+        CellClippingHorizontal,
+        CellBoundingDefault,
+        CellDirectionDefinition,
+        CellVisibilityHidden,
+        TextRotationExact,
+        TextOrientationVertical,
+        TextFlowDefinition,
+        TextContentAlignmentJustify,
+        TextLayoutInlineBlock,
+        TextLayoutFlexible,
+        ElementWidthFull,
+        ElementHeightFull,
+        ElementTransformTop,
+        ElementTransformRight,
+        ElementTransformBottom,
+        ElementTransformLeft,
+        ElementRotationExact,
+        ElementScaleExact,
+        ElementMarginAll,
+        ElementMarginTop,
+        ElementMarginRight,
+        ElementMarginBottom,
+        ElementMarginLeft,
+        ElementPaddingAll,
+        ElementPaddingTop,
+        ElementPaddingRight,
+        ElementPaddingBottom,
+        ElementPaddingLeft,
+        ElementTextLineHeightExact,
+        ElementTextIndentExact,
+        ElementTextTabExact,
+        ElementTextColumnCount,
+        ElementTextColumnGapExact,
+        ElementTextWrappingNone,
+        ElementTextWrappingWrap,
+        ElementTextOrientationVertical,
+        ElementTextFlowDefinition,
+        ElementForegroundExact,
+        ElementBackgroundExact,
+        ElementBackgroundNone,
+        ElementBorderNormal,
+        ElementBorderColorExact,
+        ElementBorderThicknessExact,
+        ElementBorderStyleSolid,
+        ElementBorderStyleDouble,
+        ElementBorderStyleDashed,
+        ElementBorderStyleDotted,
+        ElementHorizontalAlignmentLeft,
+        ElementHorizontalAlignmentCenter,
+        ElementHorizontalAlignmentRight,
+        ElementHorizontalAlignmentJustify,
+        ElementVerticalAlignmentTop,
+        ElementVerticalAlignmentCenter,
+        ElementVerticalAlignmentBottom,
+        ElementPositioningAbsolute,
+        ElementClippingAll,
+        ElementClippingPath,
+        ElementClippingAntiHorizontal,
+        ElementClippingAntiVertical,
+        ElementCroppingInset,
+        ElementBoundingInclusive,
+        ElementDirectionDefinition,
+        ElementFilterDefinition,
+        ElementVisibilityVisible,
+        ElementVariableTop,
+        ElementVariableRight,
+        ElementVariableBottom,
+        ElementVariableLeft
     }
 }
 
@@ -728,7 +885,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
     /// <summary>
     /// Initializes a new instance of the <see cref="XlsxBaseStyles"/> class.
     /// </summary>
-    public class XlsxBaseStyles() : XlsxStyles
+    public class XlsxBaseStyles() : XlsxStyles()
     {
         /// <summary>
         /// Gets or sets the styles.
@@ -749,7 +906,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
     /// <summary>
     /// Initializes a new instance of the <see cref="XlsxDifferentialStyles"/> class.
     /// </summary>
-    public class XlsxDifferentialStyles() : XlsxStyles
+    public class XlsxDifferentialStyles() : XlsxStyles()
     {
         /// <summary>
         /// Gets or sets the font styles of the styles.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using DocumentFormat.OpenXml.Packaging;
 
 namespace XlsxToHtmlConverter
@@ -13,7 +13,7 @@ namespace XlsxToHtmlConverter
     /// <summary>
     /// Initializes a new instance of the <see cref="ConverterProgressChangedEventArgs"/> class.
     /// </summary>
-    public class ConverterProgressChangedEventArgs((uint Current, uint Total) sheet, (uint Current, uint Total) row) : EventArgs
+    public class ConverterProgressChangedEventArgs((uint Current, uint Total) sheet, (uint Current, uint Total) row) : EventArgs()
     {
         /// <summary>
         /// Gets the current progress in percentage.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Collections.Generic;
 using System.Globalization;
@@ -22,6 +22,11 @@ namespace XlsxToHtmlConverter
             /// Gets or sets the converter to write the HTML content.
             /// </summary>
             public Base.IConverterBase<Base.Specification.Html.HtmlElement, string> HtmlWriter { get; set; } = new Base.Implementation.DefaultHtmlWriter();
+
+            /// <summary>
+            /// Gets or sets the converter to stylize the HTML content.
+            /// </summary>
+            public Base.IConverterBase<Base.Specification.Html.HtmlStyleType, KeyValuePair<string, string>> HtmlStylizer { get; set; } = new Base.Implementation.DefaultHtmlStylizer();
 
             /// <summary>
             /// Gets or sets the converter to iterate the XLSX sheets.
@@ -139,30 +144,27 @@ namespace XlsxToHtmlConverter
         /// </summary>
         public Base.Specification.Html.HtmlStylesCollection HtmlPresetStylesheet { get; set; } = new()
         {
-            ["table"] = new()
-            {
-                ["table-layout"] = "fixed",
-                ["border-collapse"] = "collapse"
-            },
-            ["caption"] = new()
-            {
-                ["margin"] = "10px auto",
-                ["padding"] = "2px",
-                ["width"] = "fit-content",
-                ["font-size"] = "20px",
-                ["font-weight"] = "bold",
-                ["border-bottom"] = "thick solid var(--sheet-color)"
-            },
-            ["td"] = new()
-            {
-                ["padding"] = "0 2px",
-                ["vertical-align"] = "bottom",
-                ["line-height"] = "1.25",
-                ["border"] = "thin solid lightgray",
-                ["white-space"] = "preserve nowrap",
-                ["overflow-y"] = "clip",
-                ["box-sizing"] = "border-box"
-            }
+            [Base.Implementation.Common.TAG_TABLE] = new([
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.TableLayoutDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.TableSpacingDefault]
+            ]),
+            [Base.Implementation.Common.TAG_CAPTION] = new([
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.TitleMarginDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.TitlePaddingDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.TitleWidthDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.TitleTextSizeDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.TitleTextWeightDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.TitleBorderDefault],
+            ]),
+            [Base.Implementation.Common.TAG_CELL] = new([
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.CellPaddingDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.CellTextLineHeightDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.CellTextWrappingDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.CellBorderDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.CellVerticalAlignmentDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.CellClippingDefault],
+                Base.Implementation.DefaultHtmlStylizer.styles[Base.Specification.Html.HtmlStyleType.CellBoundingDefault]
+            ])
         };
 
         /// <summary>
@@ -174,7 +176,7 @@ namespace XlsxToHtmlConverter
         /// Gets or sets the selector that determines the dimension of a XLSX sheet.
         /// </summary>
         public Func<(uint Left, uint Top, uint Right, uint Bottom), (uint Left, uint Top, uint Right, uint Bottom)>? XlsxSheetDimensionSelector { get; set; } = null;
-        
+
         /// <summary>
         /// Gets or sets the selector that determines whether a XLSX cell should be converted.
         /// </summary>
