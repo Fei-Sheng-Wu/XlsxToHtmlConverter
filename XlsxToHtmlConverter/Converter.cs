@@ -1603,7 +1603,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                         information.IsGrouped = true;
                                     }
 
-                                    return y.Length > 0 && !(y[^1] is '0' or '#' or '?' or '/');
+                                    return y.Length > 0 && (y[0] is '_' or '*' || !(y[^1] is '0' or '#' or '?' or '/'));
                                 case '.' when stage < 1:
                                     stage = 1;
                                     return true;
