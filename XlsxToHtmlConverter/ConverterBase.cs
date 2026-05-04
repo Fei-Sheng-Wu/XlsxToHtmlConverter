@@ -286,16 +286,6 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
             }
         }
 
-        /// <summary>
-        /// Adds the specified key and value to the dictionary.
-        /// </summary>
-        /// <param name="style">The specified key and value.</param>
-        /// <param name="content">The content for a formattable value.</param>
-        public void Apply(KeyValuePair<string, string> style, string? content = null)
-        {
-            this[style.Key] = content != null ? string.Format(style.Value, content) : style.Value;
-        }
-
         public void Merge(object? value)
         {
             if (value is not HtmlStyles styles)
@@ -308,6 +298,65 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
                 this[property] = field;
             }
         }
+
+        /// <summary>
+        /// Applies the specified collection of styles into this instance.
+        /// </summary>
+        /// <param name="collection">The collection of styles.</param>
+        /// <param name="isPassive">Whether to passively apply the styles without overrides.</param>
+        public void Apply(IEnumerable<KeyValuePair<string, string>> collection, bool isPassive = false)
+        {
+            foreach (KeyValuePair<string, string> style in collection)
+            {
+                if (isPassive && ContainsKey(style.Key))
+                {
+                    continue;
+                }
+
+                this[style.Key] = style.Value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Specifies the target of a HTML style.
+    /// </summary>
+    public enum HtmlStyleTarget
+    {
+        /// <summary>
+        /// Sheet.
+        /// </summary>
+        Sheet,
+
+        /// <summary>
+        /// Sheet title.
+        /// </summary>
+        SheetTitle,
+
+        /// <summary>
+        /// Column.
+        /// </summary>
+        Column,
+
+        /// <summary>
+        /// Row.
+        /// </summary>
+        Row,
+
+        /// <summary>
+        /// Cell.
+        /// </summary>
+        Cell,
+
+        /// <summary>
+        /// Image.
+        /// </summary>
+        Image,
+
+        /// <summary>
+        /// Shape.
+        /// </summary>
+        Shape
     }
 
     /// <summary>
@@ -315,134 +364,494 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
     /// </summary>
     public enum HtmlStyleType
     {
-        TableLayoutDefault,
-        TableSpacingDefault,
-        TableWidthFull,
-        TableWidthFit,
-        TitleMarginDefault,
-        TitlePaddingDefault,
-        TitleWidthDefault,
-        TitleTextSizeDefault,
-        TitleTextWeightDefault,
-        TitleBorderDefault,
-        TitleVariableColor,
-        ColumnWidthAutomatic,
-        ColumnWidthExact,
-        ColumnWidthProportional,
-        ColumnVisibilityVisible,
-        ColumnVisibilityCollapsed,
-        ColumnAnchorDefinition,
-        RowHeightExact,
-        RowBorderTopThick,
-        RowBorderBottomThick,
-        RowVisibilityVisible,
-        RowVisibilityCollapsed,
-        RowAnchorDefinition,
-        CellPaddingDefault,
-        CellTextSizeExact,
-        CellTextFamilyDefinition,
-        CellTextWeightNormal,
-        CellTextWeightBold,
-        CellTextStyleNormal,
-        CellTextStyleItalic,
-        CellTextStretchNormal,
-        CellTextStretchExpanded,
-        CellTextStretchCondensed,
-        CellTextDecorationDefinition,
-        CellTextTransformDefinition,
-        CellTextLineHeightDefault,
-        CellTextLetterSpacingExact,
-        CellTextIndentExact,
-        CellTextWrappingDefault,
-        CellTextWrappingWrap,
-        CellForegroundExact,
-        CellForegroundNone,
-        CellBackgroundExact,
-        CellBorderDefault,
-        CellBorderTop,
-        CellBorderRight,
-        CellBorderBottom,
-        CellBorderLeft,
-        CellHorizontalAlignmentLeft,
-        CellHorizontalAlignmentCenter,
-        CellHorizontalAlignmentRight,
-        CellHorizontalAlignmentJustify,
-        CellVerticalAlignmentDefault,
-        CellVerticalAlignmentNormal,
-        CellVerticalAlignmentTop,
-        CellVerticalAlignmentCenter,
-        CellVerticalAlignmentBottom,
-        CellVerticalAlignmentSuperscript,
-        CellVerticalAlignmentSubscript,
-        CellClippingDefault,
-        CellClippingHorizontal,
-        CellBoundingDefault,
-        CellDirectionDefinition,
-        CellVisibilityHidden,
-        TextRotationExact,
+        /// <summary>
+        /// Sheet color variable with an exact parameter.
+        /// </summary>
+        VariableSheetColorExact,
+
+        /// <summary>
+        /// Top position variable with an anchoring parameter.
+        /// </summary>
+        VariablePositionTopAnchoring,
+
+        /// <summary>
+        /// Right position variable with an anchoring parameter.
+        /// </summary>
+        VariablePositionRightAnchoring,
+
+        /// <summary>
+        /// Bottom position variable with an anchoring parameter.
+        /// </summary>
+        VariablePositionBottomAnchoring,
+
+        /// <summary>
+        /// Left position variable with an anchoring parameter.
+        /// </summary>
+        VariablePositionLeftAnchoring,
+
+        /// <summary>
+        /// Absolute positioning.
+        /// </summary>
+        PositioningAbsolute,
+
+        /// <summary>
+        /// All margins with an exact parameter.
+        /// </summary>
+        MarginAllExact,
+
+        /// <summary>
+        /// Top margin with an exact parameter.
+        /// </summary>
+        MarginTopExact,
+
+        /// <summary>
+        /// Right margin with an exact parameter.
+        /// </summary>
+        MarginRightExact,
+
+        /// <summary>
+        /// Bottom margin with an exact parameter.
+        /// </summary>
+        MarginBottomExact,
+
+        /// <summary>
+        /// Left margin with an exact parameter.
+        /// </summary>
+        MarginLeftExact,
+
+        /// <summary>
+        /// All paddings with an exact parameter.
+        /// </summary>
+        PaddingAllExact,
+
+        /// <summary>
+        /// Top padding with an exact parameter.
+        /// </summary>
+        PaddingTopExact,
+
+        /// <summary>
+        /// Right padding with an exact parameter.
+        /// </summary>
+        PaddingRightExact,
+
+        /// <summary>
+        /// Bottom padding with an exact parameter.
+        /// </summary>
+        PaddingBottomExact,
+
+        /// <summary>
+        /// Left padding with an exact parameter.
+        /// </summary>
+        PaddingLeftExact,
+
+        /// <summary>
+        /// Full width.
+        /// </summary>
+        WidthFull,
+
+        /// <summary>
+        /// Fitting width.
+        /// </summary>
+        WidthFit,
+
+        /// <summary>
+        /// Automatic width.
+        /// </summary>
+        WidthAutomatic,
+
+        /// <summary>
+        /// Width with a numeric parameter.
+        /// </summary>
+        WidthNumeric,
+
+        /// <summary>
+        /// Width with a proportional parameter.
+        /// </summary>
+        WidthProportional,
+
+        /// <summary>
+        /// Full height.
+        /// </summary>
+        HeightFull,
+
+        /// <summary>
+        /// Height with a numeric parameter.
+        /// </summary>
+        HeightNumeric,
+
+        /// <summary>
+        /// Top translation with an exact parameter.
+        /// </summary>
+        TranslationTopExact,
+
+        /// <summary>
+        /// Right translation with an exact parameter.
+        /// </summary>
+        TranslationRightExact,
+
+        /// <summary>
+        /// Bottom translation with an exact parameter.
+        /// </summary>
+        TranslationBottomExact,
+
+        /// <summary>
+        /// Left translation with an exact parameter.
+        /// </summary>
+        TranslationLeftExact,
+
+        /// <summary>
+        /// Rotation with a numeric parameter.
+        /// </summary>
+        RotationNumeric,
+
+        /// <summary>
+        /// Scaling with an exact parameter.
+        /// </summary>
+        ScalingExact,
+
+        /// <summary>
+        /// Text size with a numeric parameter.
+        /// </summary>
+        TextSizeNumeric,
+
+        /// <summary>
+        /// Text family with a textual parameter.
+        /// </summary>
+        TextFamilyTextual,
+
+        /// <summary>
+        /// Normal text weight.
+        /// </summary>
+        TextWeightNormal,
+
+        /// <summary>
+        /// Bold text weight.
+        /// </summary>
+        TextWeightBold,
+
+        /// <summary>
+        /// Normal text style.
+        /// </summary>
+        TextStyleNormal,
+
+        /// <summary>
+        /// Italic text style.
+        /// </summary>
+        TextStyleItalic,
+
+        /// <summary>
+        /// Normal text stretch.
+        /// </summary>
+        TextStretchNormal,
+
+        /// <summary>
+        /// Expanded text stretch.
+        /// </summary>
+        TextStretchExpanded,
+
+        /// <summary>
+        /// Condensed text stretch.
+        /// </summary>
+        TextStretchCondensed,
+
+        /// <summary>
+        /// Text decoration with an exact parameter.
+        /// </summary>
+        TextDecorationExact,
+
+        /// <summary>
+        /// Text transform with an exact parameter.
+        /// </summary>
+        TextTransformExact,
+
+        /// <summary>
+        /// Text letter spacing with a numeric parameter.
+        /// </summary>
+        TextLetterSpacingNumeric,
+
+        /// <summary>
+        /// Text line height with a numeric parameter.
+        /// </summary>
+        TextLineHeightNumeric,
+
+        /// <summary>
+        /// Text line height with a proportional parameter.
+        /// </summary>
+        TextLineHeightProportional,
+
+        /// <summary>
+        /// Text indent with a numeric parameter.
+        /// </summary>
+        TextIndentNumeric,
+
+        /// <summary>
+        /// Text tab with a numeric parameter.
+        /// </summary>
+        TextTabNumeric,
+
+        /// <summary>
+        /// Text column count with a numeric parameter.
+        /// </summary>
+        TextColumnCountNumeric,
+
+        /// <summary>
+        /// Text column gap with a numeric parameter.
+        /// </summary>
+        TextColumnGapNumeric,
+
+        /// <summary>
+        /// No text wrapping.
+        /// </summary>
+        TextWrappingNone,
+
+        /// <summary>
+        /// Enabled text wrapping.
+        /// </summary>
+        TextWrappingWrap,
+
+        /// <summary>
+        /// Vertical text orientation.
+        /// </summary>
         TextOrientationVertical,
-        TextFlowDefinition,
-        TextContentAlignmentJustify,
-        TextLayoutInlineBlock,
-        TextLayoutFlexible,
-        ElementWidthFull,
-        ElementHeightFull,
-        ElementTransformTop,
-        ElementTransformRight,
-        ElementTransformBottom,
-        ElementTransformLeft,
-        ElementRotationExact,
-        ElementScaleExact,
-        ElementMarginAll,
-        ElementMarginTop,
-        ElementMarginRight,
-        ElementMarginBottom,
-        ElementMarginLeft,
-        ElementPaddingAll,
-        ElementPaddingTop,
-        ElementPaddingRight,
-        ElementPaddingBottom,
-        ElementPaddingLeft,
-        ElementTextLineHeightExact,
-        ElementTextIndentExact,
-        ElementTextTabExact,
-        ElementTextColumnCount,
-        ElementTextColumnGapExact,
-        ElementTextWrappingNone,
-        ElementTextWrappingWrap,
-        ElementTextOrientationVertical,
-        ElementTextFlowDefinition,
-        ElementForegroundExact,
-        ElementBackgroundExact,
-        ElementBackgroundNone,
-        ElementBorderNormal,
-        ElementBorderColorExact,
-        ElementBorderThicknessExact,
-        ElementBorderStyleSolid,
-        ElementBorderStyleDouble,
-        ElementBorderStyleDashed,
-        ElementBorderStyleDotted,
-        ElementHorizontalAlignmentLeft,
-        ElementHorizontalAlignmentCenter,
-        ElementHorizontalAlignmentRight,
-        ElementHorizontalAlignmentJustify,
-        ElementVerticalAlignmentTop,
-        ElementVerticalAlignmentCenter,
-        ElementVerticalAlignmentBottom,
-        ElementPositioningAbsolute,
-        ElementClippingAll,
-        ElementClippingPath,
-        ElementClippingAntiHorizontal,
-        ElementClippingAntiVertical,
-        ElementCroppingInset,
-        ElementBoundingInclusive,
-        ElementDirectionDefinition,
-        ElementFilterDefinition,
-        ElementVisibilityVisible,
-        ElementVariableTop,
-        ElementVariableRight,
-        ElementVariableBottom,
-        ElementVariableLeft
+
+        /// <summary>
+        /// Reversely vertical text orientation.
+        /// </summary>
+        TextOrientationVerticalReverse,
+
+        /// <summary>
+        /// Foreground with an exact parameter.
+        /// </summary>
+        ForegroundExact,
+
+        /// <summary>
+        /// No foreground.
+        /// </summary>
+        ForegroundNone,
+
+        /// <summary>
+        /// Background with an exact parameter.
+        /// </summary>
+        BackgroundExact,
+
+        /// <summary>
+        /// No background.
+        /// </summary>
+        BackgroundNone,
+
+        /// <summary>
+        /// Regular borders.
+        /// </summary>
+        BorderAllRegular,
+
+        /// <summary>
+        /// Top border with an exact parameter.
+        /// </summary>
+        BorderTopExact,
+
+        /// <summary>
+        /// Right border with an exact parameter.
+        /// </summary>
+        BorderRightExact,
+
+        /// <summary>
+        /// Bottom border with an exact parameter.
+        /// </summary>
+        BorderBottomExact,
+
+        /// <summary>
+        /// Left border with an exact parameter.
+        /// </summary>
+        BorderLeftExact,
+
+        /// <summary>
+        /// All bolder colors with an exact parameter.
+        /// </summary>
+        BorderColorAllExact,
+
+        /// <summary>
+        /// All bolder thicknesses with a numeric parameter.
+        /// </summary>
+        BorderThicknessAllNumeric,
+
+        /// <summary>
+        /// Thick top border thickness.
+        /// </summary>
+        BorderThicknessTopThick,
+
+        /// <summary>
+        /// Thick bottom border thickness.
+        /// </summary>
+        BorderThicknessBottomThick,
+
+        /// <summary>
+        /// Solid border styles.
+        /// </summary>
+        BorderStyleAllSolid,
+
+        /// <summary>
+        /// Double border styles.
+        /// </summary>
+        BorderStyleAllDouble,
+
+        /// <summary>
+        /// Dashed border styles.
+        /// </summary>
+        BorderStyleAllDashed,
+
+        /// <summary>
+        /// Dotted border styles.
+        /// </summary>
+        BorderStyleAllDotted,
+
+        /// <summary>
+        /// Left horizontal alignment.
+        /// </summary>
+        AlignmentHorizontalLeft,
+
+        /// <summary>
+        /// Center horizontal alignment.
+        /// </summary>
+        AlignmentHorizontalCenter,
+
+        /// <summary>
+        /// Right horizontal alignment.
+        /// </summary>
+        AlignmentHorizontalRight,
+
+        /// <summary>
+        /// Justify horizontal alignment.
+        /// </summary>
+        AlignmentHorizontalJustify,
+
+        /// <summary>
+        /// Distributed horizontal alignment.
+        /// </summary>
+        AlignmentHorizontalDistributed,
+
+        /// <summary>
+        /// Top vertical alignment.
+        /// </summary>
+        AlignmentVerticalTop,
+
+        /// <summary>
+        /// Center vertical alignment.
+        /// </summary>
+        AlignmentVerticalCenter,
+
+        /// <summary>
+        /// Bottom vertical alignment.
+        /// </summary>
+        AlignmentVerticalBottom,
+
+        /// <summary>
+        /// Baseline vertical alignment.
+        /// </summary>
+        AlignmentVerticalBaseline,
+
+        /// <summary>
+        /// Superscript vertical alignment.
+        /// </summary>
+        AlignmentVerticalSuperscript,
+
+        /// <summary>
+        /// Subscript vertical alignment.
+        /// </summary>
+        AlignmentVerticalSubscript,
+
+        /// <summary>
+        /// Enabled clippings.
+        /// </summary>
+        ClippingAllHidden,
+
+        /// <summary>
+        /// Pathed clippings.
+        /// </summary>
+        ClippingAllPath,
+
+        /// <summary>
+        /// No horizontal clipping.
+        /// </summary>
+        ClippingHorizontalVisible,
+
+        /// <summary>
+        /// Enabled horizontal clipping.
+        /// </summary>
+        ClippingHorizontalHidden,
+
+        /// <summary>
+        /// No vertical clipping.
+        /// </summary>
+        ClippingVerticalVisible,
+
+        /// <summary>
+        /// Enabled vertical clipping.
+        /// </summary>
+        ClippingVerticalHidden,
+
+        /// <summary>
+        /// Cropping with an exact parameter.
+        /// </summary>
+        CroppingExact,
+
+        /// <summary>
+        /// Inclusive bounding.
+        /// </summary>
+        BoundingInclusive,
+
+        /// <summary>
+        /// Direction with an exact parameter.
+        /// </summary>
+        DirectionExact,
+
+        /// <summary>
+        /// Filter with an exact parameter.
+        /// </summary>
+        FilterExact,
+
+        /// <summary>
+        /// Anchor definition with a numeric parameter.
+        /// </summary>
+        AnchorDefinitionNumeric,
+
+        /// <summary>
+        /// Enabled visibility.
+        /// </summary>
+        VisibilityVisible,
+
+        /// <summary>
+        /// Hidden visibility.
+        /// </summary>
+        VisibilityHidden,
+
+        /// <summary>
+        /// Collapsed visibility.
+        /// </summary>
+        VisibilityCollapsed
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HtmlStyleDefinition"/> class.
+    /// </summary>
+    /// <param name="target">The target of the style definition.</param>
+    /// <param name="type">The type of the style definition.</param>
+    /// <param name="parameter">The parameter of the style definition.</param>
+    public class HtmlStyleDefinition(HtmlStyleTarget? target, HtmlStyleType type, string? parameter = null)
+    {
+        /// <summary>
+        /// Gets or sets the target of the style definition.
+        /// </summary>
+        public HtmlStyleTarget? Target { get; set; } = target;
+
+        /// <summary>
+        /// Gets or sets the type of the style definition.
+        /// </summary>
+        public HtmlStyleType Type { get; set; } = type;
+
+        /// <summary>
+        /// Gets or sets the parameter of the style definition.
+        /// </summary>
+        public string? Parameter { get; set; } = parameter;
     }
 }
 
