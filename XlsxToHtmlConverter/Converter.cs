@@ -1879,15 +1879,15 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     }
 
                     char input = isStandardized ? char.ToUpperInvariant(character) : character;
-                    bool? isAdditional = tokenizer(input, builder);
+                    bool? isStarter = tokenizer(input, builder);
 
-                    if (isAdditional ?? isSpecial)
+                    if (isStarter ?? isSpecial)
                     {
                         tokens.Add(builder.ToString());
                         builder.Clear();
                     }
 
-                    isSpecial = isAdditional != null;
+                    isSpecial = isStarter != null;
                     builder.Append(isSpecial ? input : character);
                 }
                 tokens.Add(builder.ToString());
