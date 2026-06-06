@@ -7,10 +7,10 @@ namespace XlsxToHtmlConverter.Test
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main(string[] arguments)
         {
-            string? xlsx = args.Length > 0 ? args[0].Trim('\"') : null;
-            string? html = args.Length > 1 ? args[1].Trim('\"') : Path.ChangeExtension(xlsx, "html");
+            string? xlsx = arguments.Length > 0 ? arguments[0].Trim('\"') : null;
+            string? html = arguments.Length > 1 ? arguments[1].Trim('\"') : Path.ChangeExtension(xlsx, "html");
 
             while (xlsx == null || !File.Exists(xlsx))
             {
@@ -33,7 +33,7 @@ namespace XlsxToHtmlConverter.Test
             }, (x, e) =>
             {
                 Console.SetCursorPosition(0, Console.CursorTop);
-                Console.Write($"{e.ProgressPercentage:F2}% (Sheet {e.CurrentSheet} of {e.SheetCount} | Row {e.CurrentRow} of {e.RowCount})    {new string('█', (int)Math.Round(e.ProgressPercentage / 100.0 * 50)).PadRight(50, '░')}");
+                Console.Write($"{e.ProgressPercentage:F2}% (Sheet {e.CurrentSheet} of {e.SheetCount} | Row {e.CurrentRow} of {e.RowCount})    {new string('█', (int)Math.Round(50.0 * e.ProgressPercentage / 100.0)).PadRight(50, '░')}");
             });
 
             Console.WriteLine();

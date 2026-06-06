@@ -162,6 +162,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
     /// </summary>
     public class HtmlAttributes() : Dictionary<string, object?>(), IMergeable
     {
+        /// <inheritdoc />
         public void Merge(object? value)
         {
             if (value is not HtmlAttributes attributes)
@@ -221,6 +222,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
     /// </summary>
     public class HtmlClasses() : List<string>(), IMergeable
     {
+        /// <inheritdoc />
         public void Merge(object? value)
         {
             if (value is not HtmlClasses classes)
@@ -286,6 +288,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
             }
         }
 
+        /// <inheritdoc />
         public void Merge(object? value)
         {
             if (value is not HtmlStyles styles)
@@ -1210,8 +1213,6 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         public bool? IsHidden { get; set; } = null;
 
-        internal abstract IEnumerable<XlsxStylesLayer> GetLayers();
-
         /// <summary>
         /// Retrieves the styles.
         /// </summary>
@@ -1261,6 +1262,11 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
                 element.Children = formatter(element.Children);
             }
         }
+
+        /// <summary>
+        /// Retrieves the layers to be used in constructing the styles.
+        /// </summary>
+        public abstract IEnumerable<XlsxStylesLayer> GetLayers();
     }
 
     /// <summary>
@@ -1279,6 +1285,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         public List<Func<Html.HtmlChildren, Html.HtmlChildren>> Formatters { get; set; } = [];
 
+        /// <inheritdoc />
         public void Merge(object? value)
         {
             if (value is not XlsxStylesLayer layer)
@@ -1306,7 +1313,8 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         public uint? NumberFormatId { get; set; } = null;
 
-        internal override IEnumerable<XlsxStylesLayer> GetLayers()
+        /// <inheritdoc />
+        public override IEnumerable<XlsxStylesLayer> GetLayers()
         {
             yield return Styles;
         }
@@ -1342,7 +1350,8 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         public XlsxNumberFormat? NumberFormat { get; set; } = null;
 
-        internal override IEnumerable<XlsxStylesLayer> GetLayers()
+        /// <inheritdoc />
+        public override IEnumerable<XlsxStylesLayer> GetLayers()
         {
             yield return FontStyles;
             yield return FillStyles;

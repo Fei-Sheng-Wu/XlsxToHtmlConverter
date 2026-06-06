@@ -1,12 +1,12 @@
 # XlsxToHtmlConverter v2.3.0-dev
 
-[![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)](#)
-[![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)](#)
-[![.NET Standard](https://img.shields.io/badge/.NET%20Standard-%E2%89%A52.1-orange.svg?style=flat-square)](#)
+![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)
+![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)
+![.NET Standard](https://img.shields.io/badge/.NET%20Standard-%E2%89%A52.1-orange.svg?style=flat-square)
 [![NuGet](https://img.shields.io/nuget/v/XlsxToHtmlConverter?label=NuGet&logo=nuget&logoColor=white&style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Downloads](https://img.shields.io/nuget/dt/XlsxToHtmlConverter?label=Downloads&logo=nuget&logoColor=white&style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/v2.2.0?label=Commits%20Since&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/commits/master)
-[![License](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](LICENSE.txt)
+[![License](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt)
 [![Sponsor](https://img.shields.io/badge/GitHub%20Sponsors-red.svg?logo=githubsponsors&logoColor=white&style=flat-square)](https://github.com/sponsors/Fei-Sheng-Wu)
 
 > A fast, versatile, and powerful XLSX to HTML converter. Support an extensive scope of cell stylings and additional elements. Empower the efficient transformation of spreadsheets into well-structured web documents. Provide the ability to easily customize every aspect of the conversion process with progress callbacks. Only depend on the Open XML SDK.
@@ -24,11 +24,11 @@
 
 | Original XLSX File |
 | :---: |
-| ![Original XLSX File](sample-xlsx.png) |
+| ![Original XLSX File](https://raw.githubusercontent.com/Fei-Sheng-Wu/XlsxToHtmlConverter/f991ffe338d4436f3f7c896dfb50aa9e80ad1b88/sample-xlsx.png) |
 
 | Converted HTML File |
 | :---: |
-| ![Converted HTML File](sample-html.png) |
+| ![Converted HTML File](https://raw.githubusercontent.com/Fei-Sheng-Wu/XlsxToHtmlConverter/f991ffe338d4436f3f7c896dfb50aa9e80ad1b88/sample-html.png) |
 
 ## Versioning
 
@@ -122,10 +122,6 @@ private void HandleProgressChanged(DocumentFormat.OpenXml.Packaging.SpreadsheetD
 }
 ```
 
-## Contributors
-
-[![Contributors](https://contrib.rocks/image?repo=Fei-Sheng-Wu/XlsxToHtmlConverter)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/graphs/contributors)
-
 ## License
 
-XlsxToHtmlConverter is licensed under the [MIT License](LICENSE.txt).
+XlsxToHtmlConverter is licensed under the [MIT License](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/blob/master/LICENSE.txt).

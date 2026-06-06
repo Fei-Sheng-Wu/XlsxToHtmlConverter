@@ -644,6 +644,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultHtmlWriter() : IConverterBase<Specification.Html.HtmlElement, string>
     {
+        /// <inheritdoc />
         public string Convert(Specification.Html.HtmlElement value, ConverterContext context, ConverterConfiguration configuration)
         {
             string padding(int indent)
@@ -719,6 +720,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultHtmlStylizer() : IConverterBase<Specification.Html.HtmlStyleDefinition, IEnumerable<KeyValuePair<string, string>>>
     {
+        /// <inheritdoc />
         public IEnumerable<KeyValuePair<string, string>> Convert(Specification.Html.HtmlStyleDefinition value, ConverterContext context, ConverterConfiguration configuration)
         {
             return (value.Target, value.Type) switch
@@ -833,6 +835,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxWorksheetIterator() : IConverterBase<Specification.Xlsx.XlsxSheet?, IEnumerable<Specification.Xlsx.XlsxCell>>
     {
+        /// <inheritdoc />
         public IEnumerable<Specification.Xlsx.XlsxCell> Convert(Specification.Xlsx.XlsxSheet? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -877,6 +880,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxStylesheetReader() : IConverterBase<Stylesheet?, Specification.Xlsx.XlsxStylesCollection>
     {
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxStylesCollection Convert(Stylesheet? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -1008,6 +1012,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxSharedStringTableReader() : IConverterBase<SharedStringTable?, Specification.Xlsx.XlsxString[]>
     {
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxString[] Convert(SharedStringTable? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -1024,6 +1029,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxWorksheetReader() : IConverterBase<Worksheet?, Specification.Xlsx.XlsxSheet>
     {
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxSheet Convert(Worksheet? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -1216,7 +1222,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             public int[] Lengths { get; set; } = [0, 0, 0, 0];
         }
 
-        internal static Dictionary<uint, Specification.Xlsx.XlsxNumberFormat> formats = new()
+        internal static Dictionary<uint, Specification.Xlsx.XlsxNumberFormat> FORMATS = new()
         {
             [1] = new(new("0", false)),
             [2] = new(new("0.00", false)),
@@ -1246,7 +1252,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             [48] = new(new("##0.0E+0", false)),
             [49] = new(new("@", false))
         };
-        internal static Dictionary<string, CommonStyleType?> colors = new()
+        internal static Dictionary<string, CommonStyleType?> COLORS = new()
         {
             ["BLACK"] = CommonStyleType.ColorBlack,
             ["GREEN"] = CommonStyleType.ColorGreen,
@@ -1257,7 +1263,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             ["CYAN"] = CommonStyleType.ColorCyan,
             ["RED"] = CommonStyleType.ColorRed
         };
-        internal static Dictionary<string, Func<double, double, bool>> conditions = new()
+        internal static Dictionary<string, Func<double, double, bool>> CONDITIONS = new()
         {
             ["="] = (x, y) => x == y,
             ["<>"] = (x, y) => x != y,
@@ -1267,6 +1273,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             [">="] = (x, y) => x >= y
         };
 
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxCell Convert(Specification.Xlsx.XlsxCell? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -1345,7 +1352,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                 //TODO: support for locale-dependent default formats
 
-                (int section, Specification.Xlsx.XlsxNumberFormatCode? code) = (value.NumberFormat ?? (value.NumberFormatId != null ? Common.Get(formats, value.NumberFormatId.Value) : null)) is Specification.Xlsx.XlsxNumberFormat format ? data switch
+                (int section, Specification.Xlsx.XlsxNumberFormatCode? code) = (value.NumberFormat ?? (value.NumberFormatId != null ? Common.Get(FORMATS, value.NumberFormatId.Value) : null)) is Specification.Xlsx.XlsxNumberFormat format ? data switch
                 {
                     double number when number > 0 => (0, format.Positive),
                     double number when number < 0 => (1, format.Negative),
@@ -1401,14 +1408,14 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 catch { }
                             }
                         }
-                        else if (Common.Get(colors, token) is CommonStyleType color)
+                        else if (Common.Get(COLORS, token) is CommonStyleType color)
                         {
                             if (configuration.ConvertStyles)
                             {
                                 styles = common(color);
                             }
                         }
-                        else if (Common.Get(conditions, string.Concat(token.TakeWhile(x => x is '=' or '<' or '>'))) is Func<double, double, bool> comparator)
+                        else if (Common.Get(CONDITIONS, string.Concat(token.TakeWhile(x => x is '=' or '<' or '>'))) is Func<double, double, bool> comparator)
                         {
                             if (data is double number && Common.ParseDecimals(string.Concat(token.SkipWhile(x => x is '=' or '<' or '>'))) is double operand && comparator(number, operand))
                             {
@@ -1553,7 +1560,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             "MM" => date.ToString(time(i) ? "mm" : "MM", culture),
                             "MMM" => date.ToString("MMM", culture),
                             "MMMM" => date.ToString("MMMM", culture),
-                            "MMMMM" => new(date.ToString("MMMM", culture).FirstOrDefault(), 1),
+                            "MMMMM" => date.ToString("MMMM", culture).FirstOrDefault().ToString(),
                             "D" => date.ToString("%d", culture),
                             "DD" => date.ToString("dd", culture),
                             "DDD" => date.ToString("ddd", culture),
@@ -2025,6 +2032,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxTableReader() : IConverterBase<TableDefinitionPart?, IEnumerable<Specification.Xlsx.XlsxSpecialty>>
     {
+        /// <inheritdoc />
         public IEnumerable<Specification.Xlsx.XlsxSpecialty> Convert(TableDefinitionPart? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value?.Table == null || value.Table.Reference?.Value == null)
@@ -2135,6 +2143,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxDrawingReader : IConverterBase<DrawingsPart?, IEnumerable<Specification.Xlsx.XlsxSpecialty>>
     {
+        /// <inheritdoc />
         public IEnumerable<Specification.Xlsx.XlsxSpecialty> Convert(DrawingsPart? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -2683,7 +2692,8 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxColorConverter() : IConverterBase<OpenXmlElement?, string>
     {
-        internal static (byte Red, byte Green, byte Blue)?[] indices = [
+        internal static (byte Red, byte Green, byte Blue)?[] INDICES =
+        [
             (0, 0, 0),
             (255, 255, 255),
             (255, 0, 0),
@@ -2750,7 +2760,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             (51, 51, 51),
             (128, 128, 128),
             (255, 255, 255)];
-        internal static Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, (byte Red, byte Green, byte Blue)?> systems = new()
+        internal static Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, (byte Red, byte Green, byte Blue)?> SYSTEMS = new()
         {
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder] = (180, 180, 180),
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption] = (153, 180, 209),
@@ -2783,7 +2793,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowFrame] = (100, 100, 100),
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText] = (0, 0, 0)
         };
-        internal static Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, (byte Red, byte Green, byte Blue)?> presets = new()
+        internal static Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, (byte Red, byte Green, byte Blue)?> PRESETS = new()
         {
             [DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue] = (240, 248, 255),
             [DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite] = (250, 235, 215),
@@ -2977,6 +2987,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             [DocumentFormat.OpenXml.Drawing.PresetColorValues.SlateGrey] = (112, 128, 144)
         };
 
+        /// <inheritdoc />
         public string Convert(OpenXmlElement? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -3005,12 +3016,12 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 double chroma = maximum - minimum;
                 double[] distances = maximum != minimum ? [.. rgb.Select(x => (maximum - x) / chroma)] : [0, 0, 0];
 
-                double[] hsl = [hue(maximum != minimum ? (maximum switch
+                double[] hsl = [hue(maximum != minimum ? (60.0 * (maximum switch
                 {
                     _ when maximum == rgb[0] => distances[2] - distances[1],
                     _ when maximum == rgb[1] => distances[0] - distances[2] + 2,
                     _ => distances[1] - distances[0] + 4
-                } * 60.0 % 360 + 360) % 360 : 0), saturation(maximum != minimum ? chroma / (1 - Math.Abs(maximum + minimum - 1)) : 0), luminance((maximum + minimum) / 2)];
+                }) % 360 + 360) % 360 : 0), saturation(maximum != minimum ? chroma / (1 - Math.Abs(maximum + minimum - 1)) : 0), luminance((maximum + minimum) / 2)];
                 double upper = hsl[2] <= 0.5 ? hsl[2] * (hsl[1] + 1) : hsl[2] + hsl[1] - hsl[2] * hsl[1];
                 double lower = 2 * hsl[2] - upper;
 
@@ -3022,7 +3033,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         continue;
                     }
 
-                    double shifted = ((hsl[0] + (1 - i) * 120) % 360 + 360) % 360;
+                    double shifted = ((hsl[0] + 120.0 * (1 - i)) % 360 + 360) % 360;
                     rgb[i] = shifted switch
                     {
                         < 60 => lower + (upper - lower) * shifted / 60.0,
@@ -3051,7 +3062,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     case DocumentFormat.OpenXml.Drawing.HslColor hsl:
                         modifier(x => (hsl.HueValue?.Value * Common.RATIO_ANGLE) ?? 0, x => (hsl.SatValue?.Value * Common.RATIO_PERCENTAGE) ?? 0, x => (hsl.LumValue?.Value * Common.RATIO_PERCENTAGE) ?? 0);
                         break;
-                    case DocumentFormat.OpenXml.Drawing.SystemColor key when key.Val?.Value != null && Common.Get(systems, key.Val.Value) is (byte Red, byte Green, byte Blue) system:
+                    case DocumentFormat.OpenXml.Drawing.SystemColor key when key.Val?.Value != null && Common.Get(SYSTEMS, key.Val.Value) is (byte Red, byte Green, byte Blue) system:
                         red = system.Red;
                         green = system.Green;
                         blue = system.Blue;
@@ -3059,7 +3070,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     case DocumentFormat.OpenXml.Drawing.SystemColor fallback when fallback.LastColor?.Value != null:
                         hex(fallback.LastColor.Value);
                         break;
-                    case DocumentFormat.OpenXml.Drawing.PresetColor key when key.Val?.Value != null && Common.Get(presets, key.Val.Value) is (byte Red, byte Green, byte Blue) preset:
+                    case DocumentFormat.OpenXml.Drawing.PresetColor key when key.Val?.Value != null && Common.Get(PRESETS, key.Val.Value) is (byte Red, byte Green, byte Blue) preset:
                         red = preset.Red;
                         green = preset.Green;
                         blue = preset.Blue;
@@ -3207,7 +3218,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 {
                     hex(color.Rgb.Value);
                 }
-                else if (Common.Get(indices, color.Indexed?.Value) is (byte Red, byte Green, byte Blue) indexed)
+                else if (Common.Get(INDICES, color.Indexed?.Value) is (byte Red, byte Green, byte Blue) indexed)
                 {
                     red = indexed.Red;
                     green = indexed.Green;
@@ -3260,6 +3271,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxStringConverter : IConverterBase<OpenXmlElement?, Specification.Xlsx.XlsxString>
     {
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxString Convert(OpenXmlElement? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -3320,6 +3332,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             UnderlineWavyHeavy
         }
 
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxStylesLayer Convert(OpenXmlElement? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -3527,6 +3540,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxFillConverter : IConverterBase<OpenXmlElement?, Specification.Xlsx.XlsxStylesLayer>
     {
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxStylesLayer Convert(OpenXmlElement? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -3606,6 +3620,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxBorderConverter : IConverterBase<OpenXmlElement?, Specification.Xlsx.XlsxStylesLayer>
     {
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxStylesLayer Convert(OpenXmlElement? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
@@ -3662,6 +3677,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxAlignmentConverter : IConverterBase<OpenXmlElement?, Specification.Xlsx.XlsxStylesLayer>
     {
+        /// <inheritdoc />
         public Specification.Xlsx.XlsxStylesLayer Convert(OpenXmlElement? value, ConverterContext context, ConverterConfiguration configuration)
         {
             if (value == null)
