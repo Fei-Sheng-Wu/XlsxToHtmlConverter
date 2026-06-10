@@ -490,29 +490,114 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class Common()
     {
+        /// <summary>
+        /// Represents the angle ratio.
+        /// </summary>
         public const double RATIO_ANGLE = 1 / 60000.0;
+
+        /// <summary>
+        /// Represents the percentage ratio.
+        /// </summary>
         public const double RATIO_PERCENTAGE = 1 / 100000.0;
+
+        /// <summary>
+        /// Represents the point ratio.
+        /// </summary>
         public const double RATIO_POINT = 1 / 72.0 * 96.0;
+
+        /// <summary>
+        /// Represents the point spacing ratio.
+        /// </summary>
         public const double RATIO_POINT_SPACING = 1 / 7200.0 * 96.0;
+
+        /// <summary>
+        /// Represents the English Metric Unit ratio.
+        /// </summary>
         public const double RATIO_ENGLISH_METRIC_UNIT = 1 / 914400.0 * 96.0;
 
+        /// <summary>
+        /// Represents the document tag.
+        /// </summary>
         public const string TAG_HTML = "html";
+
+        /// <summary>
+        /// Represents the document head tag.
+        /// </summary>
         public const string TAG_HEAD = "head";
+
+        /// <summary>
+        /// Represents the document body tag.
+        /// </summary>
         public const string TAG_BODY = "body";
+
+        /// <summary>
+        /// Represents the style tag.
+        /// </summary>
         public const string TAG_STYLE = "style";
+
+        /// <summary>
+        /// Represents the table tag.
+        /// </summary>
         public const string TAG_TABLE = "table";
+
+        /// <summary>
+        /// Represents the caption tag.
+        /// </summary>
         public const string TAG_CAPTION = "caption";
+
+        /// <summary>
+        /// Represents the column tag.
+        /// </summary>
         public const string TAG_COLUMN = "col";
+
+        /// <summary>
+        /// Represents the column group tag.
+        /// </summary>
         public const string TAG_COLUMN_GROUP = "colgroup";
+
+        /// <summary>
+        /// Represents the row tag.
+        /// </summary>
         public const string TAG_ROW = "tr";
+
+        /// <summary>
+        /// Represents the row group tag.
+        /// </summary>
         public const string TAG_ROW_GROUP = "tbody";
+
+        /// <summary>
+        /// Represents the cell tag.
+        /// </summary>
         public const string TAG_CELL = "td";
+
+        /// <summary>
+        /// Represents the container tag.
+        /// </summary>
         public const string TAG_CONTAINER = "div";
+
+        /// <summary>
+        /// Represents the text tag.
+        /// </summary>
         public const string TAG_TEXT = "span";
+
+        /// <summary>
+        /// Represents the text group tag.
+        /// </summary>
         public const string TAG_TEXT_GROUP = "p";
 
+        /// <summary>
+        /// Represents the style attribute.
+        /// </summary>
         public const string ATTRIBUTE_STYLE = "style";
+
+        /// <summary>
+        /// Represents the class attribute.
+        /// </summary>
         public const string ATTRIBUTE_CLASS = "class";
+
+        /// <summary>
+        /// Represents the hidden attribute.
+        /// </summary>
         public const string ATTRIBUTE_HIDDEN = "hidden";
 
         /// <summary>
@@ -703,12 +788,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             }
             string raw(string? raw)
             {
-                if (raw == null)
-                {
-                    return string.Empty;
-                }
-
-                return WebUtility.HtmlEncode(raw);
+                return WebUtility.HtmlEncode(raw) ?? string.Empty;
             }
 
             return $"{padding(value.Indent ?? 0)}{element(value)}{configuration.NewlineCharacter}";
@@ -1015,12 +1095,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
         /// <inheritdoc />
         public Specification.Xlsx.XlsxString[] Convert(SharedStringTable? value, ConverterContext context, ConverterConfiguration configuration)
         {
-            if (value == null)
-            {
-                return [];
-            }
-
-            return [.. value.Elements().Select(x => configuration.ConverterComposition.XlsxStringConverter.Convert(x, context, configuration))];
+            return value != null ? [.. value.Elements().Select(x => configuration.ConverterComposition.XlsxStringConverter.Convert(x, context, configuration))] : [];
         }
     }
 
@@ -1222,7 +1297,10 @@ namespace XlsxToHtmlConverter.Base.Implementation
             public int[] Lengths { get; set; } = [0, 0, 0, 0];
         }
 
-        internal static Dictionary<uint, Specification.Xlsx.XlsxNumberFormat> FORMATS = new()
+        /// <summary>
+        /// Represents the default number formats.
+        /// </summary>
+        protected internal static Dictionary<uint, Specification.Xlsx.XlsxNumberFormat> FORMATS = new()
         {
             [1] = new(new("0", false)),
             [2] = new(new("0.00", false)),
@@ -1252,7 +1330,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
             [48] = new(new("##0.0E+0", false)),
             [49] = new(new("@", false))
         };
-        internal static Dictionary<string, CommonStyleType?> COLORS = new()
+
+        /// <summary>
+        /// Represents the colors of a number format.
+        /// </summary>
+        protected internal static Dictionary<string, object> COLORS = new()
         {
             ["BLACK"] = CommonStyleType.ColorBlack,
             ["GREEN"] = CommonStyleType.ColorGreen,
@@ -1263,7 +1345,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
             ["CYAN"] = CommonStyleType.ColorCyan,
             ["RED"] = CommonStyleType.ColorRed
         };
-        internal static Dictionary<string, Func<double, double, bool>> CONDITIONS = new()
+
+        /// <summary>
+        /// Represents the conditions of a number format.
+        /// </summary>
+        protected internal static Dictionary<string, Func<double, double, bool>> CONDITIONS = new()
         {
             ["="] = (x, y) => x == y,
             ["<>"] = (x, y) => x != y,
@@ -1523,12 +1609,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     }
                     TimeSpan duration()
                     {
-                        if (date.Year < 100 || date.Year > 9999)
-                        {
-                            return TimeSpan.Zero;
-                        }
-
-                        return TimeSpan.FromDays(date.ToOADate());
+                        return date.Year < 100 || date.Year > 9999 ? TimeSpan.Zero : TimeSpan.FromDays(date.ToOADate());
                     }
 
                     bool isDivided = information.Any(x => x == "A/P" || x == "AM/PM");
@@ -1849,27 +1930,17 @@ namespace XlsxToHtmlConverter.Base.Implementation
             }
             Specification.Html.HtmlChildren time(DateTime date, Specification.Html.HtmlChildren children)
             {
-                if (!configuration.UseHtmlDataElements)
-                {
-                    return children;
-                }
-
-                return [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, "time", new()
+                return configuration.UseHtmlDataElements ? [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, "time", new()
                 {
                     ["datetime"] = date.ToString("yyyy-MM-ddThh:mm:ss.fff", CultureInfo.InvariantCulture)
-                }, children)];
+                }, children)] : children;
             }
             Specification.Html.HtmlChildren number(double decimals, Specification.Html.HtmlChildren children)
             {
-                if (!configuration.UseHtmlDataElements)
-                {
-                    return children;
-                }
-
-                return [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, "data", new()
+                return configuration.UseHtmlDataElements ? [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, "data", new()
                 {
                     ["value"] = decimals.ToString(CultureInfo.InvariantCulture)
-                }, children)];
+                }, children)] : children;
             }
             List<string> tokens(string code, bool isStandardized, Func<char, StringBuilder, bool?> tokenizer, char[]? singles = null)
             {
@@ -2692,7 +2763,10 @@ namespace XlsxToHtmlConverter.Base.Implementation
     /// </summary>
     public class DefaultXlsxColorConverter() : IConverterBase<OpenXmlElement?, string>
     {
-        internal static (byte Red, byte Green, byte Blue)?[] INDICES =
+        /// <summary>
+        /// Represents the indexed colors.
+        /// </summary>
+        protected internal static (byte Red, byte Green, byte Blue)?[] INDICES =
         [
             (0, 0, 0),
             (255, 255, 255),
@@ -2759,8 +2833,13 @@ namespace XlsxToHtmlConverter.Base.Implementation
             (51, 51, 153),
             (51, 51, 51),
             (128, 128, 128),
-            (255, 255, 255)];
-        internal static Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, (byte Red, byte Green, byte Blue)?> SYSTEMS = new()
+            (255, 255, 255)
+        ];
+
+        /// <summary>
+        /// Represents the system colors.
+        /// </summary>
+        protected internal static Dictionary<DocumentFormat.OpenXml.Drawing.SystemColorValues, (byte Red, byte Green, byte Blue)?> SYSTEMS = new()
         {
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveBorder] = (180, 180, 180),
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.ActiveCaption] = (153, 180, 209),
@@ -2793,7 +2872,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowFrame] = (100, 100, 100),
             [DocumentFormat.OpenXml.Drawing.SystemColorValues.WindowText] = (0, 0, 0)
         };
-        internal static Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, (byte Red, byte Green, byte Blue)?> PRESETS = new()
+
+        /// <summary>
+        /// Represents the preset colors.
+        /// </summary>
+        protected internal static Dictionary<DocumentFormat.OpenXml.Drawing.PresetColorValues, (byte Red, byte Green, byte Blue)?> PRESETS = new()
         {
             [DocumentFormat.OpenXml.Drawing.PresetColorValues.AliceBlue] = (240, 248, 255),
             [DocumentFormat.OpenXml.Drawing.PresetColorValues.AntiqueWhite] = (250, 235, 215),
