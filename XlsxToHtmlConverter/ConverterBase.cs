@@ -288,6 +288,15 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
             }
         }
 
+        /// <summary>
+        /// Adds the specified style into the styles.
+        /// </summary>
+        /// <param name="style">The style.</param>
+        public void Add(KeyValuePair<string, string> style)
+        {
+            Add(style.Key, style.Value);
+        }
+
         /// <inheritdoc />
         public void Merge(object? value)
         {
@@ -303,10 +312,10 @@ namespace XlsxToHtmlConverter.Base.Specification.Html
         }
 
         /// <summary>
-        /// Applies the specified collection of styles into this instance.
+        /// Applies the specified collection of keys and values into the styles.
         /// </summary>
-        /// <param name="collection">The collection of styles.</param>
-        /// <param name="isPassive">Whether to passively apply the styles without overrides.</param>
+        /// <param name="collection">The collection of keys and values.</param>
+        /// <param name="isPassive">Whether to apply passively without overrides.</param>
         public void Apply(IEnumerable<KeyValuePair<string, string>> collection, bool isPassive = false)
         {
             foreach (KeyValuePair<string, string> style in collection)
@@ -887,9 +896,9 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         public XlsxNumberFormat? NumberFormat { get; set; } = null;
 
         /// <summary>
-        /// Gets or sets the number format ID of the cell.
+        /// Gets or sets the number format identifier of the cell.
         /// </summary>
-        public uint? NumberFormatId { get; set; } = null;
+        public uint? NumberFormatIdentifier { get; set; } = null;
 
         /// <summary>
         /// Gets or sets the specialties associated with the cell.
@@ -947,7 +956,6 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
             string[] references = raw.Split(':');
             (uint left, uint top) = ParseReference(references[0], (dimension?.ColumnStart ?? 1, dimension?.RowStart ?? 1));
             (uint right, uint bottom) = ParseReference(references[^1], (dimension?.ColumnEnd ?? 1, dimension?.RowEnd ?? 1));
-
             ColumnStart = Math.Min(left, right);
             RowStart = Math.Min(top, bottom);
             ColumnEnd = Math.Max(left, right);
@@ -1238,7 +1246,6 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         public static Html.HtmlStyles GetsStyles(IEnumerable<XlsxStylesLayer> layers)
         {
             Html.HtmlStyles result = [];
-
             foreach (XlsxStylesLayer layer in layers)
             {
                 result.Merge(layer.Styles);
@@ -1256,7 +1263,6 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         public static void ApplyStyles(Html.HtmlElement element, IEnumerable<XlsxStylesLayer> layers, string? name = null)
         {
             element.Attributes.MergeStyles(GetsStyles(layers), name);
-
             foreach (Func<Html.HtmlChildren, Html.HtmlChildren> formatter in layers.SelectMany(x => x.Formatters))
             {
                 element.Children = formatter(element.Children);
@@ -1309,9 +1315,9 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         public XlsxStylesLayer Styles { get; set; } = new();
 
         /// <summary>
-        /// Gets or sets the number format ID of the styles.
+        /// Gets or sets the number format identifier of the styles.
         /// </summary>
-        public uint? NumberFormatId { get; set; } = null;
+        public uint? NumberFormatIdentifier { get; set; } = null;
 
         /// <inheritdoc />
         public override IEnumerable<XlsxStylesLayer> GetLayers()
@@ -1395,7 +1401,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// Initializes a new instance of the <see cref="XlsxNumberFormat"/> class.
         /// </summary>
         /// <param name="positive">The positive section of the number format.</param>
-        public XlsxNumberFormat(XlsxNumberFormatCode positive) : this(positive, new($"-{positive.Code}", positive.IsDate)) { }
+        public XlsxNumberFormat(XlsxNumberFormatCode positive) : this(positive, new($"-{positive.Code}", positive.IsCalendrical)) { }
 
         /// <summary>
         /// Gets or sets the positive section of the number format.
@@ -1422,19 +1428,18 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// </summary>
         /// <param name="code">The specified format code.</param>
         /// <param name="singles">The additional immediate escape characters to check for.</param>
-        /// <param name="blocks">The additional continuous escape characters to check for.</param>
+        /// <param name="segments">The additional continuous escape characters to check for.</param>
         /// <returns>The characters with respective information regrading character escaping.</returns>
-        public static IEnumerable<(int Index, char Character, bool IsEscaped)> Escape(string code, char[]? singles = null, char[]? blocks = null)
+        public static IEnumerable<(int Index, char Character, bool IsEscaped)> Escape(string code, char[]? singles = null, char[]? segments = null)
         {
             int index = 0;
             EscapeState state = EscapeState.None;
-
             foreach (char character in code)
             {
                 yield return (index, character, state switch
                 {
                     EscapeState.None => false,
-                    EscapeState.Continuous => character is not '\"' && (!blocks?.Contains(character) ?? true),
+                    EscapeState.Continuous => character is not '\"' && (!segments?.Contains(character) ?? true),
                     _ => true
                 });
 
@@ -1444,10 +1449,10 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
                     (EscapeState.None, '\\') => EscapeState.Immediate,
                     (EscapeState.None, '\"') => EscapeState.Continuous,
                     (EscapeState.None, _) when singles?.Contains(character) ?? false => EscapeState.Immediate,
-                    (EscapeState.None, _) when blocks?.Contains(character) ?? false => EscapeState.Continuous,
+                    (EscapeState.None, _) when segments?.Contains(character) ?? false => EscapeState.Continuous,
                     (EscapeState.Immediate, _) => EscapeState.None,
                     (EscapeState.Continuous, '\"') => EscapeState.None,
-                    (EscapeState.Continuous, _) when blocks?.Contains(character) ?? false => EscapeState.None,
+                    (EscapeState.Continuous, _) when segments?.Contains(character) ?? false => EscapeState.None,
                     _ => state
                 };
             }
@@ -1458,8 +1463,8 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
     /// Initializes a new instance of the <see cref="XlsxNumberFormatCode"/> class.
     /// </summary>
     /// <param name="code">The code.</param>
-    /// <param name="isDate">Whether the code is a date representation.</param>
-    public class XlsxNumberFormatCode(string code, bool isDate)
+    /// <param name="isCalendrical">Whether the code is a date representation.</param>
+    public class XlsxNumberFormatCode(string code, bool isCalendrical)
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="XlsxNumberFormatCode"/> class.
@@ -1474,6 +1479,6 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// <summary>
         /// Gets or sets whether the code is a date representation.
         /// </summary>
-        public bool IsDate { get; set; } = isDate;
+        public bool IsCalendrical { get; set; } = isCalendrical;
     }
 }

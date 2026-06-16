@@ -173,7 +173,7 @@ namespace XlsxToHtmlConverter
         /// <summary>
         /// Gets or sets the selector that determines whether a XLSX sheet should be converted.
         /// </summary>
-        public Func<(int Index, string? Id), bool>? XlsxSheetSelector { get; set; } = null;
+        public Func<(int Index, string? Identifier), bool>? XlsxSheetSelector { get; set; } = null;
 
         /// <summary>
         /// Gets or sets the selector that determines the dimension of a XLSX sheet.

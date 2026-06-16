@@ -73,40 +73,35 @@ namespace XlsxToHtmlConverter
             configuration ??= new();
             Base.ConverterContext context = new();
 
-            T2 converter<T1, T2>(Base.IConverterBase<T1, T2> converter, T1 value)
-            {
-                return converter.Convert(value, context, configuration);
-            }
-
             using StreamWriter writer = new(output, configuration.Encoding, configuration.BufferSize, true);
             int indent = 0;
 
             WorkbookPart? workbook = input.WorkbookPart;
             context.Theme = workbook?.ThemePart?.Theme;
-            context.Stylesheet = converter(configuration.ConverterComposition.XlsxStylesheetReader, workbook?.WorkbookStylesPart?.Stylesheet);
-            context.SharedStrings = converter(configuration.ConverterComposition.XlsxSharedStringTableReader, workbook?.SharedStringTablePart?.SharedStringTable);
+            context.Stylesheet = configuration.ConverterComposition.XlsxStylesheetReader.Convert(workbook?.WorkbookStylesPart?.Stylesheet, context, configuration);
+            context.SharedStrings = configuration.ConverterComposition.XlsxSharedStringTableReader.Convert(workbook?.SharedStringTablePart?.SharedStringTable, context, configuration);
 
             if (!configuration.UseHtmlFragment)
             {
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Declaration, Base.Implementation.Common.TAG_HTML)));
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_HTML)));
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_HEAD)));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Declaration, Base.Implementation.Common.TAG_HTML), context, configuration));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_HTML), context, configuration));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_HEAD), context, configuration));
                 indent++;
 
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Unpaired, "meta", new()
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Unpaired, "meta", new()
                 {
                     ["charset"] = configuration.Encoding.WebName
-                })));
+                }), context, configuration));
 
                 if (configuration.HtmlTitle != null)
                 {
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Paired, "title", null, [configuration.HtmlTitle])));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Paired, "title", null, [configuration.HtmlTitle]), context, configuration));
                 }
             }
 
             if (configuration.ConvertStyles)
             {
-                string selector(string selector)
+                string specifier(string selector)
                 {
                     return configuration.HtmlRootClass != null ? selector switch
                     {
@@ -118,31 +113,31 @@ namespace XlsxToHtmlConverter
                 Base.Specification.Html.HtmlStylesCollection stylesheet = [];
                 foreach ((string original, Base.Specification.Html.HtmlStyles styles) in configuration.HtmlPresetStylesheet)
                 {
-                    stylesheet[selector(original)] = styles;
+                    stylesheet[specifier(original)] = styles;
                 }
                 if (configuration.UseHtmlClasses)
                 {
                     foreach (Base.Specification.Xlsx.XlsxBaseStyles styles in context.Stylesheet.BaseStyles)
                     {
-                        stylesheet[selector($".{styles.Name}")] = styles.GetsStyles();
+                        stylesheet[specifier($".{styles.Name}")] = styles.GetsStyles();
                     }
                     foreach (Base.Specification.Xlsx.XlsxDifferentialStyles styles in context.Stylesheet.DifferentialStyles)
                     {
-                        stylesheet[selector($".{styles.Name}")] = styles.GetsStyles();
+                        stylesheet[specifier($".{styles.Name}")] = styles.GetsStyles();
                     }
                 }
 
                 if (stylesheet.Any())
                 {
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_STYLE, null, [stylesheet])));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_STYLE, null, [stylesheet]), context, configuration));
                 }
             }
 
             if (!configuration.UseHtmlFragment)
             {
                 indent--;
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_HEAD)));
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_BODY)));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_HEAD), context, configuration));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_BODY), context, configuration));
             }
             indent++;
 
@@ -156,10 +151,9 @@ namespace XlsxToHtmlConverter
             foreach (Sheet sheet in sheets)
             {
                 WorksheetPart? worksheet = sheet.Id?.Value != null && (workbook?.TryGetPartById(sheet.Id.Value, out OpenXmlPart? part) ?? false) ? part as WorksheetPart : null;
-
-                context.Sheet = converter(configuration.ConverterComposition.XlsxWorksheetReader, worksheet?.Worksheet);
-                context.Sheet.Specialties.AddRange(worksheet?.TableDefinitionParts.SelectMany(x => converter(configuration.ConverterComposition.XlsxTableReader, x)) ?? []);
-                context.Sheet.Specialties.AddRange(converter(configuration.ConverterComposition.XlsxDrawingReader, worksheet?.DrawingsPart));
+                context.Sheet = configuration.ConverterComposition.XlsxWorksheetReader.Convert(worksheet?.Worksheet, context, configuration);
+                context.Sheet.Specialties.AddRange(worksheet?.TableDefinitionParts.SelectMany(x => configuration.ConverterComposition.XlsxTableReader.Convert(x, context, configuration)) ?? []);
+                context.Sheet.Specialties.AddRange(configuration.ConverterComposition.XlsxDrawingReader.Convert(worksheet?.DrawingsPart, context, configuration));
 
                 HashSet<uint> lefts = [];
                 HashSet<uint> tops = [];
@@ -195,22 +189,22 @@ namespace XlsxToHtmlConverter
                 }
                 if (configuration.ConvertSizes)
                 {
-                    table[Base.Implementation.Common.ATTRIBUTE_STYLE] = new Base.Specification.Html.HtmlStyles(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Sheet, configuration.UseHtmlProportionalWidths ? Base.Specification.Html.HtmlStyleType.WidthFull : Base.Specification.Html.HtmlStyleType.WidthFit)));
+                    table[Base.Implementation.Common.ATTRIBUTE_STYLE] = new Base.Specification.Html.HtmlStyles(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Sheet, configuration.UseHtmlProportionalWidths ? Base.Specification.Html.HtmlStyleType.WidthFull : Base.Specification.Html.HtmlStyleType.WidthFit), context, configuration));
                 }
                 if (sheet.State?.Value != null && sheet.State.Value != SheetStateValues.Visible && configuration.ConvertVisibilities)
                 {
                     table[Base.Implementation.Common.ATTRIBUTE_HIDDEN] = null;
                 }
 
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_TABLE, table)));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_TABLE, table), context, configuration));
                 indent++;
 
                 if (configuration.ConvertSheetTitles)
                 {
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_CAPTION, context.Sheet.TitleAttributes, sheet.Name?.Value != null ? [sheet.Name.Value] : null)));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_CAPTION, context.Sheet.TitleAttributes, sheet.Name?.Value != null ? [sheet.Name.Value] : null), context, configuration));
                 }
 
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_COLUMN_GROUP)));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_COLUMN_GROUP), context, configuration));
                 indent++;
 
                 (double Width, bool? IsHidden, uint? StylesIndex)[] columns = new (double Width, bool? IsHidden, uint? StylesIndex)[context.Sheet.Dimension.ColumnCount];
@@ -233,42 +227,41 @@ namespace XlsxToHtmlConverter
                         [Base.Implementation.Common.ATTRIBUTE_STYLE] = baseline
                     };
                     attributes.Merge(context.Sheet.ColumnAttributes);
-
                     if (configuration.ConvertSizes)
                     {
-                        baseline.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Column, (double.IsNaN(columns[i].Width), configuration.UseHtmlProportionalWidths) switch
+                        baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Column, (double.IsNaN(columns[i].Width), configuration.UseHtmlProportionalWidths) switch
                         {
                             (false, false) => Base.Specification.Html.HtmlStyleType.WidthNumeric,
                             (false, true) => Base.Specification.Html.HtmlStyleType.WidthProportional,
                             _ => Base.Specification.Html.HtmlStyleType.WidthAutomatic
-                        }, Base.Implementation.Common.Format(columns[i].Width, configuration))));
+                        }, Base.Implementation.Common.Format(columns[i].Width, configuration)), context, configuration));
                     }
                     if (columns[i].IsHidden != null && configuration.ConvertVisibilities)
                     {
-                        baseline.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Column, (columns[i].IsHidden ?? false) ? Base.Specification.Html.HtmlStyleType.VisibilityCollapsed : Base.Specification.Html.HtmlStyleType.VisibilityVisible)));
+                        baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Column, (columns[i].IsHidden ?? false) ? Base.Specification.Html.HtmlStyleType.VisibilityCollapsed : Base.Specification.Html.HtmlStyleType.VisibilityVisible), context, configuration));
                     }
 
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Unpaired, Base.Implementation.Common.TAG_COLUMN, attributes)));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Unpaired, Base.Implementation.Common.TAG_COLUMN, attributes), context, configuration));
                 }
 
                 indent--;
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_COLUMN_GROUP)));
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_ROW_GROUP)));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_COLUMN_GROUP), context, configuration));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_ROW_GROUP), context, configuration));
                 indent++;
 
                 (uint Column, uint Row) last = (context.Sheet.Dimension.ColumnStart - 1, context.Sheet.Dimension.RowStart - 1);
                 List<Base.Specification.Xlsx.XlsxSpecialty> specialties = [];
 
-                void content(uint column, uint row, Base.Specification.Html.HtmlElement? element = null)
+                void populator(uint column, uint row, Base.Specification.Html.HtmlElement? element = null)
                 {
                     if (specialties.Any(x => x.Specialty is MergeCell && x.Range.ContainsColumn(column) && !x.Range.StartsAt(column, row) && context.Sheet.Dimension.Contains(x.Range.ColumnStart, x.Range.RowStart)))
                     {
                         return;
                     }
 
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, element ?? new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_CELL)));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(element ?? new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_CELL), context, configuration));
                 }
-                void suffix()
+                void padder()
                 {
                     if (last.Row < context.Sheet.Dimension.RowStart)
                     {
@@ -277,17 +270,17 @@ namespace XlsxToHtmlConverter
 
                     for (uint i = last.Column + 1; i <= context.Sheet.Dimension.ColumnEnd; i++)
                     {
-                        content(i, last.Row);
+                        populator(i, last.Row);
                     }
 
                     indent--;
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_ROW)));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_ROW), context, configuration));
 
                     callback?.Invoke(input, new(index, (last.Row - context.Sheet.Dimension.RowStart + 1, context.Sheet.Dimension.RowCount)));
                 }
 
                 Row? row = null;
-                foreach (Base.Specification.Xlsx.XlsxCell entry in converter(configuration.ConverterComposition.XlsxWorksheetIterator, context.Sheet))
+                foreach (Base.Specification.Xlsx.XlsxCell entry in configuration.ConverterComposition.XlsxWorksheetIterator.Convert(context.Sheet, context, configuration))
                 {
                     Base.Specification.Xlsx.XlsxCell cell = entry;
                     if (!context.Sheet.Dimension.Contains(cell.Reference.Column, cell.Reference.Row))
@@ -297,8 +290,7 @@ namespace XlsxToHtmlConverter
 
                     while (cell.Reference.Row > last.Row)
                     {
-                        suffix();
-
+                        padder();
                         last = (context.Sheet.Dimension.ColumnStart - 1, last.Row + 1);
                         specialties = Base.Implementation.Common.Get(references, last.Row) ?? [];
                         row = cell.Reference.Row <= last.Row ? cell.Cell?.Parent as Row : null;
@@ -309,26 +301,25 @@ namespace XlsxToHtmlConverter
                             [Base.Implementation.Common.ATTRIBUTE_STYLE] = baseline
                         };
                         attributes.Merge(context.Sheet.RowAttributes);
-
                         if (configuration.ConvertSizes)
                         {
-                            baseline.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Row, Base.Specification.Html.HtmlStyleType.HeightNumeric, Base.Implementation.Common.Format((Base.Implementation.Common.Get(row?.Height?.Value, row != null ? row?.CustomHeight?.Value : false) * Base.Implementation.Common.RATIO_POINT) ?? context.Sheet.CellSize.Height, configuration))));
+                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Row, Base.Specification.Html.HtmlStyleType.HeightNumeric, Base.Implementation.Common.Format((Base.Implementation.Common.Get(row?.Height?.Value, row != null ? row?.CustomHeight?.Value : false) * Base.Implementation.Common.RATIO_POINT) ?? context.Sheet.CellSize.Height, configuration)), context, configuration));
                         }
                         if (row?.Hidden?.Value != null && configuration.ConvertVisibilities)
                         {
-                            baseline.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Row, row.Hidden.Value ? Base.Specification.Html.HtmlStyleType.VisibilityCollapsed : Base.Specification.Html.HtmlStyleType.VisibilityVisible)));
+                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Row, row.Hidden.Value ? Base.Specification.Html.HtmlStyleType.VisibilityCollapsed : Base.Specification.Html.HtmlStyleType.VisibilityVisible), context, configuration));
                         }
                         if (tops.Contains(last.Row))
                         {
-                            baseline.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Row, Base.Specification.Html.HtmlStyleType.AnchorDefinitionNumeric, Base.Implementation.Common.Format(last.Row, configuration))));
+                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Row, Base.Specification.Html.HtmlStyleType.AnchorDefinitionNumeric, Base.Implementation.Common.Format(last.Row, configuration)), context, configuration));
                         }
 
-                        writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_ROW, attributes)));
+                        writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_ROW, attributes), context, configuration));
                         indent++;
                     }
                     for (uint i = last.Column + 1; i < cell.Reference.Column; i++)
                     {
-                        content(i, cell.Reference.Row);
+                        populator(i, cell.Reference.Row);
                     }
 
                     bool isSelected = configuration.XlsxCellSelector?.Invoke((cell.Reference.Column, cell.Reference.Row)) ?? true;
@@ -337,8 +328,8 @@ namespace XlsxToHtmlConverter
                     if (shared != null)
                     {
                         cell.Styles.Add(shared);
-                        cell.NumberFormat = shared.NumberFormatId != null ? Base.Implementation.Common.Get(context.Stylesheet.NumberFormats, shared.NumberFormatId.Value) : null;
-                        cell.NumberFormatId = shared.NumberFormatId;
+                        cell.NumberFormat = shared.NumberFormatIdentifier != null ? Base.Implementation.Common.Get(context.Stylesheet.NumberFormats, shared.NumberFormatIdentifier.Value) : null;
+                        cell.NumberFormatIdentifier = shared.NumberFormatIdentifier;
                     }
 
                     Base.Specification.Html.HtmlStyles individual = [];
@@ -350,7 +341,7 @@ namespace XlsxToHtmlConverter
                             case MergeCell when specialty.Range.StartsAt(cell.Reference.Column, cell.Reference.Row):
                                 cell.Attributes["colspan"] = Base.Implementation.Common.Format(specialty.Range.ColumnCount, configuration);
                                 cell.Attributes["rowspan"] = Base.Implementation.Common.Format(specialty.Range.RowCount, configuration);
-                                individual.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Cell, Base.Specification.Html.HtmlStyleType.ClippingHorizontalHidden)));
+                                individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Cell, Base.Specification.Html.HtmlStyleType.ClippingHorizontalHidden), context, configuration));
                                 break;
                             case Base.Specification.Xlsx.XlsxStyles styles when isSelected:
                                 cell.Styles.Add(styles);
@@ -371,7 +362,7 @@ namespace XlsxToHtmlConverter
 
                     if (isSelected)
                     {
-                        cell = converter(configuration.ConverterComposition.XlsxCellContentReader, cell);
+                        cell = configuration.ConverterComposition.XlsxCellContentReader.Convert(cell, context, configuration);
                     }
                     Base.Specification.Html.HtmlElement element = new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_CELL, cell.Attributes, cell.Children);
 
@@ -390,26 +381,26 @@ namespace XlsxToHtmlConverter
                     }
                     if (isHidden && configuration.ConvertVisibilities)
                     {
-                        individual.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Cell, Base.Specification.Html.HtmlStyleType.VisibilityHidden)));
+                        individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Cell, Base.Specification.Html.HtmlStyleType.VisibilityHidden), context, configuration));
                     }
 
-                    content(cell.Reference.Column, cell.Reference.Row, element);
+                    populator(cell.Reference.Column, cell.Reference.Row, element);
                     last = cell.Reference;
                 }
-                suffix();
+                padder();
 
                 if (elements.Any())
                 {
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_ROW, new()
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_ROW, new()
                     {
-                        [Base.Implementation.Common.ATTRIBUTE_STYLE] = new Base.Specification.Html.HtmlStyles(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Row, Base.Specification.Html.HtmlStyleType.VisibilityCollapsed)))
-                    })));
+                        [Base.Implementation.Common.ATTRIBUTE_STYLE] = new Base.Specification.Html.HtmlStyles(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Row, Base.Specification.Html.HtmlStyleType.VisibilityCollapsed), context, configuration))
+                    }), context, configuration));
                     indent++;
 
                     Base.Specification.Html.HtmlAttributes? anchor(uint column)
                     {
                         Base.Specification.Html.HtmlStyles styles = [];
-                        styles.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(Base.Specification.Html.HtmlStyleTarget.Column, Base.Specification.Html.HtmlStyleType.AnchorDefinitionNumeric, Base.Implementation.Common.Format(column, configuration))));
+                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Base.Specification.Html.HtmlStyleTarget.Column, Base.Specification.Html.HtmlStyleType.AnchorDefinitionNumeric, Base.Implementation.Common.Format(column, configuration)), context, configuration));
 
                         return lefts.Contains(column) ? new()
                         {
@@ -417,7 +408,7 @@ namespace XlsxToHtmlConverter
                         } : null;
                     }
 
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_CELL, anchor(context.Sheet.Dimension.ColumnStart))));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedStart, Base.Implementation.Common.TAG_CELL, anchor(context.Sheet.Dimension.ColumnStart)), context, configuration));
                     indent++;
 
                     foreach (Base.Specification.Xlsx.XlsxSpecialty specialty in elements)
@@ -430,45 +421,44 @@ namespace XlsxToHtmlConverter
                         Base.Specification.Html.HtmlStyles positions = [];
                         if (specialty.Range.RowStart > 0)
                         {
-                            positions.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(null, Base.Specification.Html.HtmlStyleType.VariablePositionTopAnchoring, Base.Implementation.Common.Format(specialty.Range.RowStart, configuration))));
+                            positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Base.Specification.Html.HtmlStyleType.VariablePositionTopAnchoring, Base.Implementation.Common.Format(specialty.Range.RowStart, configuration)), context, configuration));
                         }
                         if (specialty.Range.ColumnEnd > 0)
                         {
-                            positions.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(null, Base.Specification.Html.HtmlStyleType.VariablePositionRightAnchoring, Base.Implementation.Common.Format(specialty.Range.ColumnEnd, configuration))));
+                            positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Base.Specification.Html.HtmlStyleType.VariablePositionRightAnchoring, Base.Implementation.Common.Format(specialty.Range.ColumnEnd, configuration)), context, configuration));
                         }
                         if (specialty.Range.RowEnd > 0)
                         {
-                            positions.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(null, Base.Specification.Html.HtmlStyleType.VariablePositionBottomAnchoring, Base.Implementation.Common.Format(specialty.Range.RowEnd, configuration))));
+                            positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Base.Specification.Html.HtmlStyleType.VariablePositionBottomAnchoring, Base.Implementation.Common.Format(specialty.Range.RowEnd, configuration)), context, configuration));
                         }
                         if (specialty.Range.ColumnStart > 0)
                         {
-                            positions.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(null, Base.Specification.Html.HtmlStyleType.VariablePositionLeftAnchoring, Base.Implementation.Common.Format(specialty.Range.ColumnStart, configuration))));
+                            positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Base.Specification.Html.HtmlStyleType.VariablePositionLeftAnchoring, Base.Implementation.Common.Format(specialty.Range.ColumnStart, configuration)), context, configuration));
                         }
-                        positions.Apply(converter(configuration.ConverterComposition.HtmlStylizer, new(null, Base.Specification.Html.HtmlStyleType.VisibilityVisible)));
+                        positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Base.Specification.Html.HtmlStyleType.VisibilityVisible), context, configuration));
 
                         element.Indent = indent;
                         element.Attributes.MergeStyles(positions);
 
-                        writer.Write(converter(configuration.ConverterComposition.HtmlWriter, element));
+                        writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(element, context, configuration));
                     }
 
                     indent--;
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_CELL)));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_CELL), context, configuration));
 
                     for (uint i = context.Sheet.Dimension.ColumnStart + 1; i <= context.Sheet.Dimension.ColumnEnd; i++)
                     {
-                        writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_CELL, anchor(i))));
+                        writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_CELL, anchor(i)), context, configuration));
                     }
 
                     indent--;
-                    writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_ROW)));
+                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_ROW), context, configuration));
                 }
 
                 indent--;
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_ROW_GROUP)));
-
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_ROW_GROUP), context, configuration));
                 indent--;
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_TABLE)));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_TABLE), context, configuration));
 
                 index = (index.Current + 1, index.Total);
             }
@@ -476,8 +466,8 @@ namespace XlsxToHtmlConverter
             indent--;
             if (!configuration.UseHtmlFragment)
             {
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_BODY)));
-                writer.Write(converter(configuration.ConverterComposition.HtmlWriter, new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_HTML)));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_BODY), context, configuration));
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.PairedEnd, Base.Implementation.Common.TAG_HTML), context, configuration));
             }
         }
     }
@@ -732,66 +722,59 @@ namespace XlsxToHtmlConverter.Base.Implementation
         /// <inheritdoc />
         public string Convert(Specification.Html.HtmlElement value, ConverterContext context, ConverterConfiguration configuration)
         {
-            string padding(int indent)
+            string padder(int indent)
             {
                 return string.Concat(Enumerable.Repeat(configuration.TabCharacter, indent));
             }
-            string element(Specification.Html.HtmlElement element)
+            string compositor(Specification.Html.HtmlElement element)
             {
-                return element.Type switch
-                {
-                    Specification.Html.HtmlElementType.Declaration => $"<!DOCTYPE {element.Tag}>",
-                    Specification.Html.HtmlElementType.Paired => $"<{element.Tag}{attributes(element.Attributes)}>{children(element.Children, element.Indent ?? 0)}</{element.Tag}>",
-                    Specification.Html.HtmlElementType.PairedStart => $"<{element.Tag}{attributes(element.Attributes)}>",
-                    Specification.Html.HtmlElementType.PairedEnd => $"</{element.Tag}>",
-                    Specification.Html.HtmlElementType.Unpaired => $"<{element.Tag}{attributes(element.Attributes)}>",
-                    _ => $"<!-- {children(element.Children, element.Indent ?? 0)} -->"
-                };
-            }
-            string attributes(Specification.Html.HtmlAttributes attributes)
-            {
-                return string.Concat(attributes.Select(x => x.Value switch
+                string attributes = string.Concat(element.Attributes.Select(x => x.Value switch
                 {
                     null => $" {x.Key}",
                     Specification.Html.HtmlClasses classes => classes.Any() ? $" {x.Key}=\"{string.Join(' ', classes)}\"" : string.Empty,
                     Specification.Html.HtmlStyles styles => styles.Any() ? $" {x.Key}=\"{string.Join(' ', styles.Select(y => $"{y.Key}: {y.Value};"))}\"" : string.Empty,
                     _ => $" {x.Key}=\"{x.Value}\""
                 }));
+
+                return element.Type switch
+                {
+                    Specification.Html.HtmlElementType.Declaration => $"<!DOCTYPE {element.Tag}>",
+                    Specification.Html.HtmlElementType.Paired => $"<{element.Tag}{attributes}>{populator(element.Children, element.Indent ?? 0)}</{element.Tag}>",
+                    Specification.Html.HtmlElementType.PairedStart => $"<{element.Tag}{attributes}>",
+                    Specification.Html.HtmlElementType.PairedEnd => $"</{element.Tag}>",
+                    Specification.Html.HtmlElementType.Unpaired => $"<{element.Tag}{attributes}>",
+                    _ => $"<!-- {populator(element.Children, element.Indent ?? 0)} -->"
+                };
             }
-            string children(Specification.Html.HtmlChildren content, int indent)
+            string populator(Specification.Html.HtmlChildren content, int indent)
             {
                 return string.Concat(content.Select(x =>
                 {
                     switch (x)
                     {
                         case Specification.Html.HtmlElement html:
-                            return element(html);
+                            return compositor(html);
                         case Specification.Html.HtmlStylesCollection css:
                             StringBuilder builder = new(configuration.NewlineCharacter);
-
                             foreach ((string selector, Specification.Html.HtmlStyles styles) in css)
                             {
-                                builder.Append($"{padding(indent + 1)}{selector} {{{configuration.NewlineCharacter}");
+                                builder.Append($"{padder(indent + 1)}{selector} {{{configuration.NewlineCharacter}");
                                 foreach ((string property, string value) in styles)
                                 {
-                                    builder.Append($"{padding(indent + 2)}{property}: {value};{configuration.NewlineCharacter}");
+                                    builder.Append($"{padder(indent + 2)}{property}: {value};{configuration.NewlineCharacter}");
                                 }
-                                builder.Append($"{padding(indent + 1)}}}{configuration.NewlineCharacter}");
+                                builder.Append($"{padder(indent + 1)}}}{configuration.NewlineCharacter}");
                             }
-                            builder.Append(padding(indent));
+                            builder.Append(padder(indent));
 
                             return builder.ToString();
                         default:
-                            return raw(x.ToString());
+                            return WebUtility.HtmlEncode(x.ToString()) ?? string.Empty;
                     }
                 }));
             }
-            string raw(string? raw)
-            {
-                return WebUtility.HtmlEncode(raw) ?? string.Empty;
-            }
 
-            return $"{padding(value.Indent ?? 0)}{element(value)}{configuration.NewlineCharacter}";
+            return $"{padder(value.Indent ?? 0)}{compositor(value)}{configuration.NewlineCharacter}";
         }
     }
 
@@ -925,10 +908,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
             (uint Column, uint Row) last = (value.Dimension.ColumnStart - 1, value.Dimension.RowStart - 1);
 
-            (uint Column, uint Row) reference(string reference)
+            (uint Column, uint Row) locater(string reference)
             {
                 (uint column, uint row) = Specification.Xlsx.XlsxRange.ParseReference(reference);
-
                 if (row < last.Row || (row == last.Row && column <= last.Column))
                 {
                     column = last.Column + 1;
@@ -941,10 +923,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
             foreach (Row row in value.Data?.Elements<Row>() ?? [])
             {
                 uint index = row.RowIndex != null ? Math.Max(last.Row, row.RowIndex.Value) : (last.Row + 1);
-
                 foreach (Cell cell in row.Elements<Cell>())
                 {
-                    last = cell.CellReference?.Value != null ? reference(cell.CellReference.Value) : (index > last.Row ? value.Dimension.ColumnStart : last.Column + 1, index);
+                    last = cell.CellReference?.Value != null ? locater(cell.CellReference.Value) : (index > last.Row ? value.Dimension.ColumnStart : last.Column + 1, index);
 
                     yield return new(cell)
                     {
@@ -970,20 +951,15 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
             Specification.Xlsx.XlsxStylesCollection result = new();
 
-            Specification.Xlsx.XlsxStylesLayer layer<T>(IConverterBase<T, Specification.Xlsx.XlsxStylesLayer> converter, T value)
+            Specification.Xlsx.XlsxNumberFormat? decoder(string? raw, uint? identifier)
             {
-                return converter.Convert(value, context, configuration);
-            }
-            Specification.Xlsx.XlsxNumberFormat? codes(string? format)
-            {
-                if (WebUtility.HtmlDecode(format) is not string code || code.All(char.IsWhiteSpace))
+                if (WebUtility.HtmlDecode(raw) is not string code || code.All(char.IsWhiteSpace))
                 {
                     return null;
                 }
 
-                List<Specification.Xlsx.XlsxNumberFormatCode> codes = [new()];
-
                 StringBuilder builder = new();
+                List<Specification.Xlsx.XlsxNumberFormatCode> codes = [new()];
                 foreach ((int index, char character, bool isEscaped) in Specification.Xlsx.XlsxNumberFormat.Escape(code, null, ['[', ']']))
                 {
                     if (!isEscaped)
@@ -996,7 +972,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 builder.Clear();
                                 continue;
                             case 'Y' or 'M' or 'D' or 'H' or 'S':
-                                codes[^1]?.IsDate = true;
+                                codes[^1]?.IsCalendrical = true;
                                 break;
                         }
                     }
@@ -1005,19 +981,24 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 }
                 codes[^1]?.Code = builder.ToString();
 
-                return codes.Count switch
+                Specification.Xlsx.XlsxNumberFormat format = codes.Count switch
                 {
                     1 => new(codes[0]),
                     2 => new(codes[0], codes[1]),
                     3 => new(codes[0], codes[1], codes[2]),
                     _ => new(codes[0], codes[1], codes[2], codes[3])
                 };
+                if (identifier != null)
+                {
+                    result.NumberFormats[identifier.Value] = format;
+                }
+
+                return format;
             }
 
             Font?[] fonts = [.. Common.Get(value.Fonts, configuration.ConvertStyles)?.Elements().Select(x => x as Font) ?? []];
             Fill?[] fills = [.. Common.Get(value.Fills, configuration.ConvertStyles)?.Elements().Select(x => x as Fill) ?? []];
             Border?[] borders = [.. Common.Get(value.Borders, configuration.ConvertStyles)?.Elements().Select(x => x as Border) ?? []];
-
             result.BaseStyles = [.. value.CellFormats?.Elements().Select((x, i) =>
             {
                 if (x is not CellFormat cell)
@@ -1030,17 +1011,16 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     Name = configuration.UseHtmlClasses ? $"base-{Common.Format(i, configuration)}" : null,
                     IsHidden = Common.Get(cell.Protection?.Hidden?.Value, configuration.ConvertVisibilities ? cell.ApplyProtection?.Value : false)
                 };
-
                 if (configuration.ConvertStyles)
                 {
-                    styles.Styles.Merge(layer(configuration.ConverterComposition.XlsxFontConverter, Common.Get(fonts, cell.FontId?.Value, cell.ApplyFont?.Value)));
-                    styles.Styles.Merge(layer(configuration.ConverterComposition.XlsxFillConverter, Common.Get(fills, cell.FillId?.Value, cell.ApplyFill?.Value)));
-                    styles.Styles.Merge(layer(configuration.ConverterComposition.XlsxBorderConverter, Common.Get(borders, cell.BorderId?.Value, cell.ApplyBorder?.Value)));
-                    styles.Styles.Merge(layer(configuration.ConverterComposition.XlsxAlignmentConverter, Common.Get(cell.Alignment, cell.ApplyAlignment?.Value)));
+                    styles.Styles.Merge(configuration.ConverterComposition.XlsxFontConverter.Convert(Common.Get(fonts, cell.FontId?.Value, cell.ApplyFont?.Value), context, configuration));
+                    styles.Styles.Merge(configuration.ConverterComposition.XlsxFillConverter.Convert(Common.Get(fills, cell.FillId?.Value, cell.ApplyFill?.Value), context, configuration));
+                    styles.Styles.Merge(configuration.ConverterComposition.XlsxBorderConverter.Convert(Common.Get(borders, cell.BorderId?.Value, cell.ApplyBorder?.Value), context, configuration));
+                    styles.Styles.Merge(configuration.ConverterComposition.XlsxAlignmentConverter.Convert(Common.Get(cell.Alignment, cell.ApplyAlignment?.Value), context, configuration));
                 }
                 if (configuration.ConvertNumberFormats)
                 {
-                    styles.NumberFormatId = Common.Get(cell.NumberFormatId?.Value, cell.ApplyNumberFormat?.Value);
+                    styles.NumberFormatIdentifier = Common.Get(cell.NumberFormatId?.Value, cell.ApplyNumberFormat?.Value);
                 }
 
                 return styles;
@@ -1057,17 +1037,16 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     Name = configuration.UseHtmlClasses ? $"differential-{Common.Format(i, configuration)}" : null,
                     IsHidden = Common.Get(differential.Protection?.Hidden?.Value, configuration.ConvertVisibilities)
                 };
-
                 if (configuration.ConvertStyles)
                 {
-                    styles.FontStyles = layer(configuration.ConverterComposition.XlsxFontConverter, differential.Font);
-                    styles.FillStyles = layer(configuration.ConverterComposition.XlsxFillConverter, differential.Fill);
-                    styles.BorderStyles = layer(configuration.ConverterComposition.XlsxBorderConverter, differential.Border);
-                    styles.AlignmentStyles = layer(configuration.ConverterComposition.XlsxAlignmentConverter, differential.Alignment);
+                    styles.FontStyles = configuration.ConverterComposition.XlsxFontConverter.Convert(differential.Font, context, configuration);
+                    styles.FillStyles = configuration.ConverterComposition.XlsxFillConverter.Convert(differential.Fill, context, configuration);
+                    styles.BorderStyles = configuration.ConverterComposition.XlsxBorderConverter.Convert(differential.Border, context, configuration);
+                    styles.AlignmentStyles = configuration.ConverterComposition.XlsxAlignmentConverter.Convert(differential.Alignment, context, configuration);
                 }
                 if (configuration.ConvertNumberFormats)
                 {
-                    styles.NumberFormat = codes(differential.NumberingFormat?.FormatCode?.Value);
+                    styles.NumberFormat = decoder(differential.NumberingFormat?.FormatCode?.Value, null);
                 }
 
                 return styles;
@@ -1075,12 +1054,12 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
             foreach (NumberingFormat number in Common.Get(value.NumberingFormats, configuration.ConvertNumberFormats)?.Elements<NumberingFormat>() ?? [])
             {
-                if (number.NumberFormatId?.Value == null || codes(number.FormatCode?.Value) is not Specification.Xlsx.XlsxNumberFormat format)
+                if (number.NumberFormatId?.Value == null)
                 {
                     continue;
                 }
 
-                result.NumberFormats[number.NumberFormatId.Value] = format;
+                decoder(number.FormatCode?.Value, number.NumberFormatId?.Value);
             }
 
             return result;
@@ -1116,15 +1095,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
             {
                 CellSize = (8.11, 20)
             };
-
-            IEnumerable<KeyValuePair<string, string>> stylizer(Specification.Html.HtmlStyleDefinition definition)
-            {
-                return configuration.ConverterComposition.HtmlStylizer.Convert(definition, context, configuration);
-            }
-
             bool isDimensioned = false;
-            Dictionary<uint, (double? Width, bool? IsHidden, uint? StylesIndex)> definitions = [];
 
+            Dictionary<uint, (double? Width, bool? IsHidden, uint? StylesIndex)> definitions = [];
             foreach (OpenXmlElement child in value.Elements())
             {
                 switch (child)
@@ -1138,13 +1111,13 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         break;
                     case SheetProperties properties when configuration.ConvertSheetTitles:
                         Specification.Html.HtmlStyles variables = [];
-                        variables.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.SheetTitle, Specification.Html.HtmlStyleType.VariableSheetColorExact, configuration.ConverterComposition.XlsxColorConverter.Convert(properties.TabColor, context, configuration))));
+                        variables.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.SheetTitle, Specification.Html.HtmlStyleType.VariableSheetColorExact, configuration.ConverterComposition.XlsxColorConverter.Convert(properties.TabColor, context, configuration)), context, configuration));
                         result.TitleAttributes[Common.ATTRIBUTE_STYLE] = variables;
                         break;
                     case SheetFormatProperties format:
                         if ((format.ZeroHeight?.Value ?? false) && configuration.ConvertVisibilities)
                         {
-                            result.RowAttributes[Common.ATTRIBUTE_STYLE] = new Specification.Html.HtmlStyles(stylizer(new(Specification.Html.HtmlStyleTarget.Row, Specification.Html.HtmlStyleType.VisibilityCollapsed)));
+                            result.RowAttributes[Common.ATTRIBUTE_STYLE] = new Specification.Html.HtmlStyles(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Row, Specification.Html.HtmlStyleType.VisibilityCollapsed), context, configuration));
                         }
 
                         if (configuration.ConvertStyles)
@@ -1152,11 +1125,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             Specification.Html.HtmlStyles styles = [];
                             if (format.ThickTop?.Value ?? false)
                             {
-                                styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Row, Specification.Html.HtmlStyleType.BorderThicknessTopThick)));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Row, Specification.Html.HtmlStyleType.BorderThicknessTopThick), context, configuration));
                             }
                             if (format.ThickBottom?.Value ?? false)
                             {
-                                styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Row, Specification.Html.HtmlStyleType.BorderThicknessBottomThick)));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Row, Specification.Html.HtmlStyleType.BorderThicknessBottomThick), context, configuration));
                             }
 
                             if (styles.Any())
@@ -1205,7 +1178,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
             {
                 uint column = 1;
                 uint row = 1;
-
                 foreach (Specification.Xlsx.XlsxCell cell in configuration.ConverterComposition.XlsxWorksheetIterator.Convert(result, context, configuration))
                 {
                     column = Math.Max(column, cell.Reference.Column);
@@ -1367,51 +1339,46 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 return new(null);
             }
 
-            IEnumerable<KeyValuePair<string, string>> stylizer(Specification.Html.HtmlStyleDefinition definition)
-            {
-                return configuration.ConverterComposition.HtmlStylizer.Convert(definition, context, configuration);
-            }
-            Specification.Xlsx.XlsxBaseStyles common(CommonStyleType type)
+            Specification.Xlsx.XlsxBaseStyles stylizer(CommonStyleType type)
             {
                 object key = (Common.CacheCategory.CommonStyles, type);
-
                 if (Common.Get(context.Cache, key) is not Specification.Xlsx.XlsxBaseStyles cache)
                 {
                     Specification.Html.HtmlStyles styles = [];
                     switch (type)
                     {
                         case CommonStyleType.AlignmentCenter:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.AlignmentHorizontalCenter)));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.AlignmentHorizontalCenter), context, configuration));
                             break;
                         case CommonStyleType.AlignmentRight:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.AlignmentHorizontalRight)));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.AlignmentHorizontalRight), context, configuration));
                             break;
                         case CommonStyleType.AlignmentDistributed:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.AlignmentHorizontalDistributed)));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.AlignmentHorizontalDistributed), context, configuration));
                             break;
                         case CommonStyleType.ColorBlack:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "black")));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "black"), context, configuration));
                             break;
                         case CommonStyleType.ColorGreen:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "green")));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "green"), context, configuration));
                             break;
                         case CommonStyleType.ColorWhite:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "white")));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "white"), context, configuration));
                             break;
                         case CommonStyleType.ColorBlue:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "blue")));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "blue"), context, configuration));
                             break;
                         case CommonStyleType.ColorMagenta:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "magenta")));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "magenta"), context, configuration));
                             break;
                         case CommonStyleType.ColorYellow:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "yellow")));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "yellow"), context, configuration));
                             break;
                         case CommonStyleType.ColorCyan:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "cyan")));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "cyan"), context, configuration));
                             break;
                         case CommonStyleType.ColorRed:
-                            styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "red")));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.ForegroundExact, "red"), context, configuration));
                             break;
                     }
 
@@ -1419,33 +1386,88 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     {
                         Styles = new(styles)
                     };
-
                     context.Cache[key] = cache;
                 }
 
                 return cache;
             }
-            (string Raw, Specification.Html.HtmlChildren Children) text(Specification.Xlsx.XlsxString data)
+            (string Raw, Specification.Html.HtmlChildren Children) disassembler(Specification.Xlsx.XlsxString data)
             {
                 return (data.Raw, data.Children);
             }
-            Specification.Html.HtmlChildren data(object data, string raw)
+            Specification.Html.HtmlChildren formatter(object data, string raw)
             {
                 if (!configuration.ConvertNumberFormats)
                 {
                     return [raw];
                 }
 
+                Specification.Html.HtmlChildren wrapper(object data, Specification.Html.HtmlChildren children)
+                {
+                    return configuration.UseHtmlDataElements ? data switch
+                    {
+                        DateTime date => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, "time", new()
+                        {
+                            ["datetime"] = date.ToString("yyyy-MM-ddThh:mm:ss.fff", CultureInfo.InvariantCulture)
+                        }, children)],
+                        double number => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, "data", new()
+                        {
+                            ["value"] = number.ToString(CultureInfo.InvariantCulture)
+                        }, children)],
+                        _ => children
+                    } : children;
+                }
+                List<string> tokenizer(string code, bool isStandardized, Func<char, StringBuilder, bool?> tokenizer, char[]? singles)
+                {
+                    bool isSpecial = false;
+                    StringBuilder builder = new();
+                    List<string> tokens = [];
+                    foreach ((int index, char character, bool isEscaped) in Specification.Xlsx.XlsxNumberFormat.Escape(code, singles))
+                    {
+                        if (isEscaped)
+                        {
+                            builder.Append(character);
+                            continue;
+                        }
+
+                        char input = isStandardized ? char.ToUpperInvariant(character) : character;
+                        bool? isInitial = tokenizer(input, builder);
+                        if (isInitial ?? isSpecial)
+                        {
+                            tokens.Add(builder.ToString());
+                            builder.Clear();
+                        }
+
+                        isSpecial = isInitial != null;
+                        builder.Append(isSpecial ? input : character);
+                    }
+                    tokens.Add(builder.ToString());
+
+                    return tokens;
+                }
+                void escaper(StringBuilder builder, string content)
+                {
+                    foreach ((int index, char character, bool isEscaped) in Specification.Xlsx.XlsxNumberFormat.Escape(content))
+                    {
+                        if (!isEscaped && character is '\\' or '\"')
+                        {
+                            continue;
+                        }
+
+                        builder.Append(character);
+                    }
+                }
+
                 //TODO: support for locale-dependent default formats
 
-                (int section, Specification.Xlsx.XlsxNumberFormatCode? code) = (value.NumberFormat ?? (value.NumberFormatId != null ? Common.Get(FORMATS, value.NumberFormatId.Value) : null)) is Specification.Xlsx.XlsxNumberFormat format ? data switch
+                (int section, Specification.Xlsx.XlsxNumberFormatCode? code) = (value.NumberFormat ?? (value.NumberFormatIdentifier != null ? Common.Get(FORMATS, value.NumberFormatIdentifier.Value) : null)) is Specification.Xlsx.XlsxNumberFormat format ? data switch
                 {
                     double number when number > 0 => (0, format.Positive),
                     double number when number < 0 => (1, format.Negative),
                     double number when number == 0 => (2, format.Zero),
                     _ => (3, format.Text)
                 } : (-1, null);
-                object? key = value.NumberFormatId != null ? (Common.CacheCategory.NumberFormat, value.NumberFormatId.Value, section) : null;
+                object? key = value.NumberFormatIdentifier != null ? (Common.CacheCategory.NumberFormat, value.NumberFormatIdentifier.Value, section) : null;
 
                 string? currency = null;
                 CultureInfo culture = configuration.CurrentCulture;
@@ -1479,7 +1501,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         if (token.StartsWith('$'))
                         {
                             string[] identifiers = token.TrimStart('$').Split('-');
-
                             currency = !identifiers[0].All(char.IsWhiteSpace) ? identifiers[0] : null;
                             if (Common.ParseHex(identifiers[^1]) is int locale)
                             {
@@ -1498,7 +1519,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         {
                             if (configuration.ConvertStyles)
                             {
-                                styles = common(color);
+                                styles = stylizer(color);
                             }
                         }
                         else if (Common.Get(CONDITIONS, string.Concat(token.TakeWhile(x => x is '=' or '<' or '>'))) is Func<double, double, bool> comparator)
@@ -1522,7 +1543,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         value.Styles.Add(styles);
                     }
 
-                    code = new(code.Code[start..], code.IsDate);
+                    code = new(code.Code[start..], code.IsCalendrical);
                 }
 
                 if (code == null || code.Code.All(char.IsWhiteSpace) || code.Code.Trim().ToUpperInvariant() == "GENERAL")
@@ -1530,25 +1551,25 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     switch (data)
                     {
                         case DateTime date:
-                            return time(date, [date.ToString("d", culture)]);
-                        case double decimals:
-                            string general = decimals.ToString(CultureInfo.InvariantCulture).Replace("+", string.Empty);
+                            return wrapper(date, [date.ToString("d", culture)]);
+                        case double number:
+                            string general = number.ToString(CultureInfo.InvariantCulture).Replace("+", string.Empty);
                             if (general.Length <= (general.StartsWith('-') ? 12 : 11))
                             {
-                                return number(decimals, [general]);
+                                return wrapper(number, [general]);
                             }
 
-                            string scientific = decimals.ToString("0.#######E0", CultureInfo.InvariantCulture);
-                            return number(decimals, [decimals.ToString($"0.{new string('#', Math.Max(0, (scientific.StartsWith('-') ? 10 : 9) - (scientific.Length - scientific.IndexOf('E'))))}E0", CultureInfo.InvariantCulture)]);
+                            string scientific = number.ToString("0.#######E0", CultureInfo.InvariantCulture);
+
+                            return wrapper(number, [number.ToString($"0.{new string('#', Math.Max(0, (scientific.StartsWith('-') ? 10 : 9) - (scientific.Length - scientific.IndexOf('E'))))}E0", CultureInfo.InvariantCulture)]);
                         default:
                             return [raw];
                     }
                 }
 
-                Specification.Html.HtmlChildren children = [];
-
                 StringBuilder builder = new();
-                if (code.IsDate)
+                Specification.Html.HtmlChildren children = [];
+                if (code.IsCalendrical)
                 {
                     if (data is double number && number >= -657435.0 && number <= 2958465.99999999)
                     {
@@ -1561,7 +1582,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                     if (Common.Get(context.Cache, key) is not List<string> information)
                     {
-                        information = tokens(code.Code, true, (x, y) => x switch
+                        information = tokenizer(code.Code, true, (x, y) => x switch
                         {
                             '[' or 'A' => y.Length > 0,
                             ']' when y.Length > 0 && y[0] is '[' => false,
@@ -1573,7 +1594,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             'Y' or 'M' or 'D' or 'H' or 'S' => y.Length > 0 && y[0] != x && y[0] is not '[',
                             '@' or '$' or '/' or ':' => true,
                             _ => null
-                        });
+                        }, null);
 
                         if (key != null)
                         {
@@ -1581,12 +1602,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         }
                     }
 
-                    bool time(int index)
+                    bool determiner(int index)
                     {
-                        (int Distance, bool? IsTime) left = (0, null);
-                        (int Distance, bool? IsTime) right = (0, null);
-
-                        for (int i = 1; index - i >= 0 && left.IsTime == null; i++)
+                        (int Distance, bool? IsTemporal) left = (0, null);
+                        (int Distance, bool? IsTemporal) right = (0, null);
+                        for (int i = 1; index - i >= 0 && left.IsTemporal == null; i++)
                         {
                             left = information[index - i].FirstOrDefault(char.IsLetter) switch
                             {
@@ -1595,7 +1615,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 _ => (left.Distance + information[index - i].Length, null)
                             };
                         }
-                        for (int i = 1; index + i < information.Count && right.IsTime == null && right.Distance <= left.Distance; i++)
+                        for (int i = 1; index + i < information.Count && right.IsTemporal == null && right.Distance <= left.Distance; i++)
                         {
                             right = information[index + i].FirstOrDefault(char.IsLetter) switch
                             {
@@ -1605,9 +1625,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             };
                         }
 
-                        return (left.IsTime != right.IsTime && left.Distance > right.Distance ? right.IsTime : left.IsTime) ?? false;
+                        return (left.IsTemporal != right.IsTemporal && left.Distance > right.Distance ? right.IsTemporal : left.IsTemporal) ?? false;
                     }
-                    TimeSpan duration()
+                    TimeSpan measurer()
                     {
                         return date.Year < 100 || date.Year > 9999 ? TimeSpan.Zero : TimeSpan.FromDays(date.ToOADate());
                     }
@@ -1621,7 +1641,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         if (token.Contains('.'))
                         {
                             string[] parts = token.Split('.');
-
                             if (parts[^1].Any() && parts[^1].All(x => x is '0' or '#'))
                             {
                                 token = parts[0];
@@ -1637,8 +1656,8 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             ":" => culture.DateTimeFormat.TimeSeparator,
                             "YY" => date.ToString("yy", culture),
                             "YYYY" => date.ToString("yyyy", culture),
-                            "M" => date.ToString(time(i) ? "%m" : "%M", culture),
-                            "MM" => date.ToString(time(i) ? "mm" : "MM", culture),
+                            "M" => date.ToString(determiner(i) ? "%m" : "%M", culture),
+                            "MM" => date.ToString(determiner(i) ? "mm" : "MM", culture),
                             "MMM" => date.ToString("MMM", culture),
                             "MMMM" => date.ToString("MMMM", culture),
                             "MMMMM" => date.ToString("MMMM", culture).FirstOrDefault().ToString(),
@@ -1652,11 +1671,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             "SS" => date.ToString("ss", culture),
                             "A/P" => date.ToString("%t", culture),
                             "AM/PM" => date.ToString("tt", culture),
-                            "[H]" => duration().TotalHours.ToString("0", culture),
-                            "[M]" => duration().TotalMinutes.ToString("0", culture),
-                            "[MM]" => duration().TotalMinutes.ToString("00", culture),
-                            "[S]" => duration().TotalSeconds.ToString("0", culture),
-                            "[SS]" => duration().TotalSeconds.ToString("00", culture),
+                            "[H]" => measurer().TotalHours.ToString("0", culture),
+                            "[M]" => measurer().TotalMinutes.ToString("0", culture),
+                            "[MM]" => measurer().TotalMinutes.ToString("00", culture),
+                            "[S]" => measurer().TotalSeconds.ToString("0", culture),
+                            "[SS]" => measurer().TotalSeconds.ToString("00", culture),
                             _ => null
                         } is string content)
                         {
@@ -1664,7 +1683,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         }
                         else
                         {
-                            literal(builder, token);
+                            escaper(builder, token);
                         }
 
                         builder.Append(suffix);
@@ -1673,18 +1692,17 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 else
                 {
                     double number = Math.Abs(data as double? ?? 0);
-                    int stage = 0;
 
+                    int stage = 0;
                     if (Common.Get(context.Cache, key) is not NumberInformation information)
                     {
                         information = new();
-                        information.Tokens = tokens(code.Code, false, (x, y) =>
+                        information.Tokens = tokenizer(code.Code, false, (x, y) =>
                         {
                             switch (x)
                             {
                                 case '0' or '#' or '?':
                                     information.Lengths[stage]++;
-
                                     if (y.Length > 0 && y[0] is ',')
                                     {
                                         information.Scaling += 3;
@@ -1779,7 +1797,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     if (information.Lengths[2] > 0)
                     {
                         int exponent = number > 0 ? (int)Math.Floor(Math.Log10(number)) : 0;
-
                         number = Math.Round(number / Math.Pow(10, exponent), information.Lengths[1]);
                         if (number >= 10)
                         {
@@ -1814,18 +1831,13 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                             length -= size;
                             separators.Add(length);
-
                             group++;
                         }
                     }
 
-                    stage = 0;
-                    int index = 0;
-
-                    int digit(string token, string source, int start)
+                    int concatenator(string token, string source, int start)
                     {
                         int index = start;
-
                         foreach (char character in token)
                         {
                             builder.Append(source[index] is ' ' ? character switch
@@ -1841,10 +1853,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         return index;
                     }
 
+                    stage = 0;
+                    int index = 0;
                     for (int i = 0; i < information.Tokens.Count; i++)
                     {
                         string token = information.Tokens[i];
-
                         switch (token.FirstOrDefault())
                         {
                             case '@':
@@ -1859,10 +1872,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                     string[] parts = token.Split('/');
                                     string left = parts[0];
                                     string right = parts[^1];
-
-                                    digit(left.PadLeft(numerator.Length, '0'), numerator.PadLeft(left.Length, ' '), 0);
+                                    concatenator(left.PadLeft(numerator.Length, '0'), numerator.PadLeft(left.Length, ' '), 0);
                                     builder.Append('/');
-                                    digit(right.PadRight(denominator.Length, '0'), denominator.PadRight(right.Length, ' '), 0);
+                                    concatenator(right.PadRight(denominator.Length, '0'), denominator.PadRight(right.Length, ' '), 0);
 
                                     stage = 3;
 
@@ -1871,16 +1883,16 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                                 if (stage != 1 && index <= 0)
                                 {
-                                    index = digit(new('0', components[stage].Length - information.Lengths[stage]), components[stage], index);
+                                    index = concatenator(new('0', components[stage].Length - information.Lengths[stage]), components[stage], index);
                                 }
 
-                                index = digit(token, components[stage], index);
+                                index = concatenator(token, components[stage], index);
 
                                 break;
                             case '.' when stage < 1:
                                 if (index <= 0)
                                 {
-                                    index = digit(new('0', components[0].Length - information.Lengths[0]), components[0], index);
+                                    index = concatenator(new('0', components[0].Length - information.Lengths[0]), components[0], index);
                                 }
 
                                 stage = 1;
@@ -1893,7 +1905,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             case 'E' or 'e' when stage < 2:
                                 stage = 2;
                                 index = 0;
-                                builder.Append(sign is '-' || token.Length > 1 ? $"{token.First()}{sign}" : token.First());
+                                builder.Append(sign is '-' || token.Length > 1 ? $"{token[0]}{sign}" : token[0]);
                                 break;
                             case '%':
                                 builder.Append(culture.NumberFormat.PercentSymbol);
@@ -1906,7 +1918,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 builder.Clear();
                                 break;
                             default:
-                                literal(builder, token);
+                                escaper(builder, token);
                                 break;
                         }
                     }
@@ -1916,73 +1928,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 if (children.Count > 1)
                 {
                     Specification.Html.HtmlElement container = new(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, null, [.. children.Select(x => new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, null, [x]))]);
-                    common(CommonStyleType.AlignmentDistributed).ApplyStyles(container);
-
+                    stylizer(CommonStyleType.AlignmentDistributed).ApplyStyles(container);
                     children = [container];
                 }
 
-                return data switch
-                {
-                    DateTime date => time(date, children),
-                    double decimals => number(decimals, children),
-                    _ => [builder.ToString()]
-                };
-            }
-            Specification.Html.HtmlChildren time(DateTime date, Specification.Html.HtmlChildren children)
-            {
-                return configuration.UseHtmlDataElements ? [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, "time", new()
-                {
-                    ["datetime"] = date.ToString("yyyy-MM-ddThh:mm:ss.fff", CultureInfo.InvariantCulture)
-                }, children)] : children;
-            }
-            Specification.Html.HtmlChildren number(double decimals, Specification.Html.HtmlChildren children)
-            {
-                return configuration.UseHtmlDataElements ? [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, "data", new()
-                {
-                    ["value"] = decimals.ToString(CultureInfo.InvariantCulture)
-                }, children)] : children;
-            }
-            List<string> tokens(string code, bool isStandardized, Func<char, StringBuilder, bool?> tokenizer, char[]? singles = null)
-            {
-                StringBuilder builder = new();
-                List<string> tokens = [];
-
-                bool isSpecial = false;
-                foreach ((int index, char character, bool isEscaped) in Specification.Xlsx.XlsxNumberFormat.Escape(code, singles))
-                {
-                    if (isEscaped)
-                    {
-                        builder.Append(character);
-                        continue;
-                    }
-
-                    char input = isStandardized ? char.ToUpperInvariant(character) : character;
-                    bool? isStarter = tokenizer(input, builder);
-
-                    if (isStarter ?? isSpecial)
-                    {
-                        tokens.Add(builder.ToString());
-                        builder.Clear();
-                    }
-
-                    isSpecial = isStarter != null;
-                    builder.Append(isSpecial ? input : character);
-                }
-                tokens.Add(builder.ToString());
-
-                return tokens;
-            }
-            void literal(StringBuilder builder, string content)
-            {
-                foreach ((int index, char character, bool isEscaped) in Specification.Xlsx.XlsxNumberFormat.Escape(content))
-                {
-                    if (!isEscaped && character is '\\' or '\"')
-                    {
-                        continue;
-                    }
-
-                    builder.Append(character);
-                }
+                return wrapper(data, children);
             }
 
             string content = value.Cell?.CellValue?.Text ?? string.Empty;
@@ -1990,8 +1940,8 @@ namespace XlsxToHtmlConverter.Base.Implementation
             {
                 _ when value.Cell?.DataType?.Value == CellValues.Error => (content, [content]),
                 _ when value.Cell?.DataType?.Value == CellValues.String => (content, [content]),
-                _ when value.Cell?.DataType?.Value == CellValues.InlineString => text(configuration.ConverterComposition.XlsxStringConverter.Convert(value.Cell, context, configuration)),
-                _ when value.Cell?.DataType?.Value == CellValues.SharedString => Common.ParsePositive(content) is uint index && Common.Get(context.SharedStrings, index) is Specification.Xlsx.XlsxString shared ? text(shared) : (string.Empty, []),
+                _ when value.Cell?.DataType?.Value == CellValues.InlineString => disassembler(configuration.ConverterComposition.XlsxStringConverter.Convert(value.Cell, context, configuration)),
+                _ when value.Cell?.DataType?.Value == CellValues.SharedString => Common.ParsePositive(content) is uint index && Common.Get(context.SharedStrings, index) is Specification.Xlsx.XlsxString shared ? disassembler(shared) : (string.Empty, []),
                 _ when value.Cell?.DataType?.Value == CellValues.Boolean => (content, [content.Trim() switch {
                     "1" => "TRUE",
                     "0" => "FALSE",
@@ -2012,10 +1962,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 continue;
                             }
 
-                            bool equality(ConditionalFormattingOperatorValues operation)
+                            bool comparator(ConditionalFormattingOperatorValues operation)
                             {
                                 double? number = Common.ParseDecimals(raw);
-
                                 string[] formulas = [.. rule.Elements<Formula>().Select(x => WebUtility.HtmlDecode(x.Text.Trim('\"')))];
                                 double?[] operands = [.. formulas.Select(Common.ParseDecimals)];
 
@@ -2041,7 +1990,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                             if (rule.Type.Value switch
                             {
-                                _ when rule.Type.Value == ConditionalFormatValues.CellIs && rule.Operator?.Value != null => equality(rule.Operator.Value),
+                                _ when rule.Type.Value == ConditionalFormatValues.CellIs && rule.Operator?.Value != null => comparator(rule.Operator.Value),
                                 _ when rule.Type.Value == ConditionalFormatValues.ContainsText && rule.Text?.Value != null => raw.Contains(rule.Text.Value, StringComparison.OrdinalIgnoreCase),
                                 _ when rule.Type.Value == ConditionalFormatValues.NotContainsText && rule.Text?.Value != null => !raw.Contains(rule.Text.Value, StringComparison.OrdinalIgnoreCase),
                                 _ when rule.Type.Value == ConditionalFormatValues.BeginsWith && rule.Text?.Value != null => raw.StartsWith(rule.Text.Value, StringComparison.OrdinalIgnoreCase),
@@ -2056,7 +2005,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 if (Common.Get(context.Stylesheet.DifferentialStyles, rule.FormatId?.Value) is Specification.Xlsx.XlsxDifferentialStyles differential)
                                 {
                                     value.Styles.Add(differential);
-
                                     if (differential.NumberFormat != null && configuration.ConvertNumberFormats)
                                     {
                                         value.NumberFormat = differential.NumberFormat;
@@ -2078,18 +2026,18 @@ namespace XlsxToHtmlConverter.Base.Implementation
             {
                 (children, bool isAligned) = value.Cell?.DataType?.Value switch
                 {
-                    _ when value.Cell?.DataType?.Value == CellValues.Date => DateTime.TryParse(content, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime date) ? (data(date, content), true) : ([content], false),
-                    _ => Common.ParseDecimals(content) is double decimals ? (data(decimals, content), true) : (data(content, content), false)
+                    _ when value.Cell?.DataType?.Value == CellValues.Date => DateTime.TryParse(content, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime date) ? (formatter(date, content), true) : ([content], false),
+                    _ => Common.ParseDecimals(content) is double number ? (formatter(number, content), true) : (formatter(content, content), false)
                 };
 
                 if (isAligned && configuration.ConvertStyles)
                 {
-                    value.Styles.Insert(0, common(CommonStyleType.AlignmentRight));
+                    value.Styles.Insert(0, stylizer(CommonStyleType.AlignmentRight));
                 }
             }
             else if ((value.Cell?.DataType?.Value == CellValues.Error || value.Cell?.DataType?.Value == CellValues.Boolean) && configuration.ConvertStyles)
             {
-                value.Styles.Insert(0, common(CommonStyleType.AlignmentCenter));
+                value.Styles.Insert(0, stylizer(CommonStyleType.AlignmentCenter));
             }
 
             value.Children = children;
@@ -2111,15 +2059,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 yield break;
             }
 
-            Specification.Xlsx.XlsxRange range = new(value.Table.Reference.Value, context.Sheet.Dimension);
-            uint start = value.Table.HeaderRowCount?.Value ?? 1;
-            uint end = value.Table.TotalsRowCount?.Value ?? 0;
-            uint middle = range.RowCount - start - end;
-
-            Specification.Xlsx.XlsxDifferentialStyles? styles(uint? content, uint? border)
+            Specification.Xlsx.XlsxDifferentialStyles? stylizer(uint? content, uint? border)
             {
                 Specification.Xlsx.XlsxDifferentialStyles? styles = null;
-
                 if (Common.Get(context.Stylesheet.DifferentialStyles, content) is Specification.Xlsx.XlsxDifferentialStyles body)
                 {
                     if (body.IsHidden != null && configuration.ConvertVisibilities)
@@ -2151,21 +2093,25 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
             //TODO: support for table styles
 
-            if (start > 0 && styles(value.Table.HeaderRowFormatId?.Value, value.Table.HeaderRowBorderFormatId?.Value) is Specification.Xlsx.XlsxDifferentialStyles header)
+            Specification.Xlsx.XlsxRange range = new(value.Table.Reference.Value, context.Sheet.Dimension);
+            uint start = value.Table.HeaderRowCount?.Value ?? 1;
+            uint end = value.Table.TotalsRowCount?.Value ?? 0;
+            uint middle = range.RowCount - start - end;
+            if (start > 0 && stylizer(value.Table.HeaderRowFormatId?.Value, value.Table.HeaderRowBorderFormatId?.Value) is Specification.Xlsx.XlsxDifferentialStyles header)
             {
                 yield return new(header)
                 {
                     Range = new(range.ColumnStart, range.RowStart, range.ColumnEnd, range.RowStart + start - 1)
                 };
             }
-            if (middle > 0 && styles(value.Table.DataFormatId?.Value, value.Table.BorderFormatId?.Value) is Specification.Xlsx.XlsxDifferentialStyles data)
+            if (middle > 0 && stylizer(value.Table.DataFormatId?.Value, value.Table.BorderFormatId?.Value) is Specification.Xlsx.XlsxDifferentialStyles data)
             {
                 yield return new(data)
                 {
                     Range = new(range.ColumnStart, range.RowStart + start, range.ColumnEnd, range.RowEnd - end)
                 };
             }
-            if (end > 0 && styles(value.Table.TotalsRowFormatId?.Value, value.Table.TotalsRowBorderFormatId?.Value) is Specification.Xlsx.XlsxDifferentialStyles totals)
+            if (end > 0 && stylizer(value.Table.TotalsRowFormatId?.Value, value.Table.TotalsRowBorderFormatId?.Value) is Specification.Xlsx.XlsxDifferentialStyles totals)
             {
                 yield return new(totals)
                 {
@@ -2222,15 +2168,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 yield break;
             }
 
-            IEnumerable<KeyValuePair<string, string>> stylizer(Specification.Html.HtmlStyleDefinition definition)
-            {
-                return configuration.ConverterComposition.HtmlStylizer.Convert(definition, context, configuration);
-            }
-            string color(OpenXmlElement? color)
-            {
-                return configuration.ConverterComposition.XlsxColorConverter.Convert(color, context, configuration);
-            }
-            Specification.Html.HtmlElement styles(Specification.Html.HtmlElement element, Specification.Html.HtmlStyles styles, DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeStyle? shape, DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeProperties? properties, bool? isHidden)
+            Specification.Html.HtmlElement stylizer(Specification.Html.HtmlElement element, Specification.Html.HtmlStyles styles, DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeStyle? shape, DocumentFormat.OpenXml.Drawing.Spreadsheet.ShapeProperties? properties, bool? isHidden)
             {
                 element.Attributes[Common.ATTRIBUTE_STYLE] = styles;
 
@@ -2238,15 +2176,15 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 {
                     if (shape.FontReference != null)
                     {
-                        styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.ForegroundExact, color(shape.FontReference))));
+                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.ForegroundExact, configuration.ConverterComposition.XlsxColorConverter.Convert(shape.FontReference, context, configuration)), context, configuration));
                     }
                     if (shape.FillReference != null)
                     {
-                        styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BackgroundExact, color(shape.FillReference))));
+                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BackgroundExact, configuration.ConverterComposition.XlsxColorConverter.Convert(shape.FillReference, context, configuration)), context, configuration));
                     }
                     if (shape.LineReference != null)
                     {
-                        styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BorderAllRegular, color(shape.LineReference))));
+                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BorderAllRegular, configuration.ConverterComposition.XlsxColorConverter.Convert(shape.LineReference, context, configuration)), context, configuration));
                     }
                 }
 
@@ -2269,7 +2207,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         _ => null
                     } is string filter)
                     {
-                        styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.FilterExact, filter)));
+                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.FilterExact, filter), context, configuration));
                     }
                 }
 
@@ -2281,47 +2219,45 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             if (transform.Offset?.X?.Value != null)
                             {
                                 double offset = transform.Offset.X.Value * Common.RATIO_ENGLISH_METRIC_UNIT;
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TranslationLeftExact, $"{Common.Format(offset, configuration)}px")), true);
-
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TranslationLeftExact, $"{Common.Format(offset, configuration)}px"), context, configuration), true);
                                 if (transform.Extents?.Cx?.Value != null)
                                 {
-                                    styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TranslationRightExact, $"calc(100% - {Common.Format(offset + transform.Extents.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)")), true);
+                                    styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TranslationRightExact, $"calc(100% - {Common.Format(offset + transform.Extents.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)"), context, configuration), true);
                                 }
                             }
                             if (transform.Offset?.Y?.Value != null)
                             {
                                 double offset = transform.Offset.Y.Value * Common.RATIO_ENGLISH_METRIC_UNIT;
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TranslationTopExact, $"{Common.Format(offset, configuration)}px")), true);
-
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TranslationTopExact, $"{Common.Format(offset, configuration)}px"), context, configuration), true);
                                 if (transform.Extents?.Cy?.Value != null)
                                 {
-                                    styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TranslationBottomExact, $"calc(100% - {Common.Format(offset + transform.Extents.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)")), true);
+                                    styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TranslationBottomExact, $"calc(100% - {Common.Format(offset + transform.Extents.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)"), context, configuration), true);
                                 }
                             }
                             if (transform.Rotation?.Value != null)
                             {
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.RotationNumeric, Common.Format(transform.Rotation.Value * Common.RATIO_ANGLE, configuration))));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.RotationNumeric, Common.Format(transform.Rotation.Value * Common.RATIO_ANGLE, configuration)), context, configuration));
                             }
                             if ((transform.HorizontalFlip?.Value ?? false) || (transform.VerticalFlip?.Value ?? false))
                             {
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.ScalingExact, $"{((transform.HorizontalFlip?.Value ?? false) ? "-1" : "1")} {((transform.VerticalFlip?.Value ?? false) ? "-1" : "1")}")));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.ScalingExact, $"{((transform.HorizontalFlip?.Value ?? false) ? "-1" : "1")} {((transform.VerticalFlip?.Value ?? false) ? "-1" : "1")}"), context, configuration));
                             }
 
                             break;
                         case DocumentFormat.OpenXml.Drawing.NoFill:
-                            styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BackgroundNone)));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BackgroundNone), context, configuration));
                             break;
                         case DocumentFormat.OpenXml.Drawing.SolidFill background:
-                            styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BackgroundExact, color(background))));
+                            styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BackgroundExact, configuration.ConverterComposition.XlsxColorConverter.Convert(background, context, configuration)), context, configuration));
                             break;
                         case DocumentFormat.OpenXml.Drawing.Outline outline:
                             if (outline.Width?.Value != null)
                             {
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BorderThicknessAllNumeric, Common.Format(outline.Width.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration))));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BorderThicknessAllNumeric, Common.Format(outline.Width.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)), context, configuration));
                             }
                             if (outline.CompoundLineType?.Value != null && outline.CompoundLineType.Value != DocumentFormat.OpenXml.Drawing.CompoundLineValues.Single)
                             {
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BorderStyleAllDouble)));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BorderStyleAllDouble), context, configuration));
                             }
 
                             foreach (OpenXmlElement component in outline)
@@ -2329,22 +2265,22 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 switch (component)
                                 {
                                     case DocumentFormat.OpenXml.Drawing.PresetDash preset:
-                                        styles.Apply(stylizer(new(null, preset.Val?.Value switch
+                                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, preset.Val?.Value switch
                                         {
                                             _ when preset.Val?.Value == DocumentFormat.OpenXml.Drawing.PresetLineDashValues.Solid => Specification.Html.HtmlStyleType.BorderStyleAllSolid,
                                             _ when preset.Val?.Value == DocumentFormat.OpenXml.Drawing.PresetLineDashValues.Dot => Specification.Html.HtmlStyleType.BorderStyleAllDotted,
                                             _ when preset.Val?.Value == DocumentFormat.OpenXml.Drawing.PresetLineDashValues.SystemDashDotDot => Specification.Html.HtmlStyleType.BorderStyleAllDotted,
                                             _ => Specification.Html.HtmlStyleType.BorderStyleAllDashed,
-                                        })));
+                                        }), context, configuration));
                                         break;
                                     case DocumentFormat.OpenXml.Drawing.CustomDash:
-                                        styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BorderStyleAllDashed)));
+                                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BorderStyleAllDashed), context, configuration));
                                         break;
                                     case DocumentFormat.OpenXml.Drawing.NoFill:
-                                        styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BackgroundNone)));
+                                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BackgroundNone), context, configuration));
                                         break;
                                     case DocumentFormat.OpenXml.Drawing.SolidFill border:
-                                        styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BorderColorAllExact, color(border))));
+                                        styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BorderColorAllExact, configuration.ConverterComposition.XlsxColorConverter.Convert(border, context, configuration)), context, configuration));
                                         break;
                                 }
                             }
@@ -2356,24 +2292,24 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         case DocumentFormat.OpenXml.Drawing.CustomGeometry custom:
                             if (custom.Rectangle?.Top?.Value != null)
                             {
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.MarginTopExact, $"{Common.Format((Common.ParseLarge(custom.Rectangle.Top.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px")));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.MarginTopExact, $"{Common.Format((Common.ParseLarge(custom.Rectangle.Top.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px"), context, configuration));
                             }
                             if (custom.Rectangle?.Right?.Value != null)
                             {
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.MarginRightExact, $"{Common.Format((Common.ParseLarge(custom.Rectangle.Right.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px")));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.MarginRightExact, $"{Common.Format((Common.ParseLarge(custom.Rectangle.Right.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px"), context, configuration));
                             }
                             if (custom.Rectangle?.Bottom?.Value != null)
                             {
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.MarginBottomExact, $"{Common.Format((Common.ParseLarge(custom.Rectangle.Bottom.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px")));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.MarginBottomExact, $"{Common.Format((Common.ParseLarge(custom.Rectangle.Bottom.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px"), context, configuration));
                             }
                             if (custom.Rectangle?.Left?.Value != null)
                             {
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.MarginLeftExact, $"{Common.Format((Common.ParseLarge(custom.Rectangle.Left.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px")));
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.MarginLeftExact, $"{Common.Format((Common.ParseLarge(custom.Rectangle.Left.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)}px"), context, configuration));
                             }
                             if (custom.PathList != null)
                             {
                                 (double X, double Y) last = (0, 0);
-                                styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.ClippingAllPath, string.Join(' ', custom.PathList.Elements<DocumentFormat.OpenXml.Drawing.Path>().SelectMany(x => x.Elements()).Select(x =>
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.ClippingAllPath, string.Join(' ', custom.PathList.Elements<DocumentFormat.OpenXml.Drawing.Path>().SelectMany(x => x.Elements()).Select(x =>
                                 {
                                     switch (x)
                                     {
@@ -2384,7 +2320,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                             double height = (Common.ParseLarge(arc.HeightRadius?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
                                             double start = (Common.ParseInteger(arc.StartAngle?.Value) * Common.RATIO_ANGLE * Math.PI / 180.0) ?? 0;
                                             double end = start + ((Common.ParseInteger(arc.SwingAngle?.Value) * Common.RATIO_ANGLE * Math.PI / 180.0) ?? 0);
-
                                             last = (last.X - width * Math.Cos(start) + width * Math.Cos(end), last.Y - height * Math.Sin(start) + height * Math.Sin(end));
 
                                             return $"A {Common.Format(width, configuration)} {Common.Format(height, configuration)} 0 1 1 {Common.Format(last.X, configuration)},{Common.Format(last.Y, configuration)}";
@@ -2401,7 +2336,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                                 return $"{Common.Format(last.X, configuration)},{Common.Format(last.Y, configuration)}";
                                             }))}";
                                     }
-                                })))));
+                                }))), context, configuration));
                             }
 
                             break;
@@ -2418,12 +2353,10 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
             foreach (OpenXmlElement child in value.WorksheetDrawing.Elements())
             {
-                Specification.Html.HtmlStyles positions = new(stylizer(new(null, Specification.Html.HtmlStyleType.PositioningAbsolute)));
                 (uint Index, string? Content) left = (0, null);
                 (uint Index, string? Content) top = (0, null);
                 (uint Index, string? Content) right = (0, null);
                 (uint Index, string? Content) bottom = (0, null);
-
                 switch (child)
                 {
                     case DocumentFormat.OpenXml.Drawing.Spreadsheet.AbsoluteAnchor absolute:
@@ -2431,7 +2364,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         {
                             double offset = absolute.Position.X.Value * Common.RATIO_ENGLISH_METRIC_UNIT;
                             left = (0, $"{Common.Format(offset, configuration)}px");
-
                             if (absolute.Extent?.Cx?.Value != null)
                             {
                                 right = (0, $"calc(100% - {Common.Format(offset + absolute.Extent.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)");
@@ -2441,7 +2373,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         {
                             double offset = absolute.Position.Y.Value * Common.RATIO_ENGLISH_METRIC_UNIT;
                             top = (0, $"{Common.Format(offset, configuration)}px");
-
                             if (absolute.Extent?.Cy?.Value != null)
                             {
                                 bottom = (0, $"calc(100% - {Common.Format(offset + absolute.Extent.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)");
@@ -2454,7 +2385,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         {
                             double offset = (Common.ParseLarge(single.FromMarker?.ColumnOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
                             left = (column + 1, $"calc(var(--left) + {Common.Format(offset, configuration)}px)");
-
                             if (single.Extent?.Cx?.Value != null)
                             {
                                 right = (0, $"calc(var(--left) - {Common.Format(offset + single.Extent.Cx.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)");
@@ -2464,7 +2394,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         {
                             double offset = (Common.ParseLarge(single.FromMarker?.RowOffset?.Text) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0;
                             top = (row + 1, $"calc(var(--top) + {Common.Format(offset, configuration)}px)");
-
                             if (single.Extent?.Cy?.Value != null)
                             {
                                 bottom = (0, $"calc(var(--top) - {Common.Format(offset + single.Extent.Cy.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px)");
@@ -2498,33 +2427,34 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     continue;
                 }
 
+                Specification.Html.HtmlStyles positions = [.. configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.PositioningAbsolute), context, configuration)];
                 if (top.Content != null)
                 {
-                    positions.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TranslationTopExact, top.Content)));
+                    positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TranslationTopExact, top.Content), context, configuration));
                 }
                 if (right.Content != null)
                 {
-                    positions.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TranslationRightExact, right.Content)));
+                    positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TranslationRightExact, right.Content), context, configuration));
                 }
                 if (bottom.Content != null)
                 {
-                    positions.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TranslationBottomExact, bottom.Content)));
+                    positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TranslationBottomExact, bottom.Content), context, configuration));
                 }
                 if (left.Content != null)
                 {
-                    positions.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TranslationLeftExact, left.Content)));
+                    positions.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TranslationLeftExact, left.Content), context, configuration));
                 }
 
                 foreach (OpenXmlElement component in child.Elements())
                 {
-                    Specification.Html.HtmlElement? root = null;
-                    Specification.Html.HtmlStyles baseline = new(stylizer(new(null, Specification.Html.HtmlStyleType.BoundingInclusive)));
+                    Specification.Html.HtmlStyles baseline = [.. configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BoundingInclusive), context, configuration)];
                     baseline.Apply(positions);
 
+                    Specification.Html.HtmlElement? root = null;
                     switch (component)
                     {
                         case DocumentFormat.OpenXml.Drawing.Spreadsheet.Picture picture when configuration.ConvertPictures:
-                            Specification.Html.HtmlStyles dimension = new([.. stylizer(new(Specification.Html.HtmlStyleTarget.Image, Specification.Html.HtmlStyleType.WidthFull)), .. stylizer(new(Specification.Html.HtmlStyleTarget.Image, Specification.Html.HtmlStyleType.HeightFull))]);
+                            Specification.Html.HtmlStyles dimension = [.. configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Image, Specification.Html.HtmlStyleType.WidthFull), context, configuration), .. configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Image, Specification.Html.HtmlStyleType.HeightFull), context, configuration)];
                             Specification.Html.HtmlElement image = new(Specification.Html.HtmlElementType.Unpaired, "img", new()
                             {
                                 ["loading"] = "lazy",
@@ -2532,8 +2462,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 [Common.ATTRIBUTE_STYLE] = dimension
                             });
                             root = new(Specification.Html.HtmlElementType.Paired, Common.TAG_CONTAINER, null, [image]);
-
-                            //TODO: support for linked pictures
 
                             if (picture.BlipFill?.Blip?.Embed?.Value != null && value.TryGetPartById(picture.BlipFill.Blip.Embed.Value, out OpenXmlPart? part) && part is ImagePart source)
                             {
@@ -2545,7 +2473,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             }
                             if (picture.BlipFill?.SourceRectangle != null)
                             {
-                                dimension.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Image, Specification.Html.HtmlStyleType.CroppingExact, $"inset({Common.Format((100.0 * picture.BlipFill?.SourceRectangle?.Top?.Value * Common.RATIO_PERCENTAGE) ?? 0, configuration)}% {Common.Format((100.0 * picture.BlipFill?.SourceRectangle?.Right?.Value * Common.RATIO_PERCENTAGE) ?? 0, configuration)}% {Common.Format((100.0 * picture.BlipFill?.SourceRectangle?.Bottom?.Value * Common.RATIO_PERCENTAGE) ?? 0, configuration)}% {Common.Format((100.0 * picture.BlipFill?.SourceRectangle?.Left?.Value * Common.RATIO_PERCENTAGE) ?? 0, configuration)}%)")));
+                                dimension.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Image, Specification.Html.HtmlStyleType.CroppingExact, $"inset({Common.Format((100.0 * picture.BlipFill?.SourceRectangle?.Top?.Value * Common.RATIO_PERCENTAGE) ?? 0, configuration)}% {Common.Format((100.0 * picture.BlipFill?.SourceRectangle?.Right?.Value * Common.RATIO_PERCENTAGE) ?? 0, configuration)}% {Common.Format((100.0 * picture.BlipFill?.SourceRectangle?.Bottom?.Value * Common.RATIO_PERCENTAGE) ?? 0, configuration)}% {Common.Format((100.0 * picture.BlipFill?.SourceRectangle?.Left?.Value * Common.RATIO_PERCENTAGE) ?? 0, configuration)}%)"), context, configuration));
                             }
                             if (picture.NonVisualPictureProperties?.NonVisualDrawingProperties?.Title?.Value != null)
                             {
@@ -2556,13 +2484,15 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 image.Attributes["alt"] = WebUtility.HtmlEncode(picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description.Value);
                             }
 
-                            root = styles(root, baseline, picture.ShapeStyle, picture.ShapeProperties, picture.NonVisualPictureProperties?.NonVisualDrawingProperties?.Hidden?.Value);
+                            //TODO: support for linked pictures
+
+                            root = stylizer(root, baseline, picture.ShapeStyle, picture.ShapeProperties, picture.NonVisualPictureProperties?.NonVisualDrawingProperties?.Hidden?.Value);
 
                             break;
                         case DocumentFormat.OpenXml.Drawing.Spreadsheet.Shape shape when configuration.ConvertShapes:
-                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingAllExact, $"{Common.Format(9.6, configuration)}px")));
-                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextWrappingWrap)));
-                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.ClippingAllHidden)));
+                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingAllExact, $"{Common.Format(9.6, configuration)}px"), context, configuration));
+                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextWrappingWrap), context, configuration));
+                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.ClippingAllHidden), context, configuration));
                             Specification.Html.HtmlElement inner = new(Specification.Html.HtmlElementType.Paired, Common.TAG_CONTAINER);
                             root = inner;
 
@@ -2572,8 +2502,8 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 {
                                     case DocumentFormat.OpenXml.Drawing.Paragraph paragraph:
                                         Specification.Html.HtmlStyles individual = [];
-                                        individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginAllExact, "0")));
-                                        Specification.Html.HtmlElement block = new(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT_GROUP, new()
+                                        individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginAllExact, "0"), context, configuration));
+                                        Specification.Html.HtmlElement group = new(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT_GROUP, new()
                                         {
                                             [Common.ATTRIBUTE_STYLE] = individual
                                         });
@@ -2584,54 +2514,53 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                             switch (segment)
                                             {
                                                 case DocumentFormat.OpenXml.Drawing.Break:
-                                                    block.Children.Add(new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Unpaired, "br"));
+                                                    group.Children.Add(new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Unpaired, "br"));
                                                     break;
                                                 case DocumentFormat.OpenXml.Drawing.Text text:
-                                                    block.Children.Add(text.Text);
+                                                    group.Children.Add(text.Text);
                                                     break;
                                                 case DocumentFormat.OpenXml.Drawing.Run run when run.Text?.Text != null:
                                                     if (configuration.ConvertStyles)
                                                     {
                                                         Specification.Html.HtmlElement element = new(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, null, [run.Text.Text]);
                                                         Specification.Xlsx.XlsxStyles.ApplyStyles(element, [configuration.ConverterComposition.XlsxFontConverter.Convert(run.RunProperties ?? defaults, context, configuration)]);
-
-                                                        block.Children.Add(element);
+                                                        group.Children.Add(element);
                                                     }
                                                     else
                                                     {
-                                                        block.Children.Add(run.Text.Text);
+                                                        group.Children.Add(run.Text.Text);
                                                     }
                                                     break;
                                                 case DocumentFormat.OpenXml.Drawing.ParagraphProperties properties:
                                                     if (properties.Alignment?.Value != null)
                                                     {
-                                                        individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, properties.Alignment.Value switch
+                                                        individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, properties.Alignment.Value switch
                                                         {
                                                             _ when properties.Alignment.Value == DocumentFormat.OpenXml.Drawing.TextAlignmentTypeValues.Left => Specification.Html.HtmlStyleType.AlignmentHorizontalLeft,
                                                             _ when properties.Alignment.Value == DocumentFormat.OpenXml.Drawing.TextAlignmentTypeValues.Center => Specification.Html.HtmlStyleType.AlignmentHorizontalCenter,
                                                             _ when properties.Alignment.Value == DocumentFormat.OpenXml.Drawing.TextAlignmentTypeValues.Right => Specification.Html.HtmlStyleType.AlignmentHorizontalRight,
                                                             _ => Specification.Html.HtmlStyleType.AlignmentHorizontalJustify,
-                                                        })));
+                                                        }), context, configuration));
                                                     }
                                                     if (properties.LeftMargin?.Value != null)
                                                     {
-                                                        individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginLeftExact, $"{Common.Format(properties.LeftMargin.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px")));
+                                                        individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginLeftExact, $"{Common.Format(properties.LeftMargin.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px"), context, configuration));
                                                     }
                                                     if (properties.RightMargin?.Value != null)
                                                     {
-                                                        individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginRightExact, $"{Common.Format(properties.RightMargin.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px")));
+                                                        individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginRightExact, $"{Common.Format(properties.RightMargin.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)}px"), context, configuration));
                                                     }
                                                     if (properties.Indent?.Value != null)
                                                     {
-                                                        individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextIndentNumeric, Common.Format(properties.Indent.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration))));
+                                                        individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextIndentNumeric, Common.Format(properties.Indent.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)), context, configuration));
                                                     }
                                                     if (properties.DefaultTabSize?.Value != null)
                                                     {
-                                                        individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextTabNumeric, Common.Format(properties.DefaultTabSize.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration))));
+                                                        individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextTabNumeric, Common.Format(properties.DefaultTabSize.Value * Common.RATIO_ENGLISH_METRIC_UNIT, configuration)), context, configuration));
                                                     }
                                                     if (properties.RightToLeft?.Value != null)
                                                     {
-                                                        individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.DirectionExact, properties.RightToLeft.Value ? "rtl" : "ltr")));
+                                                        individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.DirectionExact, properties.RightToLeft.Value ? "rtl" : "ltr"), context, configuration));
                                                     }
 
                                                     //TODO: support for text bullets
@@ -2641,22 +2570,22 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                                         switch (option)
                                                         {
                                                             case DocumentFormat.OpenXml.Drawing.LineSpacing line when line.SpacingPoints?.Val?.Value != null:
-                                                                individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextLineHeightNumeric, Common.Format(line.SpacingPoints.Val.Value * Common.RATIO_POINT_SPACING, configuration))));
+                                                                individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextLineHeightNumeric, Common.Format(line.SpacingPoints.Val.Value * Common.RATIO_POINT_SPACING, configuration)), context, configuration));
                                                                 break;
                                                             case DocumentFormat.OpenXml.Drawing.LineSpacing line when line.SpacingPercent?.Val?.Value != null:
-                                                                individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextLineHeightProportional, Common.Format(line.SpacingPercent.Val.Value * Common.RATIO_PERCENTAGE, configuration))));
+                                                                individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextLineHeightProportional, Common.Format(line.SpacingPercent.Val.Value * Common.RATIO_PERCENTAGE, configuration)), context, configuration));
                                                                 break;
                                                             case DocumentFormat.OpenXml.Drawing.SpaceBefore before when before.SpacingPercent?.Val?.Value != null:
-                                                                individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginTopExact, $"{Common.Format(before.SpacingPercent.Val.Value * Common.RATIO_PERCENTAGE, configuration)}em")));
+                                                                individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginTopExact, $"{Common.Format(before.SpacingPercent.Val.Value * Common.RATIO_PERCENTAGE, configuration)}em"), context, configuration));
                                                                 break;
                                                             case DocumentFormat.OpenXml.Drawing.SpaceBefore before when before.SpacingPoints?.Val?.Value != null:
-                                                                individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginTopExact, $"{Common.Format(before.SpacingPoints.Val.Value * Common.RATIO_POINT_SPACING, configuration)}px")));
+                                                                individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginTopExact, $"{Common.Format(before.SpacingPoints.Val.Value * Common.RATIO_POINT_SPACING, configuration)}px"), context, configuration));
                                                                 break;
                                                             case DocumentFormat.OpenXml.Drawing.SpaceAfter after when after.SpacingPercent?.Val?.Value != null:
-                                                                individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginBottomExact, $"{Common.Format(after.SpacingPercent.Val.Value * Common.RATIO_PERCENTAGE, configuration)}em")));
+                                                                individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginBottomExact, $"{Common.Format(after.SpacingPercent.Val.Value * Common.RATIO_PERCENTAGE, configuration)}em"), context, configuration));
                                                                 break;
                                                             case DocumentFormat.OpenXml.Drawing.SpaceAfter after when after.SpacingPoints?.Val?.Value != null:
-                                                                individual.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginBottomExact, $"{Common.Format(after.SpacingPoints.Val.Value * Common.RATIO_POINT_SPACING, configuration)}px")));
+                                                                individual.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.MarginBottomExact, $"{Common.Format(after.SpacingPoints.Val.Value * Common.RATIO_POINT_SPACING, configuration)}px"), context, configuration));
                                                                 break;
                                                         }
                                                     }
@@ -2665,73 +2594,72 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                             }
                                         }
 
-                                        inner.Children.Add(block);
+                                        inner.Children.Add(group);
 
                                         break;
                                     case DocumentFormat.OpenXml.Drawing.BodyProperties properties:
                                         if (properties.Anchor?.Value != null)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, properties.Anchor.Value switch
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, properties.Anchor.Value switch
                                             {
                                                 _ when properties.Anchor.Value == DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Center => Specification.Html.HtmlStyleType.AlignmentVerticalCenter,
                                                 _ when properties.Anchor.Value == DocumentFormat.OpenXml.Drawing.TextAnchoringTypeValues.Bottom => Specification.Html.HtmlStyleType.AlignmentVerticalBottom,
                                                 _ => Specification.Html.HtmlStyleType.AlignmentVerticalTop,
-                                            })));
+                                            }), context, configuration));
                                         }
                                         if (properties.Wrap?.Value != null && properties.Wrap.Value == DocumentFormat.OpenXml.Drawing.TextWrappingValues.None)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextWrappingNone)));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextWrappingNone), context, configuration));
                                         }
                                         if (properties.ColumnCount?.Value != null)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextColumnCountNumeric, Common.Format(properties.ColumnCount.Value, configuration))));
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextColumnGapNumeric, Common.Format((properties.ColumnSpacing?.Value * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration))));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextColumnCountNumeric, Common.Format(properties.ColumnCount.Value, configuration)), context, configuration));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.TextColumnGapNumeric, Common.Format((properties.ColumnSpacing?.Value * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, configuration)), context, configuration));
                                         }
                                         if (properties.RightToLeftColumns?.Value != null)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.DirectionExact, properties.RightToLeftColumns.Value ? "rtl" : "ltr")));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.DirectionExact, properties.RightToLeftColumns.Value ? "rtl" : "ltr"), context, configuration));
                                         }
                                         if (properties.HorizontalOverflow?.Value != null && properties.HorizontalOverflow.Value == DocumentFormat.OpenXml.Drawing.TextHorizontalOverflowValues.Overflow)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.ClippingHorizontalVisible)));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.ClippingHorizontalVisible), context, configuration));
                                         }
                                         if (properties.VerticalOverflow?.Value != null && properties.VerticalOverflow.Value == DocumentFormat.OpenXml.Drawing.TextVerticalOverflowValues.Overflow)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.ClippingVerticalVisible)));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.ClippingVerticalVisible), context, configuration));
                                         }
                                         if (properties.TopInset?.Value != null)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingTopExact, $"{properties.TopInset.Value * Common.RATIO_ENGLISH_METRIC_UNIT}px")));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingTopExact, $"{properties.TopInset.Value * Common.RATIO_ENGLISH_METRIC_UNIT}px"), context, configuration));
                                         }
                                         if (properties.RightInset?.Value != null)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingRightExact, $"{properties.RightInset.Value * Common.RATIO_ENGLISH_METRIC_UNIT}px")));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingRightExact, $"{properties.RightInset.Value * Common.RATIO_ENGLISH_METRIC_UNIT}px"), context, configuration));
                                         }
                                         if (properties.BottomInset?.Value != null)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingBottomExact, $"{properties.BottomInset.Value * Common.RATIO_ENGLISH_METRIC_UNIT}px")));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingBottomExact, $"{properties.BottomInset.Value * Common.RATIO_ENGLISH_METRIC_UNIT}px"), context, configuration));
                                         }
                                         if (properties.LeftInset?.Value != null)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingLeftExact, $"{properties.LeftInset.Value * Common.RATIO_ENGLISH_METRIC_UNIT}px")));
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.PaddingLeftExact, $"{properties.LeftInset.Value * Common.RATIO_ENGLISH_METRIC_UNIT}px"), context, configuration));
                                         }
                                         if (properties.Rotation?.Value != null && properties.Rotation.Value != 0)
                                         {
                                             inner = new(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, new()
                                             {
-                                                [Common.ATTRIBUTE_STYLE] = new Specification.Html.HtmlStyles(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.RotationNumeric, Common.Format(properties.Rotation.Value * Common.RATIO_ANGLE, configuration))))
+                                                [Common.ATTRIBUTE_STYLE] = new Specification.Html.HtmlStyles(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.RotationNumeric, Common.Format(properties.Rotation.Value * Common.RATIO_ANGLE, configuration)), context, configuration))
                                             }, root.Children);
                                             root.Children = [inner];
                                         }
                                         if (properties.Vertical?.Value != null && properties.Vertical.Value != DocumentFormat.OpenXml.Drawing.TextVerticalValues.Horizontal)
                                         {
-                                            baseline.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, properties.Vertical.Value == DocumentFormat.OpenXml.Drawing.TextVerticalValues.WordArtLeftToRight || properties.Vertical.Value == DocumentFormat.OpenXml.Drawing.TextVerticalValues.MongolianVertical ? Specification.Html.HtmlStyleType.TextOrientationVerticalReverse : Specification.Html.HtmlStyleType.TextOrientationVertical)));
-
+                                            baseline.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, properties.Vertical.Value == DocumentFormat.OpenXml.Drawing.TextVerticalValues.WordArtLeftToRight || properties.Vertical.Value == DocumentFormat.OpenXml.Drawing.TextVerticalValues.MongolianVertical ? Specification.Html.HtmlStyleType.TextOrientationVerticalReverse : Specification.Html.HtmlStyleType.TextOrientationVertical), context, configuration));
                                             if (properties.Vertical.Value == DocumentFormat.OpenXml.Drawing.TextVerticalValues.Vertical270)
                                             {
                                                 inner = new(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, new()
                                                 {
-                                                    [Common.ATTRIBUTE_STYLE] = new Specification.Html.HtmlStyles(stylizer(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.RotationNumeric, "180")))
+                                                    [Common.ATTRIBUTE_STYLE] = new Specification.Html.HtmlStyles(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Shape, Specification.Html.HtmlStyleType.RotationNumeric, "180"), context, configuration))
                                                 }, root.Children);
                                                 root.Children = [inner];
                                             }
@@ -2741,7 +2669,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 }
                             }
 
-                            root = styles(root, baseline, shape.ShapeStyle, shape.ShapeProperties, shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Hidden?.Value);
+                            root = stylizer(root, baseline, shape.ShapeStyle, shape.ShapeProperties, shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Hidden?.Value);
 
                             break;
                     }
@@ -3083,7 +3011,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             double blue = 0;
             double alpha = 255;
 
-            void hex(string hex)
+            void parser(string hex)
             {
                 hex = hex.TrimStart('#').PadLeft(8, 'F');
                 alpha = Common.ParseHex(hex[..2]) ?? 255;
@@ -3107,7 +3035,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 }) % 360 + 360) % 360 : 0), saturation(maximum != minimum ? chroma / (1 - Math.Abs(maximum + minimum - 1)) : 0), luminance((maximum + minimum) / 2)];
                 double upper = hsl[2] <= 0.5 ? hsl[2] * (hsl[1] + 1) : hsl[2] + hsl[1] - hsl[2] * hsl[1];
                 double lower = 2 * hsl[2] - upper;
-
                 for (int i = 0; i < 3; i++)
                 {
                     if (hsl[1] <= 0)
@@ -3130,12 +3057,12 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 green = Math.Clamp(255.0 * rgb[1], 0, 255);
                 blue = Math.Clamp(255.0 * rgb[2], 0, 255);
             }
-            bool element(OpenXmlElement color, IEnumerable<OpenXmlElement> children)
+            bool aggregator(OpenXmlElement color, IEnumerable<OpenXmlElement> children)
             {
                 switch (color)
                 {
                     case DocumentFormat.OpenXml.Drawing.RgbColorModelHex rgb when rgb.Val?.Value != null:
-                        hex(rgb.Val.Value);
+                        parser(rgb.Val.Value);
                         break;
                     case DocumentFormat.OpenXml.Drawing.RgbColorModelPercentage rgb:
                         red = Math.Clamp((255.0 * rgb.RedPortion?.Value * Common.RATIO_PERCENTAGE) ?? 0, 0, 255);
@@ -3151,7 +3078,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         blue = system.Blue;
                         break;
                     case DocumentFormat.OpenXml.Drawing.SystemColor fallback when fallback.LastColor?.Value != null:
-                        hex(fallback.LastColor.Value);
+                        parser(fallback.LastColor.Value);
                         break;
                     case DocumentFormat.OpenXml.Drawing.PresetColor key when key.Val?.Value != null && Common.Get(PRESETS, key.Val.Value) is (byte Red, byte Green, byte Blue) preset:
                         red = preset.Red;
@@ -3174,7 +3101,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             _ when scheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.Hyperlink => context.Theme?.ThemeElements?.ColorScheme?.Hyperlink,
                             _ when scheme.Val.Value == DocumentFormat.OpenXml.Drawing.SchemeColorValues.FollowedHyperlink => context.Theme?.ThemeElements?.ColorScheme?.FollowedHyperlinkColor,
                             _ => null
-                        }))?.FirstChild is OpenXmlElement child && element(child, scheme.Elements());
+                        }))?.FirstChild is OpenXmlElement child && aggregator(child, scheme.Elements());
                     default:
                         return false;
                 }
@@ -3299,7 +3226,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 }
                 else if (color.Rgb?.Value != null)
                 {
-                    hex(color.Rgb.Value);
+                    parser(color.Rgb.Value);
                 }
                 else if (Common.Get(INDICES, color.Indexed?.Value) is (byte Red, byte Green, byte Blue) indexed)
                 {
@@ -3322,7 +3249,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     10 => context.Theme?.ThemeElements?.ColorScheme?.Hyperlink,
                     11 => context.Theme?.ThemeElements?.ColorScheme?.FollowedHyperlinkColor,
                     _ => null
-                }))?.FirstChild is not OpenXmlElement child || !element(child, child.Elements()))
+                }))?.FirstChild is not OpenXmlElement child || !aggregator(child, child.Elements()))
                 {
                     return "currentColor";
                 }
@@ -3332,7 +3259,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     modifier(x => x, x => x, x => color.Tint.Value < 0 ? x * (1 + color.Tint.Value) : x * (1 - color.Tint.Value) + color.Tint.Value);
                 }
             }
-            else if (value.FirstChild is not OpenXmlElement child || !element(child, child.Elements()))
+            else if (value.FirstChild is not OpenXmlElement child || !aggregator(child, child.Elements()))
             {
                 return "currentColor";
             }
@@ -3363,9 +3290,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
             }
 
             Specification.Xlsx.XlsxString result = new();
-
             StringBuilder builder = new();
-
             foreach (OpenXmlElement child in value.Elements())
             {
                 switch (child)
@@ -3380,7 +3305,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         {
                             Specification.Html.HtmlElement element = new(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, null, [run.Text.Text]);
                             Specification.Xlsx.XlsxStyles.ApplyStyles(element, [configuration.ConverterComposition.XlsxFontConverter.Convert(run.RunProperties, context, configuration)]);
-
                             result.Children.Add(element);
                         }
                         else
@@ -3423,24 +3347,13 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 return new();
             }
 
-            Specification.Xlsx.XlsxStylesLayer result = new();
-
-            IEnumerable<KeyValuePair<string, string>> stylizer(Specification.Html.HtmlStyleDefinition definition)
-            {
-                return configuration.ConverterComposition.HtmlStylizer.Convert(definition, context, configuration);
-            }
-            string color(OpenXmlElement? color)
-            {
-                return configuration.ConverterComposition.XlsxColorConverter.Convert(color, context, configuration);
-            }
-            Specification.Html.HtmlAttributes common(CommonStyleType type)
+            Specification.Html.HtmlAttributes stylizer(CommonStyleType type)
             {
                 object key = (Common.CacheCategory.CommonStyles, type);
-
                 if (Common.Get(context.Cache, key) is not Specification.Html.HtmlAttributes cache)
                 {
                     Specification.Html.HtmlStyles styles = [];
-                    styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, type switch
+                    styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, type switch
                     {
                         CommonStyleType.StrikethroughDouble => "line-through double",
                         CommonStyleType.UnderlineDouble => "underline double",
@@ -3452,46 +3365,46 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         CommonStyleType.UnderlineWavy => "underline wavy",
                         CommonStyleType.UnderlineWavyHeavy => "underline wavy 4px",
                         _ => "none"
-                    })));
+                    }), context, configuration));
 
                     cache = new()
                     {
                         [Common.ATTRIBUTE_STYLE] = styles
                     };
-
                     context.Cache[key] = cache;
                 }
 
                 return cache;
             }
 
+            Specification.Xlsx.XlsxStylesLayer result = new();
             List<string> decorations = [];
 
             if (value is DocumentFormat.OpenXml.Drawing.TextCharacterPropertiesType properties)
             {
                 if (properties.FontSize?.Value != null)
                 {
-                    result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextSizeNumeric, Common.Format(properties.FontSize.Value * Common.RATIO_POINT_SPACING, configuration))));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextSizeNumeric, Common.Format(properties.FontSize.Value * Common.RATIO_POINT_SPACING, configuration)), context, configuration));
                 }
                 if (properties.Bold?.Value != null)
                 {
-                    result.Styles.Apply(stylizer(new(null, properties.Bold.Value ? Specification.Html.HtmlStyleType.TextWeightBold : Specification.Html.HtmlStyleType.TextWeightNormal)));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, properties.Bold.Value ? Specification.Html.HtmlStyleType.TextWeightBold : Specification.Html.HtmlStyleType.TextWeightNormal), context, configuration));
                 }
                 if (properties.Italic?.Value != null)
                 {
-                    result.Styles.Apply(stylizer(new(null, properties.Italic.Value ? Specification.Html.HtmlStyleType.TextStyleItalic : Specification.Html.HtmlStyleType.TextStyleNormal)));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, properties.Italic.Value ? Specification.Html.HtmlStyleType.TextStyleItalic : Specification.Html.HtmlStyleType.TextStyleNormal), context, configuration));
                 }
                 if (properties.Strike?.Value != null)
                 {
                     if (properties.Strike.Value == DocumentFormat.OpenXml.Drawing.TextStrikeValues.DoubleStrike)
                     {
-                        result.Formatters.Add(x => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, common(CommonStyleType.StrikethroughDouble), x)]);
+                        result.Formatters.Add(x => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, stylizer(CommonStyleType.StrikethroughDouble), x)]);
                     }
                     else if (properties.Strike.Value != DocumentFormat.OpenXml.Drawing.TextStrikeValues.NoStrike)
                     {
                         decorations.Add("line-through");
                     }
-                    result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, "none")));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, "none"), context, configuration));
                 }
                 if (properties.Underline?.Value != null)
                 {
@@ -3501,7 +3414,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     }
                     else if (properties.Underline.Value != DocumentFormat.OpenXml.Drawing.TextUnderlineValues.None)
                     {
-                        result.Formatters.Add(x => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, common(properties.Underline.Value switch
+                        result.Formatters.Add(x => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, stylizer(properties.Underline.Value switch
                         {
                             _ when properties.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Double => CommonStyleType.UnderlineDouble,
                             _ when properties.Underline.Value == DocumentFormat.OpenXml.Drawing.TextUnderlineValues.Dash => CommonStyleType.UnderlineDashed,
@@ -3520,20 +3433,20 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             _ => CommonStyleType.UnderlineHeavy
                         }), x)]);
                     }
-                    result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, "none")));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, "none"), context, configuration));
                 }
                 if (properties.Spacing?.Value != null)
                 {
-                    result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextLetterSpacingNumeric, Common.Format(properties.Spacing.Value * Common.RATIO_POINT_SPACING, configuration))));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextLetterSpacingNumeric, Common.Format(properties.Spacing.Value * Common.RATIO_POINT_SPACING, configuration)), context, configuration));
                 }
                 if (properties.Capital?.Value != null)
                 {
-                    result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextTransformExact, properties.Capital.Value switch
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextTransformExact, properties.Capital.Value switch
                     {
                         _ when properties.Capital.Value == DocumentFormat.OpenXml.Drawing.TextCapsValues.All => "uppercase",
                         _ when properties.Capital.Value == DocumentFormat.OpenXml.Drawing.TextCapsValues.Small => "lowercase",
                         _ => "none"
-                    })));
+                    }), context, configuration));
                 }
             }
 
@@ -3542,76 +3455,76 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 switch (child)
                 {
                     case Color foreground:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.ForegroundExact, color(foreground))));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.ForegroundExact, configuration.ConverterComposition.XlsxColorConverter.Convert(foreground, context, configuration)), context, configuration));
                         break;
                     case FontSize size when size.Val?.Value != null:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextSizeNumeric, Common.Format(size.Val.Value * Common.RATIO_POINT, configuration))));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextSizeNumeric, Common.Format(size.Val.Value * Common.RATIO_POINT, configuration)), context, configuration));
                         break;
                     case RunFont name when name.Val?.Value != null:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextFamilyTextual, WebUtility.HtmlEncode(name.Val.Value))));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextFamilyTextual, WebUtility.HtmlEncode(name.Val.Value)), context, configuration));
                         break;
                     case FontName name when name.Val?.Value != null:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextFamilyTextual, WebUtility.HtmlEncode(name.Val.Value))));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextFamilyTextual, WebUtility.HtmlEncode(name.Val.Value)), context, configuration));
                         break;
                     case Bold bold:
-                        result.Styles.Apply(stylizer(new(null, (bold.Val?.Value ?? true) ? Specification.Html.HtmlStyleType.TextWeightBold : Specification.Html.HtmlStyleType.TextWeightNormal)));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, (bold.Val?.Value ?? true) ? Specification.Html.HtmlStyleType.TextWeightBold : Specification.Html.HtmlStyleType.TextWeightNormal), context, configuration));
                         break;
                     case Italic italic:
-                        result.Styles.Apply(stylizer(new(null, (italic.Val?.Value ?? true) ? Specification.Html.HtmlStyleType.TextStyleItalic : Specification.Html.HtmlStyleType.TextStyleNormal)));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, (italic.Val?.Value ?? true) ? Specification.Html.HtmlStyleType.TextStyleItalic : Specification.Html.HtmlStyleType.TextStyleNormal), context, configuration));
                         break;
                     case Strike strike:
                         if (strike.Val?.Value ?? true)
                         {
                             decorations.Add("line-through");
                         }
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, "none")));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, "none"), context, configuration));
                         break;
                     case Underline underline:
                         if (underline.Val?.Value == UnderlineValues.Double)
                         {
-                            result.Formatters.Add(x => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, common(CommonStyleType.UnderlineDouble), x)]);
+                            result.Formatters.Add(x => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, stylizer(CommonStyleType.UnderlineDouble), x)]);
                         }
                         else if (underline.Val?.Value != UnderlineValues.None)
                         {
                             decorations.Add("underline");
                         }
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, "none")));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, "none"), context, configuration));
                         break;
                     case VerticalTextAlignment vertical when vertical.Val?.Value != null:
-                        result.Styles.Apply(stylizer(new(null, vertical.Val.Value switch
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, vertical.Val.Value switch
                         {
                             _ when vertical.Val.Value == VerticalAlignmentRunValues.Superscript => Specification.Html.HtmlStyleType.AlignmentVerticalSuperscript,
                             _ when vertical.Val.Value == VerticalAlignmentRunValues.Subscript => Specification.Html.HtmlStyleType.AlignmentVerticalSubscript,
                             _ => Specification.Html.HtmlStyleType.AlignmentVerticalBaseline
-                        })));
+                        }), context, configuration));
                         break;
                     case Extend extend:
-                        result.Styles.Apply(stylizer(new(null, (extend.Val?.Value ?? true) ? Specification.Html.HtmlStyleType.TextStretchExpanded : Specification.Html.HtmlStyleType.TextStretchNormal)));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, (extend.Val?.Value ?? true) ? Specification.Html.HtmlStyleType.TextStretchExpanded : Specification.Html.HtmlStyleType.TextStretchNormal), context, configuration));
                         break;
                     case Condense condense:
-                        result.Styles.Apply(stylizer(new(null, (condense.Val?.Value ?? true) ? Specification.Html.HtmlStyleType.TextStretchCondensed : Specification.Html.HtmlStyleType.TextStretchNormal)));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, (condense.Val?.Value ?? true) ? Specification.Html.HtmlStyleType.TextStretchCondensed : Specification.Html.HtmlStyleType.TextStretchNormal), context, configuration));
                         break;
                     case DocumentFormat.OpenXml.Drawing.NoFill:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.ForegroundNone)));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.ForegroundNone), context, configuration));
                         break;
                     case DocumentFormat.OpenXml.Drawing.SolidFill foreground:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.ForegroundExact, color(foreground))));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.ForegroundExact, configuration.ConverterComposition.XlsxColorConverter.Convert(foreground, context, configuration)), context, configuration));
                         break;
                     case DocumentFormat.OpenXml.Drawing.TextFontType name when name.Typeface?.Value != null:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextFamilyTextual, WebUtility.HtmlEncode(name.Typeface.Value))));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextFamilyTextual, WebUtility.HtmlEncode(name.Typeface.Value)), context, configuration));
                         break;
                     case DocumentFormat.OpenXml.Drawing.Highlight highlight:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.BackgroundExact, color(highlight))));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.BackgroundExact, configuration.ConverterComposition.XlsxColorConverter.Convert(highlight, context, configuration)), context, configuration));
                         break;
                     case DocumentFormat.OpenXml.Drawing.RightToLeft direction:
-                        result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.DirectionExact, (direction.Val?.Value ?? true) ? "rtl" : "ltr")));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.DirectionExact, (direction.Val?.Value ?? true) ? "rtl" : "ltr"), context, configuration));
                         break;
                 }
             }
 
             if (decorations.Any())
             {
-                result.Styles.Apply(stylizer(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, string.Join(' ', decorations))));
+                result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.TextDecorationExact, string.Join(' ', decorations)), context, configuration));
             }
 
             return result;
@@ -3632,17 +3545,11 @@ namespace XlsxToHtmlConverter.Base.Implementation
             }
 
             Specification.Xlsx.XlsxStylesLayer result = new();
-
-            string color(OpenXmlElement? color)
-            {
-                return configuration.ConverterComposition.XlsxColorConverter.Convert(color, context, configuration);
-            }
-
             if (value is Fill fill)
             {
                 if (fill.PatternFill != null && fill.PatternFill.PatternType?.Value != PatternValues.None)
                 {
-                    string foreground = color(fill.PatternFill.ForegroundColor != null ? fill.PatternFill.ForegroundColor : fill.PatternFill.BackgroundColor);
+                    string foreground = configuration.ConverterComposition.XlsxColorConverter.Convert(fill.PatternFill.ForegroundColor != null ? fill.PatternFill.ForegroundColor : fill.PatternFill.BackgroundColor, context, configuration);
                     string? pattern = fill.PatternFill.PatternType?.Value switch
                     {
                         _ when fill.PatternFill.PatternType?.Value == PatternValues.DarkGray => $"radial-gradient(circle at 1px 1px, {foreground} 0.5px, transparent 0) 0 0 / 3.2px 3.2px, radial-gradient(circle at 2.6px 2.6px, {foreground} 0.5px, transparent 0) 0 0 / 3.2px 3.2px",
@@ -3666,7 +3573,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     };
                     if (pattern != null && fill.PatternFill.BackgroundColor != null)
                     {
-                        pattern = $"{pattern}, {color(fill.PatternFill.BackgroundColor)}";
+                        pattern = $"{pattern}, {configuration.ConverterComposition.XlsxColorConverter.Convert(fill.PatternFill.BackgroundColor, context, configuration)}";
                     }
 
                     result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.BackgroundExact, pattern ?? foreground), context, configuration));
@@ -3680,16 +3587,12 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         double right = fill.GradientFill.Right?.Value ?? 0;
                         double bottom = fill.GradientFill.Bottom?.Value ?? 0;
                         double radius = ((left + right) / 2 + (top + bottom) / 2 - left - top) / 2;
-
-                        IEnumerable<GradientStop> stops = fill.GradientFill.Elements<GradientStop>();
-                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.BackgroundExact, $"radial-gradient(circle at {Common.Format(100.0 * (left + right) / 2, configuration)}% {Common.Format(100.0 * (top + bottom) / 2, configuration)}%{string.Concat(stops.Select(x => $", {color(x.Color)}{(x.Position?.Value != null ? $" {Common.Format(100.0 * (radius + x.Position.Value * (1 - radius)), configuration)}%" : string.Empty)}"))})"), context, configuration));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.BackgroundExact, $"radial-gradient(circle at {Common.Format(100.0 * (left + right) / 2, configuration)}% {Common.Format(100.0 * (top + bottom) / 2, configuration)}%{string.Concat(fill.GradientFill.Elements<GradientStop>().Select(x => $", {configuration.ConverterComposition.XlsxColorConverter.Convert(x.Color, context, configuration)}{(x.Position?.Value != null ? $" {Common.Format(100.0 * (radius + x.Position.Value * (1 - radius)), configuration)}%" : string.Empty)}"))})"), context, configuration));
                     }
                     else
                     {
                         double degree = (((fill.GradientFill.Degree?.Value + 90) % 360 + 360) % 360) ?? 90;
-
-                        IEnumerable<GradientStop> stops = fill.GradientFill.Elements<GradientStop>();
-                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.BackgroundExact, $"linear-gradient({Common.Format(degree, configuration)}deg{string.Concat(stops.Select(x => $", {color(x.Color)}{(x.Position?.Value != null ? $" {Common.Format(100.0 * x.Position.Value, configuration)}%" : string.Empty)}"))})"), context, configuration));
+                        result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.BackgroundExact, $"linear-gradient({Common.Format(degree, configuration)}deg{string.Concat(fill.GradientFill.Elements<GradientStop>().Select(x => $", {configuration.ConverterComposition.XlsxColorConverter.Convert(x.Color, context, configuration)}{(x.Position?.Value != null ? $" {Common.Format(100.0 * x.Position.Value, configuration)}%" : string.Empty)}"))})"), context, configuration));
                     }
                 }
             }
@@ -3713,7 +3616,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
             Specification.Xlsx.XlsxStylesLayer result = new();
 
-            void styles(BorderPropertiesType? border, Specification.Html.HtmlStyleType type)
+            void stylizer(BorderPropertiesType? border, Specification.Html.HtmlStyleType type)
             {
                 if (border == null)
                 {
@@ -3736,7 +3639,6 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     _ when border.Style?.Value == BorderStyleValues.Hair => "thin dotted ",
                     _ => null
                 };
-
                 if (style != null || border.Color != null)
                 {
                     result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, type, $"{style}{configuration.ConverterComposition.XlsxColorConverter.Convert(border.Color, context, configuration)}"), context, configuration));
@@ -3745,10 +3647,10 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
             if (value is Border border)
             {
-                styles(border.TopBorder, Specification.Html.HtmlStyleType.BorderTopExact);
-                styles(border.RightBorder, Specification.Html.HtmlStyleType.BorderRightExact);
-                styles(border.BottomBorder, Specification.Html.HtmlStyleType.BorderBottomExact);
-                styles(border.LeftBorder, Specification.Html.HtmlStyleType.BorderLeftExact);
+                stylizer(border.TopBorder, Specification.Html.HtmlStyleType.BorderTopExact);
+                stylizer(border.RightBorder, Specification.Html.HtmlStyleType.BorderRightExact);
+                stylizer(border.BottomBorder, Specification.Html.HtmlStyleType.BorderBottomExact);
+                stylizer(border.LeftBorder, Specification.Html.HtmlStyleType.BorderLeftExact);
             }
 
             return result;
@@ -3769,54 +3671,47 @@ namespace XlsxToHtmlConverter.Base.Implementation
             }
 
             Specification.Xlsx.XlsxStylesLayer result = new();
-
-            IEnumerable<KeyValuePair<string, string>> stylizer(Specification.Html.HtmlStyleDefinition definition)
-            {
-                return configuration.ConverterComposition.HtmlStylizer.Convert(definition, context, configuration);
-            }
-
             if (value is Alignment alignment)
             {
                 if (alignment.Horizontal?.Value != null && alignment.Horizontal.Value != HorizontalAlignmentValues.General)
                 {
-                    result.Styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, alignment.Horizontal.Value switch
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, alignment.Horizontal.Value switch
                     {
                         _ when alignment.Horizontal.Value == HorizontalAlignmentValues.Left => Specification.Html.HtmlStyleType.AlignmentHorizontalLeft,
                         _ when alignment.Horizontal.Value == HorizontalAlignmentValues.Center => Specification.Html.HtmlStyleType.AlignmentHorizontalCenter,
                         _ when alignment.Horizontal.Value == HorizontalAlignmentValues.CenterContinuous => Specification.Html.HtmlStyleType.AlignmentHorizontalCenter,
                         _ when alignment.Horizontal.Value == HorizontalAlignmentValues.Right => Specification.Html.HtmlStyleType.AlignmentHorizontalRight,
                         _ => Specification.Html.HtmlStyleType.AlignmentHorizontalJustify
-                    })));
+                    }), context, configuration));
                 }
                 if (alignment.Vertical?.Value != null)
                 {
-                    result.Styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, alignment.Vertical.Value switch
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, alignment.Vertical.Value switch
                     {
                         _ when alignment.Vertical.Value == VerticalAlignmentValues.Top => Specification.Html.HtmlStyleType.AlignmentVerticalTop,
                         _ when alignment.Vertical.Value == VerticalAlignmentValues.Bottom => Specification.Html.HtmlStyleType.AlignmentVerticalBottom,
                         _ => Specification.Html.HtmlStyleType.AlignmentVerticalCenter
-                    })));
+                    }), context, configuration));
                 }
                 if (alignment.Indent?.Value != null)
                 {
-                    result.Styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.TextIndentNumeric, Common.Format(alignment.Indent.Value, configuration))));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.TextIndentNumeric, Common.Format(alignment.Indent.Value, configuration)), context, configuration));
                 }
                 if (alignment.WrapText != null && (alignment.WrapText?.Value ?? true))
                 {
-                    result.Styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.TextWrappingWrap)));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.TextWrappingWrap), context, configuration));
                 }
                 if (alignment.TextRotation?.Value != null && alignment.TextRotation.Value != 0)
                 {
                     Specification.Html.HtmlAttributes attributes = new()
                     {
-                        [Common.ATTRIBUTE_STYLE] = new Specification.Html.HtmlStyles(alignment.TextRotation.Value != 255 ? stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.RotationNumeric, alignment.TextRotation.Value > 90 ? Common.Format(alignment.TextRotation.Value - 90, configuration) : $"-{Common.Format(alignment.TextRotation.Value, configuration)}")) : stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.TextOrientationVertical)))
+                        [Common.ATTRIBUTE_STYLE] = new Specification.Html.HtmlStyles(configuration.ConverterComposition.HtmlStylizer.Convert(alignment.TextRotation.Value != 255 ? new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.RotationNumeric, alignment.TextRotation.Value > 90 ? Common.Format(alignment.TextRotation.Value - 90, configuration) : $"-{Common.Format(alignment.TextRotation.Value, configuration)}") : new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.TextOrientationVertical), context, configuration))
                     };
-
                     result.Formatters.Add(x => [new Specification.Html.HtmlElement(Specification.Html.HtmlElementType.Paired, Common.TAG_TEXT, attributes, x)]);
                 }
                 if (alignment.ReadingOrder?.Value != null && alignment.ReadingOrder.Value != 0)
                 {
-                    result.Styles.Apply(stylizer(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.DirectionExact, alignment.ReadingOrder.Value > 1 ? "rtl" : "ltr")));
+                    result.Styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(Specification.Html.HtmlStyleTarget.Cell, Specification.Html.HtmlStyleType.DirectionExact, alignment.ReadingOrder.Value > 1 ? "rtl" : "ltr"), context, configuration));
                 }
             }
 
