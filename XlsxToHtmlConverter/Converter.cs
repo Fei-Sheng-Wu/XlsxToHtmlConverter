@@ -3026,7 +3026,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 green = Common.ParseHex(hexadecimal[4..6]) ?? 0;
                 blue = Common.ParseHex(hexadecimal[6..8]) ?? 0;
             }
-            void modifier(Func<double, double> hue, Func<double, double> saturation, Func<double, double> luminance)
+            void modifier((Func<double, double>? Hue, Func<double, double>? Saturation, Func<double, double>? Luminance) transformers)
             {
                 double[] rgb = [red / 255.0, green / 255.0, blue / 255.0];
                 double maximum = rgb.Max();
@@ -3034,24 +3034,44 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 double chroma = maximum - minimum;
                 double[] distances = maximum != minimum ? [.. rgb.Select(x => (maximum - x) / chroma)] : [0, 0, 0];
 
-                double[] hsl = [hue(maximum != minimum ? (60.0 * (maximum switch
+                double hue = maximum != minimum ? (60.0 * (maximum switch
                 {
                     _ when maximum == rgb[0] => distances[2] - distances[1],
                     _ when maximum == rgb[1] => distances[0] - distances[2] + 2,
                     _ => distances[1] - distances[0] + 4
-                }) % 360 + 360) % 360 : 0), saturation(maximum != minimum ? chroma / (1 - Math.Abs(maximum + minimum - 1)) : 0), luminance((maximum + minimum) / 2)];
-                double upper = hsl[2] <= 0.5 ? hsl[2] * (hsl[1] + 1) : hsl[2] + hsl[1] - hsl[2] * hsl[1];
-                double lower = 2 * hsl[2] - upper;
-                for (int i = 0; i < 3; i++)
+                }) % 360 + 360) % 360 : 0;
+                if (transformers.Hue != null)
                 {
-                    if (hsl[1] <= 0)
-                    {
-                        rgb[i] = hsl[2];
-                        continue;
-                    }
+                    hue = transformers.Hue(hue);
+                }
 
-                    double shifted = ((hsl[0] + 120.0 * (1 - i)) % 360 + 360) % 360;
-                    rgb[i] = shifted switch
+                double saturation = maximum != minimum ? chroma / (1 - Math.Abs(maximum + minimum - 1)) : 0;
+                if (transformers.Saturation != null)
+                {
+                    saturation = transformers.Saturation(saturation);
+                }
+
+                double luminance = (maximum + minimum) / 2;
+                if (transformers.Luminance != null)
+                {
+                    luminance = transformers.Luminance(luminance);
+                }
+                if (saturation <= 0)
+                {
+                    red = Math.Clamp(255.0 * luminance, 0, 255);
+                    green = Math.Clamp(255.0 * luminance, 0, 255);
+                    blue = Math.Clamp(255.0 * luminance, 0, 255);
+                    return;
+                }
+
+                double upper = luminance <= 0.5 ? luminance * (saturation + 1) : luminance + saturation - luminance * saturation;
+                double lower = 2 * luminance - upper;
+
+                double shifter(int index)
+                {
+                    double shifted = ((hue + 120.0 * (1 - index)) % 360 + 360) % 360;
+
+                    return shifted switch
                     {
                         < 60 => lower + (upper - lower) * shifted / 60.0,
                         < 180 => upper,
@@ -3060,9 +3080,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     };
                 }
 
-                red = Math.Clamp(255.0 * rgb[0], 0, 255);
-                green = Math.Clamp(255.0 * rgb[1], 0, 255);
-                blue = Math.Clamp(255.0 * rgb[2], 0, 255);
+                red = Math.Clamp(255.0 * shifter(0), 0, 255);
+                green = Math.Clamp(255.0 * shifter(1), 0, 255);
+                blue = Math.Clamp(255.0 * shifter(2), 0, 255);
             }
             bool aggregator(OpenXmlElement color, IEnumerable<OpenXmlElement> children)
             {
@@ -3077,7 +3097,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                         blue = Math.Clamp((255.0 * rgb.BluePortion?.Value * Common.RATIO_PERCENTAGE) ?? 0, 0, 255);
                         break;
                     case DocumentFormat.OpenXml.Drawing.HslColor hsl:
-                        modifier(x => (hsl.HueValue?.Value * Common.RATIO_ANGLE) ?? 0, x => (hsl.SatValue?.Value * Common.RATIO_PERCENTAGE) ?? 0, x => (hsl.LumValue?.Value * Common.RATIO_PERCENTAGE) ?? 0);
+                        modifier((x => (hsl.HueValue?.Value * Common.RATIO_ANGLE) ?? 0, x => (hsl.SatValue?.Value * Common.RATIO_PERCENTAGE) ?? 0, x => (hsl.LumValue?.Value * Common.RATIO_PERCENTAGE) ?? 0));
                         break;
                     case DocumentFormat.OpenXml.Drawing.SystemColor key when key.Val?.Value != null && Common.Get(SYSTEMS, key.Val.Value) is (byte Red, byte Green, byte Blue) system:
                         red = system.Red;
@@ -3139,7 +3159,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             blue = grayscale;
                             break;
                         case DocumentFormat.OpenXml.Drawing.Complement:
-                            double maximum = new[] { red, green, blue }.Max();
+                            double maximum = red > green ? (red > blue ? red : blue) : (green > blue ? green : blue);
                             red = maximum - red;
                             green = maximum - green;
                             blue = maximum - blue;
@@ -3191,31 +3211,31 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             alpha = Math.Clamp(alpha + 255.0 * offset.Val.Value * Common.RATIO_PERCENTAGE, 0, 255);
                             break;
                         case DocumentFormat.OpenXml.Drawing.Hue channel when channel.Val?.Value != null:
-                            modifier(x => channel.Val.Value * Common.RATIO_ANGLE, x => x, x => x);
+                            modifier((x => channel.Val.Value * Common.RATIO_ANGLE, null, null));
                             break;
                         case DocumentFormat.OpenXml.Drawing.HueModulation modulation when modulation.Val?.Value != null:
-                            modifier(x => x * (modulation.Val.Value * Common.RATIO_PERCENTAGE), x => x, x => x);
+                            modifier((x => x * (modulation.Val.Value * Common.RATIO_PERCENTAGE), null, null));
                             break;
                         case DocumentFormat.OpenXml.Drawing.HueOffset offset when offset.Val?.Value != null:
-                            modifier(x => x + offset.Val.Value * Common.RATIO_ANGLE, x => x, x => x);
+                            modifier((x => x + offset.Val.Value * Common.RATIO_ANGLE, null, null));
                             break;
                         case DocumentFormat.OpenXml.Drawing.Saturation channel when channel.Val?.Value != null:
-                            modifier(x => x, x => channel.Val.Value * Common.RATIO_PERCENTAGE, x => x);
+                            modifier((null, x => channel.Val.Value * Common.RATIO_PERCENTAGE, null));
                             break;
                         case DocumentFormat.OpenXml.Drawing.SaturationModulation modulation when modulation.Val?.Value != null:
-                            modifier(x => x, x => x * (modulation.Val.Value * Common.RATIO_PERCENTAGE), x => x);
+                            modifier((null, x => x * (modulation.Val.Value * Common.RATIO_PERCENTAGE), null));
                             break;
                         case DocumentFormat.OpenXml.Drawing.SaturationOffset offset when offset.Val?.Value != null:
-                            modifier(x => x, x => x + offset.Val.Value * Common.RATIO_PERCENTAGE, x => x);
+                            modifier((null, x => x + offset.Val.Value * Common.RATIO_PERCENTAGE, null));
                             break;
                         case DocumentFormat.OpenXml.Drawing.Luminance channel when channel.Val?.Value != null:
-                            modifier(x => x, x => x, x => channel.Val.Value * Common.RATIO_PERCENTAGE);
+                            modifier((null, null, x => channel.Val.Value * Common.RATIO_PERCENTAGE));
                             break;
                         case DocumentFormat.OpenXml.Drawing.LuminanceModulation modulation when modulation.Val?.Value != null:
-                            modifier(x => x, x => x, x => x * (modulation.Val.Value * Common.RATIO_PERCENTAGE));
+                            modifier((null, null, x => x * (modulation.Val.Value * Common.RATIO_PERCENTAGE)));
                             break;
                         case DocumentFormat.OpenXml.Drawing.LuminanceOffset offset when offset.Val?.Value != null:
-                            modifier(x => x, x => x, x => x + offset.Val.Value * Common.RATIO_PERCENTAGE);
+                            modifier((null, null, x => x + offset.Val.Value * Common.RATIO_PERCENTAGE));
                             break;
                         default:
                             break;
@@ -3263,7 +3283,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                 if (color.Tint?.Value != null && color.Tint.Value != 0)
                 {
-                    modifier(x => x, x => x, x => color.Tint.Value < 0 ? x * (1 + color.Tint.Value) : x * (1 - color.Tint.Value) + color.Tint.Value);
+                    modifier((null, null, x => color.Tint.Value < 0 ? x * (1 + color.Tint.Value) : x * (1 - color.Tint.Value) + color.Tint.Value));
                 }
             }
             else if (value.FirstChild is not OpenXmlElement child || !aggregator(child, child.Elements()))
