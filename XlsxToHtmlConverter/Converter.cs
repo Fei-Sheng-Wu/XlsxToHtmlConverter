@@ -1500,9 +1500,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                 styles = stylizer(color);
                             }
                         }
-                        else if (Common.Get(CONDITIONS, new string([.. token.TakeWhile(x => x is '=' or '<' or '>')])) is Func<double, double, bool> comparator)
+                        else if (Common.Get(CONDITIONS, string.Concat(token.TakeWhile(x => x is '=' or '<' or '>'))) is Func<double, double, bool> comparator)
                         {
-                            if (data is double number && Common.ParseDecimals(new string([.. token.SkipWhile(x => x is '=' or '<' or '>')])) is double operand && comparator(number, operand))
+                            if (data is double number && Common.ParseDecimals(string.Concat(token.SkipWhile(x => x is '=' or '<' or '>'))) is double operand && comparator(number, operand))
                             {
                                 styles = null;
                             }
