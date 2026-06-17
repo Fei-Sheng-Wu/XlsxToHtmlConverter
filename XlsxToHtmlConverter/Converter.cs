@@ -148,6 +148,9 @@ namespace XlsxToHtmlConverter
             {
                 WorksheetPart? worksheet = sheet.Id?.Value != null && (workbook?.TryGetPartById(sheet.Id.Value, out OpenXmlPart? part) ?? false) ? part as WorksheetPart : null;
                 context.Sheet = configuration.ConverterComposition.XlsxWorksheetReader.Convert(worksheet?.Worksheet, context, configuration);
+
+                callback?.Invoke(input, new(index, (0, context.Sheet.Dimension.RowCount)));
+
                 context.Sheet.Specialties.AddRange(worksheet?.TableDefinitionParts.SelectMany(x => configuration.ConverterComposition.XlsxTableReader.Convert(x, context, configuration)) ?? []);
                 context.Sheet.Specialties.AddRange(configuration.ConverterComposition.XlsxDrawingReader.Convert(worksheet?.DrawingsPart, context, configuration));
 
@@ -1469,9 +1472,9 @@ namespace XlsxToHtmlConverter.Base.Implementation
 
                 (int section, Specification.Xlsx.XlsxNumberFormatCode? code) = (value.NumberFormat ?? (value.NumberFormatIdentifier != null ? Common.Get(FORMATS, value.NumberFormatIdentifier.Value) : null)) is Specification.Xlsx.XlsxNumberFormat format ? data switch
                 {
-                    double number when number > 0 => (0, format.Positive),
-                    double number when number < 0 => (1, format.Negative),
-                    double number when number == 0 => (2, format.Zero),
+                    double positive when positive > 0 => (0, format.Positive),
+                    double negative when negative < 0 => (1, format.Negative),
+                    double zero when zero == 0 => (2, format.Zero),
                     _ => (3, format.Text)
                 } : (-1, null);
                 object? key = value.NumberFormatIdentifier != null ? (Common.CacheCategory.NumberFormat, value.NumberFormatIdentifier.Value, section) : null;

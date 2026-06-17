@@ -33,7 +33,7 @@ namespace XlsxToHtmlConverter.Test
             }, (x, e) =>
             {
                 Console.SetCursorPosition(0, Console.CursorTop);
-                Console.Write($"{e.ProgressPercentage:F2}% (Sheet {e.CurrentSheet} of {e.SheetCount} | Row {e.CurrentRow} of {e.RowCount})    {new string('█', (int)Math.Round(50.0 * e.ProgressPercentage / 100.0)).PadRight(50, '░')}");
+                Console.Write($"{e.ProgressPercentage:F2}% (Sheet {e.CurrentSheet} of {e.SheetCount} | Row {e.CurrentRow} of {e.RowCount})    {new string('█', (int)Math.Round(50.0 * e.ProgressPercentage / 100.0)).PadRight(50, '░')}".PadRight(Console.WindowWidth));
             });
 
             Console.WriteLine();

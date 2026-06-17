@@ -98,7 +98,7 @@ XlsxToHtmlConverter.ConverterConfiguration configuration = new()
     ConvertShapes = true,
     UseHtmlFragment = false,
     UseHtmlClasses = true,
-    UseHtmlHexColors = true,
+    UseHtmlHexadecimalColors = true,
     UseHtmlProportionalWidths = true,
     UseHtmlDataElements = true,
     ...
