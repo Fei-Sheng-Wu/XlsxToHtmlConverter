@@ -1755,27 +1755,30 @@ namespace XlsxToHtmlConverter.Base.Implementation
                     string denominator = string.Empty;
                     if (information.IsFractional)
                     {
-                        //TODO: support for fraction precision
-
                         long whole = (long)number;
                         double remainder = number - whole;
                         (int Numerator, int Denominator)? fraction = remainder switch
                         {
-                            < 0.01 => (0, 1),
-                            > 0.99 => (1, 1),
+                            < 0.001 => (0, 1),
+                            > 0.999 => (1, 1),
                             _ => null
                         };
 
+                        int maximum = (int)Math.Pow(10, Math.Min(4, information.Lengths[3])) - 1;
                         (int Numerator, int Denominator) lower = (0, 1);
                         (int Numerator, int Denominator) upper = (1, 1);
                         while (fraction == null)
                         {
                             (int Numerator, int Denominator) middle = (lower.Numerator + upper.Numerator, lower.Denominator + upper.Denominator);
-                            if (middle.Numerator < middle.Denominator * (remainder - 0.01))
+                            if (middle.Denominator > maximum)
+                            {
+                                fraction = Math.Abs(remainder - (double)lower.Numerator / lower.Denominator) <= Math.Abs(remainder - (double)upper.Numerator / upper.Denominator) ? lower : upper;
+                            }
+                            else if (middle.Numerator < middle.Denominator * (remainder - 0.001))
                             {
                                 lower = middle;
                             }
-                            else if (middle.Numerator > middle.Denominator * (remainder + 0.01))
+                            else if (middle.Numerator > middle.Denominator * (remainder + 0.001))
                             {
                                 upper = middle;
                             }
