@@ -238,7 +238,7 @@ namespace XlsxToHtmlConverter
         /// <summary>
         /// Gets or sets whether to utilize the HTML hexadecimal color representations.
         /// </summary>
-        public bool UseHtmlHexColors { get; set; } = true;
+        public bool UseHtmlHexadecimalColors { get; set; } = true;
 
         /// <summary>
         /// Gets or sets whether to utilize the HTML proportional widths with percentages.

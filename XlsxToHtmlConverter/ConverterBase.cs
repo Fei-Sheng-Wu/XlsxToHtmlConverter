@@ -1401,7 +1401,7 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// Initializes a new instance of the <see cref="XlsxNumberFormat"/> class.
         /// </summary>
         /// <param name="positive">The positive section of the number format.</param>
-        public XlsxNumberFormat(XlsxNumberFormatCode positive) : this(positive, new($"-{positive.Code}", positive.IsCalendrical)) { }
+        public XlsxNumberFormat(XlsxNumberFormatCode positive) : this(positive, new(string.Concat("-", positive.Code), positive.IsCalendrical)) { }
 
         /// <summary>
         /// Gets or sets the positive section of the number format.
