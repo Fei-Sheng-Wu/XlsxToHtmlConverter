@@ -1,11 +1,11 @@
-# XlsxToHtmlConverter v2.3.0-dev
+# XlsxToHtmlConverter v2.3.0
 
 [![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)](#)
 [![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)](#)
 [![.NET Standard](https://img.shields.io/badge/.NET%20Standard-%E2%89%A52.1-orange.svg?style=flat-square)](#)
 [![NuGet](https://img.shields.io/nuget/v/XlsxToHtmlConverter?label=NuGet&logo=nuget&logoColor=white&style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter)
 [![Downloads](https://img.shields.io/nuget/dt/XlsxToHtmlConverter?label=Downloads&logo=nuget&logoColor=white&style=flat-square)](https://www.nuget.org/packages/XlsxToHtmlConverter)
-[![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/v2.2.0?label=Commits%20Since&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/commits/master)
+[![Commits Since](https://img.shields.io/github/commits-since/Fei-Sheng-Wu/XlsxToHtmlConverter/v2.3.0?label=Commits%20Since&style=flat-square)](https://github.com/Fei-Sheng-Wu/XlsxToHtmlConverter/commits/master)
 [![License](https://img.shields.io/github/license/Fei-Sheng-Wu/XlsxToHtmlConverter?label=License&style=flat-square)](LICENSE.txt)
 [![Sponsor](https://img.shields.io/badge/GitHub%20Sponsors-red.svg?logo=githubsponsors&logoColor=white&style=flat-square)](https://github.com/sponsors/Fei-Sheng-Wu)
 
