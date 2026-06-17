@@ -99,34 +99,34 @@ namespace XlsxToHtmlConverter
                 }
             }
 
-            if (configuration.ConvertStyles)
+            Base.Specification.Html.HtmlStylesCollection stylesheet = [];
+            
+            void stylizer(string selector, Base.Specification.Html.HtmlStyles styles)
             {
-                string specifier(string selector)
-                {
-                    return configuration.HtmlRootClass != null ? Base.Implementation.Common.Format(selector != Base.Implementation.Common.TAG_TABLE ? ".{0} {1}" : "{1}.{0}", [configuration.HtmlRootClass, selector]) : selector;
-                }
+                stylesheet[configuration.HtmlRootClass != null ? Base.Implementation.Common.Format(selector != Base.Implementation.Common.TAG_TABLE ? ".{0} {1}" : "{1}.{0}", [configuration.HtmlRootClass, selector]) : selector] = styles;
+            }
 
-                Base.Specification.Html.HtmlStylesCollection stylesheet = [];
-                foreach ((string original, Base.Specification.Html.HtmlStyles styles) in configuration.HtmlPresetStylesheet)
-                {
-                    stylesheet[specifier(original)] = styles;
-                }
+            foreach ((string original, Base.Specification.Html.HtmlStyles styles) in configuration.HtmlPresetStylesheet)
+            {
+                stylizer(original, styles);
+            }
+            if (configuration.ConvertStyles && configuration.UseHtmlClasses)
+            {
                 if (configuration.UseHtmlClasses)
                 {
                     foreach (Base.Specification.Xlsx.XlsxBaseStyles styles in context.Stylesheet.BaseStyles)
                     {
-                        stylesheet[specifier(string.Concat(".", styles.Name))] = styles.GetsStyles();
+                        stylizer(string.Concat(".", styles.Name), styles.GetsStyles());
                     }
                     foreach (Base.Specification.Xlsx.XlsxDifferentialStyles styles in context.Stylesheet.DifferentialStyles)
                     {
-                        stylesheet[specifier(string.Concat(".", styles.Name))] = styles.GetsStyles();
+                        stylizer(string.Concat(".", styles.Name), styles.GetsStyles());
                     }
                 }
-
-                if (stylesheet.Any())
-                {
-                    writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_STYLE, null, [stylesheet]), context, configuration));
-                }
+            }
+            if (stylesheet.Any())
+            {
+                writer.Write(configuration.ConverterComposition.HtmlWriter.Convert(new(indent, Base.Specification.Html.HtmlElementType.Paired, Base.Implementation.Common.TAG_STYLE, null, [stylesheet]), context, configuration));
             }
 
             if (!configuration.UseHtmlFragment)
