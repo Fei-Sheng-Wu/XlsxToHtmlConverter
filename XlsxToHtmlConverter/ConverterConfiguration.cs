@@ -158,6 +158,10 @@ namespace XlsxToHtmlConverter
                 ["font-weight"] = "bold",
                 ["border-bottom"] = "thick solid var(--sheet-color)"
             },
+            [Base.Implementation.Common.TAG_ROW_GROUP] = new()
+            {
+                ["anchor-scope"] = "all"
+            },
             [Base.Implementation.Common.TAG_CELL] = new()
             {
                 ["padding"] = "0 2px",
