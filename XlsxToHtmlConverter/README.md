@@ -13,7 +13,7 @@
 
 ## Dependencies
 
-- [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) ≥ 3.0.0, < 4.0.0
+- [DocumentFormat.OpenXml](https://github.com/dotnet/Open-XML-SDK) ≥ 3.1.1, < 4.0.0
 
 ## Features
 
