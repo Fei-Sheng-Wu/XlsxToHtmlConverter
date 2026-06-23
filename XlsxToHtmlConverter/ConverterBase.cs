@@ -1245,13 +1245,13 @@ namespace XlsxToHtmlConverter.Base.Specification.Xlsx
         /// <param name="layers">The layers of the styles.</param>
         public static Html.HtmlStyles GetsStyles(IEnumerable<XlsxStylesLayer> layers)
         {
-            Html.HtmlStyles result = [];
+            Html.HtmlStyles styles = [];
             foreach (XlsxStylesLayer layer in layers)
             {
-                result.Merge(layer.Styles);
+                styles.Merge(layer.Styles);
             }
 
-            return result;
+            return styles;
         }
 
         /// <summary>

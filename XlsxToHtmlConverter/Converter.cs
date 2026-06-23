@@ -627,17 +627,17 @@ namespace XlsxToHtmlConverter.Base.Implementation
         }
 
         /// <summary>
-        /// Retrieves the value with a specified key within a <see cref="Dictionary{T1, T2}"/>.
+        /// Retrieves the value with a specified key within a <see cref="IDictionary{T1, T2}"/>.
         /// </summary>
         /// <typeparam name="T1">The type of the key.</typeparam>
         /// <typeparam name="T2">The type of the value.</typeparam>
-        /// <param name="values">The <see cref="Dictionary{T1, T2}"/> instance to retrieve from.</param>
+        /// <param name="values">The <see cref="IDictionary{T1, T2}"/> instance to retrieve from.</param>
         /// <param name="key">The specified key.</param>
         /// <param name="flag">Whether the value can be retrieved.</param>
         /// <returns>The retrieved value.</returns>
-        public static T2? Get<T1, T2>(Dictionary<T1, T2> values, T1? key, bool? flag = null) where T1 : notnull
+        public static T2? Get<T1, T2>(IDictionary<T1, T2> values, T1? key, bool? flag = null) where T1 : notnull
         {
-            return key != null && values.TryGetValue(key, out T2? result) ? Get(result, flag) : default;
+            return key != null && values.TryGetValue(key, out T2? value) ? Get(value, flag) : default;
         }
 
         /// <summary>
@@ -2291,7 +2291,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                             if (custom.PathList != null)
                             {
                                 (double X, double Y) last = (0, 0);
-                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.ClippingAllPath, string.Join(' ', custom.PathList.Elements<DocumentFormat.OpenXml.Drawing.Path>().SelectMany(x => x.Elements()).Select(x =>
+                                styles.Apply(configuration.ConverterComposition.HtmlStylizer.Convert(new(null, Specification.Html.HtmlStyleType.ClippingAllPath, string.Concat(custom.PathList.Elements<DocumentFormat.OpenXml.Drawing.Path>().SelectMany(x => x.Elements()).Select(x =>
                                 {
                                     switch (x)
                                     {
@@ -2304,7 +2304,7 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                             double end = start + ((Common.ParseInteger(arc.SwingAngle?.Value) * Common.RATIO_ANGLE * Math.PI / 180.0) ?? 0);
                                             last = (last.X - width * Math.Cos(start) + width * Math.Cos(end), last.Y - height * Math.Sin(start) + height * Math.Sin(end));
 
-                                            return Common.Format("A {0} {1} 0 1 1 {2},{3}", [Common.Format(width, configuration), Common.Format(height, configuration), Common.Format(last.X, configuration), Common.Format(last.Y, configuration)]);
+                                            return Common.Format("A{0} {1} 0 1 1 {2} {3}", [Common.Format(width, configuration), Common.Format(height, configuration), Common.Format(last.X, configuration), Common.Format(last.Y, configuration)]);
                                         default:
                                             return string.Concat(x switch
                                             {
@@ -2312,10 +2312,10 @@ namespace XlsxToHtmlConverter.Base.Implementation
                                                 DocumentFormat.OpenXml.Drawing.CubicBezierCurveTo => "C",
                                                 DocumentFormat.OpenXml.Drawing.QuadraticBezierCurveTo => "Q",
                                                 _ => "L",
-                                            }, " ", string.Join(' ', x.Elements<DocumentFormat.OpenXml.Drawing.Point>().Select(y =>
+                                            }, string.Join(' ', x.Elements<DocumentFormat.OpenXml.Drawing.Point>().Select(y =>
                                             {
                                                 last = ((Common.ParseLarge(y.X?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0, (Common.ParseLarge(y.Y?.Value) * Common.RATIO_ENGLISH_METRIC_UNIT) ?? 0);
-                                                return string.Concat(Common.Format(last.X, configuration), ",", Common.Format(last.Y, configuration));
+                                                return string.Concat(Common.Format(last.X, configuration), " ", Common.Format(last.Y, configuration));
                                             })));
                                     }
                                 }))), context, configuration));
@@ -3264,14 +3264,14 @@ namespace XlsxToHtmlConverter.Base.Implementation
                 return "currentColor";
             }
 
-            int[] result = [(int)Math.Round(red), (int)Math.Round(green), (int)Math.Round(blue), (int)Math.Round(alpha)];
+            int[] channels = [(int)Math.Round(red), (int)Math.Round(green), (int)Math.Round(blue), (int)Math.Round(alpha)];
 
-            return (configuration.UseHtmlHexadecimalColors, result[3] < 255) switch
+            return (configuration.UseHtmlHexadecimalColors, channels[3] < 255) switch
             {
-                (false, false) => Common.Format("rgb({0})", [string.Join(' ', result[..3].Select(x => Common.Format(x, configuration)))]),
-                (false, true) => Common.Format("rgb({0} / {1})", [string.Join(' ', result[..3].Select(x => Common.Format(x, configuration))), Common.Format(result[3] / 255.0, configuration)]),
-                (true, false) => string.Concat(["#", .. result[..3].Select(x => x.ToString("X2", CultureInfo.InvariantCulture))]),
-                _ => string.Concat(["#", .. result.Select(x => x.ToString("X2", CultureInfo.InvariantCulture))]),
+                (false, false) => Common.Format("rgb({0})", [string.Join(' ', channels[..3].Select(x => Common.Format(x, configuration)))]),
+                (false, true) => Common.Format("rgb({0} / {1})", [string.Join(' ', channels[..3].Select(x => Common.Format(x, configuration))), Common.Format(channels[3] / 255.0, configuration)]),
+                (true, false) => string.Concat(["#", .. channels[..3].Select(x => x.ToString("X2", CultureInfo.InvariantCulture))]),
+                _ => string.Concat(["#", .. channels.Select(x => x.ToString("X2", CultureInfo.InvariantCulture))]),
             };
         }
     }

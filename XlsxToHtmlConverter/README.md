@@ -1,4 +1,4 @@
-# XlsxToHtmlConverter v2.3.1-dev
+# XlsxToHtmlConverter v2.4.0-dev
 
 ![Language](https://img.shields.io/badge/Language-C%23-lightgray.svg?style=flat-square)
 ![.NET](https://img.shields.io/badge/.NET-%E2%89%A56.0-orange.svg?style=flat-square)
@@ -24,11 +24,11 @@
 
 | Original XLSX File |
 | :---: |
-| ![Original XLSX File](https://raw.githubusercontent.com/Fei-Sheng-Wu/XlsxToHtmlConverter/f991ffe338d4436f3f7c896dfb50aa9e80ad1b88/sample-xlsx.png) |
+| ![Original XLSX File](https://raw.githubusercontent.com/Fei-Sheng-Wu/XlsxToHtmlConverter/v2.3.0/sample-xlsx.png) |
 
 | Converted HTML File |
 | :---: |
-| ![Converted HTML File](https://raw.githubusercontent.com/Fei-Sheng-Wu/XlsxToHtmlConverter/f991ffe338d4436f3f7c896dfb50aa9e80ad1b88/sample-html.png) |
+| ![Converted HTML File](https://raw.githubusercontent.com/Fei-Sheng-Wu/XlsxToHtmlConverter/v2.3.0/sample-html.png) |
 
 ## Versioning
 
@@ -36,7 +36,7 @@ For versions ≥ 2.0.0, the versioning of XlsxToHtmlConverter conforms to the fo
 
 | Generation | | Major | | Minor |
 | :--- | :---: | :--- | :---: | :--- |
-| **2** | . | **3** | . | **1** |
+| **2** | . | **4** | . | **0** |
 | _(backward-incompatible)_ | | _(backward-incompatible)_ | | _(backward-compatible)_ |
 | Significant codebase refactors. | | Severe bug fixes and core improvements. | | Mild changes. |
 
